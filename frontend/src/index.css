@@ -756,8 +756,23 @@ main.app-wrap { max-width: none; padding: 0; }
   display: flex; justify-content: flex-end; align-items: center;
   gap: 10px; margin-bottom: 14px;
 }
-.feed-bar.split { justify-content: space-between; }
-.feed-bar.split .toolbar { min-width: 0; }
+/* Inline-Composer direkt im Tontoo (klappt auf statt Dialog) */
+.composer-card { margin-bottom: 12px; }
+.avatar.sm { width: 32px; height: 32px; font-size: 14px; }
+.composer-fake {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; border: none; cursor: text; padding: 0;
+  color: var(--text-3rd); font-family: var(--font-body); font-size: 14px; text-align: left;
+}
+.composer-hint {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 10px 16px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.composer-fake:hover .composer-hint { border-color: var(--text-3rd); color: var(--text-sec); }
+.composer-plus { color: var(--text-3rd); font-size: 14px; flex-shrink: 0; }
+.composer-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .posten-btn { flex-shrink: 0; }
 /* Posten-Formular im Dialog */
 .post-form { display: flex; flex-direction: column; gap: 10px; }

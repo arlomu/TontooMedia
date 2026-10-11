@@ -21,7 +21,7 @@ export default function Community() {
   const [liked, setLiked] = useState({})
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null)
-  const [composerOpen, setComposerOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newText, setNewText] = useState('')
   const [myPosts, setMyPosts] = useState([])
@@ -30,15 +30,11 @@ export default function Community() {
   useEffect(() => () => clearTimeout(copyTimer.current), [])
 
   useEffect(() => {
-    if (!sharePost && !composerOpen) return
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      setSharePost(null)
-      setComposerOpen(false)
-    }
+    if (!sharePost) return
+    const onKey = (e) => e.key === 'Escape' && setSharePost(null)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sharePost, composerOpen])
+  }, [sharePost])
 
   if (!comm) {
     return (
@@ -61,8 +57,8 @@ export default function Community() {
   // Eigene Posts stehen immer oben
   const mine = [...myPosts].reverse()
 
-  const closeComposer = () => {
-    setComposerOpen(false)
+  const collapseComposer = () => {
+    setExpanded(false)
     setNewTitle('')
     setNewText('')
   }
@@ -86,7 +82,7 @@ export default function Community() {
         color: 'ic-yellow',
       },
     ])
-    closeComposer()
+    collapseComposer()
   }
 
   const copyLink = async (p) => {
@@ -124,14 +120,7 @@ export default function Community() {
 
       <div className="start-layout">
         <div className="feed-col">
-          <div className="feed-bar split">
-            <button
-              type="button"
-              className="btn btn-brand posten-btn"
-              onClick={() => setComposerOpen(true)}
-            >
-              <i className="fa-solid fa-plus" /> Posten
-            </button>
+          <div className="feed-bar">
             <div className="toolbar" role="tablist" aria-label="Beiträge sortieren">
               {SORTS.map((s) => (
                 <button
@@ -146,6 +135,51 @@ export default function Community() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Direkt posten – kein Dialog, Feld klappt auf */}
+          <div className="post composer-card">
+            {!expanded ? (
+              <button type="button" className="composer-fake" onClick={() => setExpanded(true)}>
+                <span className="avatar sm" aria-hidden="true">
+                  <i className="fa-solid fa-circle-user ic-yellow" />
+                </span>
+                <span className="composer-hint">In t/{comm.name} posten …</span>
+                <i className="fa-solid fa-plus composer-plus" aria-hidden="true" />
+              </button>
+            ) : (
+              <div className="post-form">
+                <input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Titel"
+                  aria-label="Titel"
+                  maxLength={120}
+                  autoFocus
+                />
+                <textarea
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  placeholder="Text (optional)"
+                  aria-label="Text"
+                  rows={3}
+                  maxLength={1000}
+                />
+                <div className="composer-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={collapseComposer}>
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-brand btn-sm"
+                    disabled={!newTitle.trim()}
+                    onClick={submitPost}
+                  >
+                    <i className="fa-solid fa-paper-plane" /> Posten
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="app-feed">
@@ -231,43 +265,6 @@ export default function Community() {
           onCopy={() => copyLink(sharePost)}
           onClose={() => setSharePost(null)}
         />
-      )}
-
-      {/* Posten-Dialog direkt im Tontoo */}
-      {composerOpen && (
-        <div className="sheet-backdrop" onClick={closeComposer}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Posten" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-head">
-              <strong className="sheet-title">Posten in t/{comm.name}</strong>
-            </div>
-            <div className="sheet-body">
-              <div className="post-form">
-                <input
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Titel"
-                  aria-label="Titel"
-                  maxLength={120}
-                  autoFocus
-                />
-                <textarea
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  placeholder="Text (optional)"
-                  aria-label="Text"
-                  rows={4}
-                  maxLength={1000}
-                />
-              </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={closeComposer}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" disabled={!newTitle.trim()} onClick={submitPost}>
-                <i className="fa-solid fa-paper-plane" /> Posten
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
