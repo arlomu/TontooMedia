@@ -346,7 +346,6 @@ export default function Einstellungen({ showToast, user, onUser }) {
                   <i className="fa-solid fa-rotate-left" /> Standardbild (Tontoo Black)
                 </button>
               )}
-              <p className="feed-hint">PNG, JPEG oder WebP bis 3 MB – wird auf max. 1024 px verkleinert.</p>
             </div>
             <div className="sheet-foot">
               <button type="button" className="btn btn-ghost" onClick={() => setAvatarOpen(false)}>Abbrechen</button>
