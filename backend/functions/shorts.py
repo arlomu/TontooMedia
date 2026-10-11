@@ -276,8 +276,9 @@ def add_view(storage: Storage, short_id: int) -> int:
     return storage.add_view(short_id)
 
 
-def post_comment(storage: Storage, user_id: int, short_id: int, text: str) -> dict:
-    """Kommentar anlegen (nur öffentlich + Kommentare an)."""
+def post_comment(storage: Storage, user_id: int, short_id: int, text: str,
+                 parent_id: Optional[int] = None) -> dict:
+    """Kommentar/Reply anlegen (nur öffentlich + Kommentare an, nur 1 Stufe)."""
     short = storage.get_short(short_id)
     if short is None or short["visibility"] != "Öffentlich":
         raise ValueError("Short nicht gefunden.")
@@ -288,16 +289,38 @@ def post_comment(storage: Storage, user_id: int, short_id: int, text: str) -> di
         raise ValueError("Kommentar ist leer.")
     if len(text) > 280:
         raise ValueError("Kommentar ist zu lang (max. 280 Zeichen).")
-    comment_id = storage.add_comment(short_id, user_id, text)
+    if parent_id is not None:
+        parent = storage.get_comment(parent_id)
+        if parent is None or parent["short_id"] != short_id:
+            raise ValueError("Kommentar nicht gefunden.")
+        if parent.get("parent_id"):
+            raise ValueError("Antworten geht nur auf Kommentare, nicht auf Antworten.")
+    comment_id = storage.add_comment(short_id, user_id, text, parent_id)
     user = storage.get_user_by_id(user_id)
     return {
         "id": comment_id,
         "text": text,
+        "parent_id": parent_id,
+        "likes": 0,
+        "liked": False,
+        "replies": [],
         "created_at": int(time.time()),
         "username": user["username"] if user else "?",
         "author_name": (user["name"] if user else "?"),
         "author_avatar": user.get("avatar") if user else None,
     }
+
+
+def toggle_comment_like(storage: Storage, user_id: int, comment_id: int) -> dict:
+    """Kommentar-Like umschalten (nur bei öffentlichen Shorts)."""
+    comment = storage.get_comment(comment_id)
+    if comment is None:
+        raise ValueError("Kommentar nicht gefunden.")
+    short = storage.get_short(comment["short_id"])
+    if short is None or short["visibility"] != "Öffentlich":
+        raise ValueError("Kommentar nicht gefunden.")
+    liked = storage.toggle_comment_like(comment_id, user_id)
+    return {"liked": liked, "likes": storage.comment_like_count(comment_id)}
 
 
 def _remove_file(path: Path) -> None:

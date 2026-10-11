@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   apiFeedShorts,
   apiLikeShort,
+  apiLikeShortComment,
   apiPostShortComment,
   apiShortComments,
   apiViewShort,
@@ -36,6 +37,7 @@ export default function Shorts({ showToast }) {
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [draft, setDraft] = useState('')
   const [posting, setPosting] = useState(false)
+  const [replyTo, setReplyTo] = useState(null) // Kommentar-id (nur 1 Stufe, kein Reply-auf-Reply)
   const [shareOpen, setShareOpen] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
   const stageRef = useRef(null)
@@ -104,6 +106,7 @@ export default function Shorts({ showToast }) {
     setCommentsOpen(false)
     setShareOpen(false)
     setDraft('')
+    setReplyTo(null)
   }, [idx])
 
   // Aktives Video steuern: läuft mit Ton los; blockt der Browser den Ton,
@@ -162,10 +165,16 @@ export default function Shorts({ showToast }) {
       if (e.key !== 'Escape') return
       setCommentsOpen(false)
       setShareOpen(false)
+      setReplyTo(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [commentsOpen, shareOpen])
+
+  const closeComments = () => {
+    setCommentsOpen(false)
+    setReplyTo(null)
+  }
 
   // Daten da, aber Effect lief zu früh: sobald abspielbar, los (falls Pause gewollt ist, passiert nichts)
   const onCanPlay = (e) => {
@@ -235,18 +244,69 @@ export default function Shorts({ showToast }) {
     if (!text || !short || posting) return
     setPosting(true)
     try {
-      const c = await apiPostShortComment(short.id, text)
-      setComments((m) => ({ ...m, [short.id]: [...(m[short.id] || []), c] }))
+      const c = await apiPostShortComment(short.id, text, replyTo)
+      if (replyTo) {
+        setComments((m) => ({
+          ...m,
+          [short.id]: (m[short.id] || []).map((x) => (x.id === replyTo
+            ? { ...x, replies: [...(x.replies || []), c] }
+            : x)),
+        }))
+        showToast('Antwort gepostet.')
+      } else {
+        setComments((m) => ({ ...m, [short.id]: [...(m[short.id] || []), c] }))
+        showToast('Kommentar gepostet.')
+      }
       setFeed((f) => f.map((x) => (x.id === short.id && typeof x.comments === 'number'
         ? { ...x, comments: x.comments + 1 }
         : x)))
       setDraft('')
-      showToast('Kommentar gepostet.')
+      setReplyTo(null)
     } catch (err) {
       showToast(needLogin(err.message))
     } finally {
       setPosting(false)
     }
+  }
+
+  // Kommentar/Reply liken (sofortiges Feedback, Server bestätigt)
+  const updateComment = (cid, parentId, fn) => {
+    setComments((m) => {
+      const list = m[short.id] || []
+      return {
+        ...m,
+        [short.id]: list.map((c) => {
+          if (parentId == null) return c.id === cid ? fn(c) : c
+          if (c.id !== parentId) return c
+          return { ...c, replies: (c.replies || []).map((r) => (r.id === cid ? fn(r) : r)) }
+        }),
+      }
+    })
+  }
+
+  const toggleCommentLike = async (cid, parentId = null) => {
+    const list = comments[short.id] || []
+    const target = parentId == null
+      ? list.find((c) => c.id === cid)
+      : (list.find((c) => c.id === parentId)?.replies || []).find((r) => r.id === cid)
+    if (!target) return
+    const was = !!target.liked
+    const wasCount = target.likes || 0
+    updateComment(cid, parentId, (c) => ({
+      ...c, liked: !was, likes: Math.max(0, wasCount + (was ? -1 : 1)),
+    }))
+    try {
+      const r = await apiLikeShortComment(cid)
+      updateComment(cid, parentId, (c) => ({ ...c, liked: r.liked, likes: r.likes }))
+    } catch (err) {
+      updateComment(cid, parentId, (c) => ({ ...c, liked: was, likes: wasCount }))
+      showToast(needLogin(err.message))
+    }
+  }
+
+  const nameOfReply = (cid) => {
+    const c = (comments[short.id] || []).find((x) => x.id === cid)
+    return c ? c.username : ''
   }
 
   const copyShareUrl = async () => {
@@ -454,7 +514,7 @@ export default function Shorts({ showToast }) {
       <div className="short-info">
         <div className="short-userrow">
           <Link to={`/u/${s.author.username}`} className="short-avatar" aria-label={`Profil von ${s.author.username}`}>
-            {s.author.avatarUrl && s.author.avatarUrl !== '/api/avatar/default'
+            {s.author.avatarUrl
               ? <img src={avatarSrc(s.author.avatarUrl)} alt="" />
               : <i className="fa-solid fa-circle-user" />}
           </Link>
@@ -555,11 +615,11 @@ export default function Shorts({ showToast }) {
 
       {/* Kommentare-Menü */}
       {commentsOpen && short && (
-        <div className="sheet-backdrop" onClick={() => setCommentsOpen(false)}>
+        <div className="sheet-backdrop" onClick={closeComments}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Kommentare" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head">
               <strong className="sheet-title">Kommentare <span className="sheet-count">{typeof short.comments === 'number' ? fmtNum(short.comments) : short.comments}</span></strong>
-              <button type="button" className="sheet-x" aria-label="Schließen" onClick={() => setCommentsOpen(false)}>
+              <button type="button" className="sheet-x" aria-label="Schließen" onClick={closeComments}>
                 <i className="fa-solid fa-xmark" />
               </button>
             </div>
@@ -573,23 +633,71 @@ export default function Shorts({ showToast }) {
               {sheetComments.map((c) => (
                 <div className="comment" key={c.id}>
                   <span className="comment-ava" aria-hidden="true">
-                    {c.avatarUrl && c.avatarUrl !== '/api/avatar/default'
+                    {c.avatarUrl
                       ? <img src={avatarSrc(c.avatarUrl)} alt="" />
                       : <i className="fa-solid fa-circle-user" />}
                   </span>
                   <div className="comment-main">
                     <div className="comment-head">@{c.username} <small>{c.date}</small></div>
                     <p className="comment-text">{c.text}</p>
+                    <div className="comment-actions">
+                      <button
+                        type="button"
+                        className={`comment-btn${c.liked ? ' active' : ''}`}
+                        aria-pressed={!!c.liked}
+                        onClick={() => toggleCommentLike(c.id)}
+                      >
+                        <i className={`${c.liked ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {fmtNum(c.likes)}
+                      </button>
+                      <button type="button" className="comment-btn" onClick={() => setReplyTo(c.id)}>
+                        <i className="fa-solid fa-reply" /> Antworten
+                      </button>
+                    </div>
+                    {(c.replies || []).length > 0 && (
+                      <div className="replies">
+                        {(c.replies || []).map((r) => (
+                          <div className="comment" key={r.id}>
+                            <span className="comment-ava" aria-hidden="true">
+                              {r.avatarUrl
+                                ? <img src={avatarSrc(r.avatarUrl)} alt="" />
+                                : <i className="fa-solid fa-circle-user" />}
+                            </span>
+                            <div className="comment-main">
+                              <div className="comment-head">@{r.username} <small>{r.date}</small></div>
+                              <p className="comment-text">{r.text}</p>
+                              <div className="comment-actions">
+                                <button
+                                  type="button"
+                                  className={`comment-btn${r.liked ? ' active' : ''}`}
+                                  aria-pressed={!!r.liked}
+                                  onClick={() => toggleCommentLike(r.id, c.id)}
+                                >
+                                  <i className={`${r.liked ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {fmtNum(r.likes)}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+            {replyTo && (
+              <div className="reply-hint">
+                <span>Antwort an <strong>@{nameOfReply(replyTo)}</strong></span>
+                <button type="button" className="comment-btn" onClick={() => setReplyTo(null)}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+            )}
             <form className="comment-inputrow" onSubmit={submitComment}>
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Kommentieren …"
-                aria-label="Kommentar schreiben"
+                placeholder={replyTo ? `Antworten an @${nameOfReply(replyTo)} …` : 'Kommentieren …'}
+                aria-label={replyTo ? 'Antwort schreiben' : 'Kommentar schreiben'}
                 maxLength={280}
               />
               <button type="submit" className="btn btn-brand btn-sm" disabled={!draft.trim() || posting} aria-label="Absenden">

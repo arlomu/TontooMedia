@@ -20,7 +20,8 @@ Endpunkte (alle unter /api/...):
   GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
   POST   /api/shorts/<id>/like (Bearer) -> {liked, likes}
   GET    /api/shorts/<id>/comments -> {comments: [...]}
-  POST   /api/shorts/<id>/comments (Bearer, {text}) -> {comment}
+  POST   /api/shorts/<id>/comments (Bearer, {text, parent_id?}) -> {comment}
+  POST   /api/comments/<id>/like (Bearer) -> {liked, likes}
   POST   /api/shorts/<id>/view -> {views}
   GET    /api/media/<datei>   Video/Thumbnail (mit Range-Support)
 
@@ -44,6 +45,7 @@ try:
         create_short,
         delete_short,
         post_comment,
+        toggle_comment_like,
         toggle_like,
         update_short,
     )
@@ -66,6 +68,7 @@ except ImportError:  # direkter Start via `python backend/api.py`
         create_short,
         delete_short,
         post_comment,
+        toggle_comment_like,
         toggle_like,
         update_short,
     )
@@ -194,10 +197,14 @@ def public_comment(row: dict) -> dict:
     return {
         "id": row["id"],
         "text": row["text"],
+        "parent_id": row.get("parent_id"),
+        "likes": row.get("likes") or 0,
+        "liked": bool(row.get("liked")),
         "date": date_label(row.get("created_at") or 0),
         "username": row.get("username") or "?",
         "name": row.get("author_name") or row.get("username") or "?",
         "avatarUrl": avatar_url(row.get("author_avatar")),
+        "replies": [public_comment(r) for r in (row.get("replies") or [])],
     }
 
 
@@ -348,11 +355,12 @@ class _Handler(BaseHTTPRequestHandler):
             return self._ok({"shorts": [public_feed_short(r) for r in rows]})
         m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)
         if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
             with DB_LOCK:
                 short = _storage.get_short(int(m.group(1)))
                 if short is None or short["visibility"] != "Öffentlich":
                     return self._fail(404, "Short nicht gefunden.")
-                rows = _storage.list_comments(int(m.group(1)))
+                rows = _storage.list_comments(int(m.group(1)), viewer_id)
             return self._ok({"comments": [public_comment(c) for c in rows]})
         if self.path.startswith("/api/avatar/"):
             return self._serve_avatar(self.path[len("/api/avatar/"):])
@@ -477,11 +485,12 @@ class _Handler(BaseHTTPRequestHandler):
             _, user_id = self._auth_user()
             if user_id is None:
                 return self._fail(401, "Nicht eingeloggt.")
+            body = self._read_json()
             try:
                 with DB_LOCK:
                     comment = post_comment(
                         _storage, user_id, int(m.group(1)),
-                        self._read_json().get("text", ""),
+                        body.get("text", ""), body.get("parent_id"),
                     )
             except ValueError as e:
                 msg = str(e)
@@ -489,6 +498,17 @@ class _Handler(BaseHTTPRequestHandler):
             comment["avatarUrl"] = avatar_url(comment.pop("author_avatar"))
             comment["date"] = date_label(comment.pop("created_at"))
             return self._send(201, {"comment": comment})
+        m = re.fullmatch(r"/api/comments/(\d+)/like", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    result = toggle_comment_like(_storage, user_id, int(m.group(1)))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok(result)
         m = re.fullmatch(r"/api/shorts/(\d+)/view", self.path)
         if m:
             try:

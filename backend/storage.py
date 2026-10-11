@@ -58,10 +58,18 @@ CREATE TABLE IF NOT EXISTS short_comments (
     short_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     text TEXT NOT NULL,
+    parent_id INTEGER,
     created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS short_comment_likes (
+    comment_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (comment_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_likes_short ON short_likes(short_id);
 CREATE INDEX IF NOT EXISTS idx_comments_short ON short_comments(short_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes ON short_comment_likes(comment_id);
 """
 
 _SESSION_SCHEMA = """
@@ -114,6 +122,13 @@ class Storage:
             self._conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT")
         # Sessions leben seitdem in sessions.db – alte Tabelle hier aufräumen.
         self._conn.execute("DROP TABLE IF EXISTS sessions")
+        # Replies kamen später: parent_id bei alten short_comments ergänzen.
+        try:
+            ccols = {row[1] for row in self._conn.execute("PRAGMA table_info(short_comments)").fetchall()}
+        except Exception:
+            ccols = set()
+        if ccols and "parent_id" not in ccols:
+            self._conn.execute("ALTER TABLE short_comments ADD COLUMN parent_id INTEGER")
 
     def stop(self) -> None:
         """Schließt die DB-Verbindungen."""
@@ -422,34 +437,93 @@ class Storage:
         row = conn.execute("SELECT views FROM shorts WHERE id = ?", (short_id,)).fetchone()
         return row[0] if row else 0
 
-    def list_comments(self, short_id: int) -> list:
-        """Kommentare zu einem Short, älteste zuerst (mit Autor)."""
+    def list_comments(self, short_id: int, viewer_id: Optional[int] = None) -> list:
+        """Kommentare zu einem Short, älteste zuerst, Replies (1 Stufe) eingenistet."""
         conn = self._require()
+        vid = viewer_id or -1
         cur = conn.execute(
-            "SELECT c.id, c.text, c.created_at, u.username, u.name AS author_name,"
-            " u.avatar AS author_avatar"
+            "SELECT c.id, c.text, c.parent_id, c.created_at, u.username,"
+            " u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT COUNT(*) FROM short_comment_likes l WHERE l.comment_id = c.id) AS likes,"
+            " EXISTS(SELECT 1 FROM short_comment_likes l2"
+            "  WHERE l2.comment_id = c.id AND l2.user_id = ?) AS liked"
             " FROM short_comments c JOIN users u ON u.id = c.user_id"
             " WHERE c.short_id = ? ORDER BY c.id ASC",
-            (short_id,),
+            (vid, short_id),
         )
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        by_id = {r["id"]: {**r, "replies": []} for r in rows}
+        top = []
+        for r in rows:
+            node = by_id[r["id"]]
+            pid = r.get("parent_id")
+            if pid and pid in by_id:
+                by_id[pid]["replies"].append(node)
+            elif not pid:
+                top.append(node)
+        return top
 
-    def add_comment(self, short_id: int, user_id: int, text: str) -> int:
-        """Legt einen Kommentar an, gibt die neue ID zurück."""
+    def get_comment(self, comment_id: int) -> Optional[dict]:
         conn = self._require()
         cur = conn.execute(
-            "INSERT INTO short_comments (short_id, user_id, text, created_at)"
-            " VALUES (?, ?, ?, ?)",
-            (short_id, user_id, text, int(time.time())),
+            "SELECT id, short_id, user_id, parent_id FROM short_comments WHERE id = ?",
+            (comment_id,),
+        )
+        row = cur.fetchone()
+        return dict(zip([d[0] for d in cur.description], row)) if row else None
+
+    def add_comment(self, short_id: int, user_id: int, text: str,
+                    parent_id: Optional[int] = None) -> int:
+        """Legt einen Kommentar (oder Reply) an, gibt die neue ID zurück."""
+        conn = self._require()
+        cur = conn.execute(
+            "INSERT INTO short_comments (short_id, user_id, text, parent_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (short_id, user_id, text, parent_id, int(time.time())),
         )
         conn.commit()
         return cur.lastrowid
 
+    def toggle_comment_like(self, comment_id: int, user_id: int) -> bool:
+        """Kommentar-Like umschalten. Gibt True zurück, wenn jetzt gelikt ist."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM short_comment_likes WHERE comment_id = ? AND user_id = ?",
+            (comment_id, user_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM short_comment_likes WHERE comment_id = ? AND user_id = ?",
+                (comment_id, user_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO short_comment_likes (comment_id, user_id, created_at)"
+            " VALUES (?, ?, ?)",
+            (comment_id, user_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def comment_like_count(self, comment_id: int) -> int:
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM short_comment_likes WHERE comment_id = ?",
+            (comment_id,),
+        ).fetchone()
+        return row[0] if row else 0
+
     def delete_short_extras(self, short_id: int) -> None:
-        """Löscht Likes + Kommentare zu einem Short (bei Short-Löschung)."""
+        """Löscht Likes + Kommentare (+ deren Likes) zu einem Short."""
         conn = self._require()
         conn.execute("DELETE FROM short_likes WHERE short_id = ?", (short_id,))
+        conn.execute(
+            "DELETE FROM short_comment_likes WHERE comment_id IN"
+            " (SELECT id FROM short_comments WHERE short_id = ?)",
+            (short_id,),
+        )
         conn.execute("DELETE FROM short_comments WHERE short_id = ?", (short_id,))
         conn.commit()
 

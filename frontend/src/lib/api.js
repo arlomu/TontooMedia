@@ -132,12 +132,15 @@ export const apiLikeShort = (id) =>
 export const apiShortComments = (id) =>
   request(`/api/shorts/${id}/comments`).then((d) => d.comments || [])
 
-export const apiPostShortComment = (id, text) =>
+export const apiPostShortComment = (id, text, parentId = null) =>
   request(`/api/shorts/${id}/comments`, {
     method: 'POST',
     auth: true,
-    body: { text },
+    body: { text, parent_id: parentId },
   }).then((d) => d.comment)
+
+export const apiLikeShortComment = (commentId) =>
+  request(`/api/comments/${commentId}/like`, { method: 'POST', auth: true })
 
 export const apiViewShort = (id) =>
   request(`/api/shorts/${id}/view`, { method: 'POST' }).catch(() => null)
