@@ -71,6 +71,14 @@ export default function App() {
 
   return (
     <div className="page">
+      {/* Globaler Hintergrund: Schwarz + orangene Wellen unten (überall sichtbar) */}
+      <div className="app-waves" aria-hidden="true">
+        <svg viewBox="0 0 1440 400" preserveAspectRatio="none">
+          <path d="M-60 165 C37 165 134 158 264 158 C315 158 377 150 423 150 C542 150 645 135 754 135 C893 135 983 175 1086 175 C1180 175 1194 162 1310 162 C1372 162 1398 194 1497 194 V400 H-60Z" fill="#F5B301" fillOpacity="0.18" />
+          <path d="M-60 267 C114 267 42 252 216 252 C285 252 317 229 377 229 C449 229 503 243 557 243 C673 243 752 232 899 232 C958 232 975 202 1095 202 C1178 202 1152 196 1246 196 C1291 196 1330 174 1425 174 V400 H-60Z" fill="#F5B301" fillOpacity="0.34" />
+          <path d="M-60 283 C72 283 93 270 279 270 C337 270 355 278 495 278 C577 278 662 314 744 314 C857 314 837 307 942 307 C1013 307 1033 301 1094 301 C1256 301 1275 317 1412 317 V400 H-60Z" fill="#F5B301" fillOpacity="0.64" />
+        </svg>
+      </div>
       {!isApp && (
         <header className="nav">
           <div className="nav-inner">
