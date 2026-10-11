@@ -209,9 +209,6 @@ export default function Einstellungen({ showToast, user, onUser }) {
 
   return (
     <div className="app-page narrow">
-      <h2 className="app-title">Einstellungen</h2>
-      <p className="app-sub">Dein Profil, deine Sicherheit, dein Konto.</p>
-
       {/* Profil */}
       <section className="set-section">
         <h3 className="set-h3"><i className="fa-solid fa-circle-user ic-yellow" /> Profil</h3>
