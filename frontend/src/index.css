@@ -561,31 +561,6 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 
 /* Einstellungen */
-.set-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
-.set-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  width: 100%; text-align: left; cursor: pointer;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 16px;
-  color: var(--text); font-family: var(--font-body);
-  transition: border-color 0.15s;
-}
-.set-row:hover { border-color: var(--text-3rd); }
-.set-text { display: flex; flex-direction: column; }
-.set-text strong { font-size: 14.5px; }
-.set-text small { color: var(--text-3rd); font-size: 12.5px; }
-.switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); flex-shrink: 0; transition: background 0.15s; }
-.switch::after {
-  content: ''; position: absolute; top: 2px; left: 2px;
-  width: 20px; height: 20px; border-radius: 50%; background: var(--text-3rd);
-  transition: left 0.15s, background 0.15s;
-}
-.switch.on { background: var(--brand); border-color: var(--brand); }
-.switch.on::after { left: 22px; background: var(--brand-ink); }
-.liveprev { font-size: 13.5px; color: var(--text-sec); }
-.liveprev strong { color: var(--brand); }
-
-/* Einstellungen: Karten-Sektionen (Profil / Sicherheit / App / Konto) */
 .set-section {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 20px;
@@ -597,7 +572,6 @@ main.app-wrap { max-width: none; padding: 0; }
   margin: 0 0 4px; color: var(--text);
 }
 .set-desc { margin: 0 0 16px; font-size: 13px; color: var(--text-3rd); }
-.set-list.notop { margin-top: 0; }
 .set-section .field input, .set-section .field textarea { background: var(--surface2); }
 .profile-hero {
   display: flex; align-items: center; gap: 14px;

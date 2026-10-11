@@ -1,18 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-function Toggle({ label, desc, on, onFlip }) {
-  return (
-    <button type="button" className="set-row" onClick={onFlip} aria-pressed={on}>
-      <span className="set-text">
-        <strong>{label}</strong>
-        <small>{desc}</small>
-      </span>
-      <span className={`switch${on ? ' on' : ''}`} aria-hidden="true" />
-    </button>
-  )
-}
-
 const USER_RE = /^[a-z0-9._]{3,20}$/
 const BIO_MAX = 160
 
@@ -72,11 +60,6 @@ export default function Einstellungen({ showToast }) {
     toast('Konto gelöscht (Beispiel).')
     navigate('/')
   }
-
-  // ---------- App (wie bisher) ----------
-  const [dark, setDark] = useState(true)
-  const [notifs, setNotifs] = useState(true)
-  const [autoplay, setAutoplay] = useState(false)
 
   return (
     <div className="app-page narrow">
@@ -197,18 +180,6 @@ export default function Einstellungen({ showToast }) {
             <i className="fa-solid fa-key" /> Passwort ändern
           </button>
         </form>
-      </section>
-
-      {/* App */}
-      <section className="set-section">
-        <h3 className="set-h3"><i className="fa-solid fa-sliders ic-violet" /> App</h3>
-        <p className="set-desc">Darstellung und Wiedergabe.</p>
-
-        <div className="set-list notop">
-          <Toggle label="Darkmode" desc="Dunkles Design (Beispiel)" on={dark} onFlip={() => setDark((v) => !v)} />
-          <Toggle label="Benachrichtigungen" desc="Push bei neuen Beiträgen (Beispiel)" on={notifs} onFlip={() => setNotifs((v) => !v)} />
-          <Toggle label="Shorts-Autoplay" desc="Clips automatisch abspielen (Beispiel)" on={autoplay} onFlip={() => setAutoplay((v) => !v)} />
-        </div>
       </section>
 
       {/* Konto */}
