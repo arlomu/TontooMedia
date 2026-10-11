@@ -47,23 +47,24 @@ export default function Sidebar({ open, onClose, showToast }) {
             <i className="fa-solid fa-plus" />
           </button>
         </div>
-        {commsOpen && (
-          <nav className="comms-list" aria-label="Communities">
-            {COMMUNITIES.map((c) => (
-              <NavLink
-                key={c.id}
-                to={`/t/${c.id}`}
-                className={({ isActive }) => `side-item comm${isActive ? ' active' : ''}`}
-                onClick={onClose}
-              >
-                <span className="comm-ic">
-                  <i className={`fa-solid ${c.icon} ${c.color}`} />
-                </span>
-                {c.name}
-              </NavLink>
-            ))}
+          <nav className={`comms-list${commsOpen ? '' : ' closed'}`} aria-label="Communities">
+            <div className="comms-clip">
+              {COMMUNITIES.map((c) => (
+                <NavLink
+                  key={c.id}
+                  to={`/t/${c.id}`}
+                  className={({ isActive }) => `side-item comm${isActive ? ' active' : ''}`}
+                  onClick={onClose}
+                  tabIndex={commsOpen ? 0 : -1}
+                >
+                  <span className="comm-ic">
+                    <i className={`fa-solid ${c.icon} ${c.color}`} />
+                  </span>
+                  {c.name}
+                </NavLink>
+              ))}
+            </div>
           </nav>
-        )}
       </div>
 
       <div className="side-foot">
