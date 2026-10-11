@@ -4,6 +4,17 @@ import { useNavigate } from 'react-router-dom'
 const USER_RE = /^[a-z0-9._]{3,20}$/
 const BIO_MAX = 160
 
+const AVATAR_PRESETS = [
+  { icon: 'fa-circle-user', color: '' },
+  { icon: 'fa-user-astronaut', color: 'ic-yellow' },
+  { icon: 'fa-user-ninja', color: 'ic-teal' },
+  { icon: 'fa-ghost', color: 'ic-violet' },
+  { icon: 'fa-robot', color: 'ic-teal' },
+  { icon: 'fa-cat', color: 'ic-yellow' },
+  { icon: 'fa-dog', color: 'ic-violet' },
+  { icon: 'fa-dragon', color: 'ic-yellow' },
+]
+
 export default function Einstellungen({ showToast }) {
   const navigate = useNavigate()
   const toast = (msg) => showToast?.(msg)
@@ -15,6 +26,32 @@ export default function Einstellungen({ showToast }) {
   const [savedAt, setSavedAt] = useState(null)
   const saveTimer = useRef(null)
   useEffect(() => () => clearTimeout(saveTimer.current), [])
+
+  const [avatar, setAvatar] = useState(null) // null = Standard, sonst { type:'icon', icon } oder { type:'img', src }
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const fileRef = useRef(null)
+
+  useEffect(() => {
+    if (!avatarOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') setAvatarOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [avatarOpen])
+
+  const pickAvatar = (icon) => {
+    if (avatar?.src?.startsWith('blob:')) URL.revokeObjectURL(avatar.src)
+    setAvatar(icon === 'fa-circle-user' ? null : { type: 'icon', icon })
+    toast('Profilbild aktualisiert.')
+  }
+
+  const uploadAvatar = (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    if (avatar?.src?.startsWith('blob:')) URL.revokeObjectURL(avatar.src)
+    setAvatar({ type: 'img', src: URL.createObjectURL(f) })
+    toast('Profilbild aktualisiert.')
+  }
 
   const touchSaved = () => {
     clearTimeout(saveTimer.current)
@@ -85,9 +122,16 @@ export default function Einstellungen({ showToast }) {
         <p className="set-desc">Wird automatisch übernommen – kein Speichern nötig.</p>
 
         <div className="profile-hero">
-          <span className="avatar-xl" aria-hidden="true">
-            <i className="fa-solid fa-circle-user" />
-          </span>
+          <button type="button" className="avatar-btn" onClick={() => setAvatarOpen(true)} aria-label="Profilbild ändern">
+            {avatar?.type === 'img' ? (
+              <img src={avatar.src} alt="Profilbild" />
+            ) : (
+              <i className={`fa-solid ${avatar?.icon || 'fa-circle-user'}`} />
+            )}
+            <span className="avatar-edit" aria-hidden="true">
+              <i className="fa-solid fa-camera" />
+            </span>
+          </button>
           <span className="profile-prev">
             <strong>{name.trim() || 'Dein Name'}</strong>
             <small>@{username.trim() || 'username'}</small>
@@ -189,6 +233,54 @@ export default function Einstellungen({ showToast }) {
           )}
         </div>
       </section>
+
+      {/* Profilbild-Modal */}
+      {avatarOpen && (
+        <div className="sheet-backdrop" onClick={() => setAvatarOpen(false)}>
+          <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Profilbild ändern" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong className="sheet-title">Profilbild ändern</strong>
+            </div>
+            <div className="sheet-body">
+              <div className="avatar-grid">
+                {AVATAR_PRESETS.map((p) => {
+                  const selected = avatar === null
+                    ? p.icon === 'fa-circle-user'
+                    : avatar.type === 'icon' && avatar.icon === p.icon
+                  return (
+                    <button
+                      key={p.icon}
+                      type="button"
+                      className={`avatar-opt${selected ? ' selected' : ''}`}
+                      aria-pressed={selected}
+                      aria-label={`Avatar ${p.icon}`}
+                      onClick={() => pickAvatar(p.icon)}
+                    >
+                      <i className={`fa-solid ${p.icon} ${p.color}`} />
+                    </button>
+                  )
+                })}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={uploadAvatar}
+              />
+              <button type="button" className="btn btn-ghost btn-block" onClick={() => fileRef.current?.click()}>
+                <i className="fa-solid fa-upload" /> Eigenes Bild hochladen
+              </button>
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={() => setAvatarOpen(false)}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" onClick={() => setAvatarOpen(false)}>Fertig</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Passwort-Modal */}
       {pwOpen && (
