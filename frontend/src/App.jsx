@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import Landing from './pages/Landing.jsx'
+import Login from './pages/Login.jsx'
+import Register from './pages/Register.jsx'
+import ComingSoon from './pages/ComingSoon.jsx'
 
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [modal, setModal] = useState(null) // null | 'login' | 'register'
-  const [wishName, setWishName] = useState('')
   const [toast, setToast] = useState(null)
   const [spinning, setSpinning] = useState(false)
   const toastTimer = useRef(null)
   const eggClicks = useRef([])
+  const location = useLocation()
+  const isApp = location.pathname === '/app'
 
   const showToast = (msg) => {
     setToast(msg)
@@ -15,16 +20,7 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 2600)
   }
 
-  // Modal: Escape schließt
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') setModal(null)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  // Reveal-Animation beim Scrollen
+  // Reveal-Animation beim Scrollen (neu pro Route)
   useEffect(() => {
     const els = document.querySelectorAll('.reveal')
     const io = new IntersectionObserver(
@@ -33,7 +29,12 @@ export default function App() {
     )
     els.forEach((el) => io.observe(el))
     return () => io.disconnect()
-  }, [])
+  }, [location.pathname])
+
+  // Mobile-Menü beim Routenwechsel schließen
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
 
   // Easter Egg: Logo 5x klicken → Tontoo sagt hi
   const onLogoClick = (e) => {
@@ -53,135 +54,70 @@ export default function App() {
       {/* Hintergrund: Glow wie vor dem Redesign */}
       <div className="bg-glow" aria-hidden="true" />
 
-      <header className="nav">
-        <div className="nav-inner">
-          <a className="brand" href="/" onClick={onLogoClick} title="5x klicken …">
-            <img
-              className={`brand-logo${spinning ? ' spin' : ''}`}
-              src="/icon.png"
-              alt="TontooMedia Logo"
-            />
-            <span className="brand-name">TontooMedia</span>
-            <span className="brand-badge">beta</span>
-          </a>
+      {!isApp && (
+        <header className="nav">
+          <div className="nav-inner">
+            <a className="brand" href="/" onClick={onLogoClick} title="5x klicken …">
+              <img
+                className={`brand-logo${spinning ? ' spin' : ''}`}
+                src="/icon.png"
+                alt="TontooMedia Logo"
+              />
+              <span className="brand-name">TontooMedia</span>
+              <span className="brand-badge">beta</span>
+            </a>
 
-          {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
-          <div className="nav-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setModal('login')}>
-              <i className="fa-solid fa-right-to-bracket" /> Login
-            </button>
-            <button type="button" className="btn btn-brand" onClick={() => setModal('register')}>
-              <i className="fa-solid fa-user-plus" /> Registrieren
+            {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
+            <div className="nav-actions">
+              <Link to="/login" className="btn btn-ghost">
+                <i className="fa-solid fa-right-to-bracket" /> Login
+              </Link>
+              <Link to="/register" className="btn btn-brand">
+                <i className="fa-solid fa-user-plus" /> Registrieren
+              </Link>
+            </div>
+
+            <button
+              type="button"
+              className="iconbtn burger"
+              aria-label="Menü öffnen"
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`} />
             </button>
           </div>
 
-          <button
-            type="button"
-            className="iconbtn burger"
-            aria-label="Menü öffnen"
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((o) => !o)}
-          >
-            <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`} />
-          </button>
-        </div>
-
-        {mobileOpen && (
-          <nav className="mobilepanel">
-            <div className="mobilerow">
-              <button type="button" className="btn btn-ghost" onClick={() => { setMobileOpen(false); setModal('login') }}>
-                <i className="fa-solid fa-right-to-bracket" /> Login
-              </button>
-              <button type="button" className="btn btn-brand" onClick={() => { setMobileOpen(false); setModal('register') }}>
-                <i className="fa-solid fa-user-plus" /> Registrieren
-              </button>
-            </div>
-          </nav>
-        )}
-      </header>
+          {mobileOpen && (
+            <nav className="mobilepanel">
+              <div className="mobilerow">
+                <Link to="/login" className="btn btn-ghost">
+                  <i className="fa-solid fa-right-to-bracket" /> Login
+                </Link>
+                <Link to="/register" className="btn btn-brand">
+                  <i className="fa-solid fa-user-plus" /> Registrieren
+                </Link>
+              </div>
+            </nav>
+          )}
+        </header>
+      )}
 
       <main>
-        <section className="hero reveal">
-          <h1>
-            Teile Momente.
-            <br />
-            <span className="hl">Finde deine Community.</span>
-          </h1>
-          <p className="hero-sub">
-            <strong>TontooMedia</strong> ist eine Social-Media-artige Webapp: Poste Beiträge,
-            folge Freunden, entdecke Themen und chatte – <em>alles an einem Ort</em>,
-            modern und schnell.
-          </p>
-          <div className="hero-cta">
-            <button type="button" className="btn btn-brand btn-lg" onClick={() => setModal('register')}>
-              <i className="fa-solid fa-user-plus" /> Jetzt registrieren
-            </button>
-          </div>
-        </section>
-
-        <section id="was-ist" className="section reveal">
-          <div className="grid3">
-            <div className="card">
-              <i className="fa-solid fa-newspaper cardic ic-yellow" />
-              <h3>Persönlicher Feed</h3>
-              <p>Beiträge, Fotos und kurze Updates von Freunden und Themen, die dich interessieren.</p>
-            </div>
-            <div className="card">
-              <i className="fa-solid fa-users cardic ic-teal" />
-              <h3>Communities</h3>
-              <p>Gruppen für Hobbys, Gaming, Musik oder Sport – oder starte deine eigene Community.</p>
-            </div>
-            <div className="card">
-              <i className="fa-solid fa-comments cardic ic-violet" />
-              <h3>Messages</h3>
-              <p>Direktnachrichten und Gruppenchats – schnell, modern und direkt in der App.</p>
-            </div>
-          </div>
-        </section>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/app" element={<ComingSoon />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
-      <footer className="footer">
-        <img className="footlogo" src="/icon.png" alt="" />
-        <span>© 2026 TontooMedia</span>
-      </footer>
-
-      {/* Custom Modal (statt Browser-Dialog) */}
-      {modal && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="dialog" role="dialog" aria-modal="true" aria-label={modal === 'login' ? 'Login' : 'Registrieren'}>
-            <h3>{modal === 'login' ? 'Login' : 'Registrieren'}</h3>
-            <div className="dialogbody">
-              <p>
-                {modal === 'login'
-                  ? 'Melde dich bald mit deinem Tontoo-Namen an. Die Anmeldung ist in dieser Basis noch deaktiviert.'
-                  : 'Sichere dir deinen Tontoo-Namen für die Beta. Aktuell nur eine Vorschau – nichts wird gespeichert.'}
-              </p>
-              <label className="field">
-                <span>Wunschname (wird live übernommen, kein Speichern nötig)</span>
-                <input
-                  type="text"
-                  placeholder="z. B. tontoo.fan"
-                  value={wishName}
-                  onChange={(e) => setWishName(e.target.value)}
-                  autoFocus
-                />
-              </label>
-              {wishName.trim() && (
-                <p className="liveprev">
-                  <i className="fa-solid fa-check ic-teal" /> Hallo <strong>@{wishName.trim()}</strong> – so steht dein Name später da.
-                </p>
-              )}
-            </div>
-            <div className="dialogfoot">
-              <button type="button" className="btn btn-ghost" onClick={() => setModal(null)}>
-                Abbrechen
-              </button>
-              <button type="button" className="btn btn-brand" onClick={() => { setModal(null); showToast('Verstanden – bald geht es hier weiter.') }}>
-                Verstanden
-              </button>
-            </div>
-          </div>
-        </div>
+      {!isApp && (
+        <footer className="footer">
+          <img className="footlogo" src="/icon.png" alt="" />
+          <span>© 2026 TontooMedia</span>
+        </footer>
       )}
 
       {/* Toast */}
