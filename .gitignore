@@ -10,6 +10,9 @@ __pycache__/
 .venv/
 venv/
 
+# Lokale Datenbank (wird beim Start erzeugt)
+*.db
+
 # OS / Editor
 .DS_Store
 Thumbs.db
