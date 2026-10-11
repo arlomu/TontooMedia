@@ -155,7 +155,7 @@ export default function App() {
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen showToast={showToast} user={user} onUser={setUser} />} />
             <Route path="/t/:name" element={<Community showToast={showToast} />} />
-            <Route path="/t/:name/post/:postId" element={<Post />} />
+            <Route path="/t/:name/post/:postId" element={<Post showToast={showToast} />} />
             <Route path="/u/:user" element={<User showToast={showToast} me={user} />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

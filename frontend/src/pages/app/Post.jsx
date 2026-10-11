@@ -1,80 +1,131 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POST_COMMENTS, DEMO_POSTS, commIdOf } from './demoData.js'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import CommunityCard from '../../components/CommunityCard.jsx'
 import PostBody from '../../components/PostBody.jsx'
 import ShareSheet from '../../components/ShareSheet.jsx'
-
-const COMMENT_SORTS = [
-  { id: 'beste', label: 'Beste', icon: 'fa-ranking-star' },
-  { id: 'neu', label: 'Neu', icon: 'fa-clock' },
-]
+import {
+  apiDeleteCommunityPost,
+  apiGetPost,
+  apiToggleCommunityFollow,
+  avatarSrc,
+  mediaSrc,
+} from '../../lib/api.js'
 
 // Einzelner Post im Reddit-Stil: /t/:name/post/:postId
-// Zurück-Pfeil, Titel, Body, Aktionen, Kommentar-Composer,
-// Sortierung + Suche, verschachtelte Kommentare, Community-Box rechts.
-// Alles Demo, kein Backend.
-export default function Post() {
+// Zurück-Pfeil, Titel, Body, Aktionen (Teilen + Löschen als Admin),
+// Community-Box rechts. Alles echt aus der DB – Kommentare kommen später.
+export default function Post({ showToast }) {
   const { name, postId } = useParams()
-  const post = DEMO_POSTS.find((p) => String(p.id) === String(postId))
-  const comm = COMMUNITIES.find((c) => c.id === name)
-
-  const [likedPost, setLikedPost] = useState(false)
+  const navigate = useNavigate()
+  const toast = (msg) => showToast?.(msg)
+  const [post, setPost] = useState(null)
+  const [comm, setComm] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [commentSort, setCommentSort] = useState('beste')
-  const [query, setQuery] = useState('')
-  const [topDraft, setTopDraft] = useState('')
-  const [replyTo, setReplyTo] = useState(null)
-  const [replyDraft, setReplyDraft] = useState('')
-  const [extraComments, setExtraComments] = useState([])
-  const [extraReplies, setExtraReplies] = useState({})
-  const [likedComments, setLikedComments] = useState({})
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    if (!shareOpen) return
-    const onKey = (e) => e.key === 'Escape' && setShareOpen(false)
+    let alive = true
+    setLoading(true)
+    setNotFound(false)
+    setError('')
+    setPost(null)
+    setComm(null)
+    apiGetPost(name, postId)
+      .then(({ post: p, community: c }) => {
+        if (alive) {
+          setPost(p)
+          setComm(c)
+        }
+      })
+      .catch((e) => {
+        if (!alive) return
+        if (/nicht gefunden|404/i.test(e.message || '')) setNotFound(true)
+        else setError(e.message || 'Laden fehlgeschlagen.')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [name, postId])
+
+  useEffect(() => {
+    if (!shareOpen && !deleteOpen) return
+    const onKey = (e) => {
+      if (e.key !== 'Escape') {
+        setShareOpen(false)
+        setDeleteOpen(false)
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [shareOpen])
+  }, [shareOpen, deleteOpen])
 
-  const baseComments = useMemo(
-    () => (post ? [...(DEMO_POST_COMMENTS[post.id] || []), ...extraComments] : []),
-    [post, extraComments]
-  )
+  const toggleFollow = async () => {
+    try {
+      const r = await apiToggleCommunityFollow(comm.slug)
+      setComm((c) => (c ? { ...c, followed: !!r.followed, members: r.followers } : c))
+      if (r.followed) toast(`t/${comm.slug} gefolgt.`)
+      else toast(`t/${comm.slug} entfolgt.`)
+    } catch (e) {
+      toast(/eingeloggt/i.test(e.message || '') ? 'Bitte zuerst einloggen.' : (e.message || 'Folgen fehlgeschlagen.'))
+    }
+  }
 
-  if (!post) {
+  const confirmDelete = async () => {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await apiDeleteCommunityPost(comm.slug, post.id)
+      setDeleteOpen(false)
+      navigate(`/t/${comm.slug}`)
+      toast('Post gelöscht.')
+    } catch (e) {
+      toast(e.message || 'Löschen fehlgeschlagen.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="app-page narrow">
+        <p className="app-sub"><i className="fa-solid fa-circle-notch fa-spin" /> Wird geladen …</p>
+      </div>
+    )
+  }
+
+  if (notFound || (!post && !error)) {
     return (
       <div className="app-page narrow">
         <h2 className="app-title">Nicht gefunden</h2>
-        <p className="app-sub">Diesen Beispiel-Post gibt es nicht.</p>
-        <Link to={comm ? `/t/${comm.id}` : '/app'} className="btn btn-ghost">
-          <i className="fa-solid fa-arrow-left" /> Zurück
+        <p className="app-sub">Diesen Post gibt es nicht.</p>
+        <Link to={`/t/${name}`} className="btn btn-ghost">
+          <i className="fa-solid fa-arrow-left" /> Zurück zur Community
         </Link>
       </div>
     )
   }
 
-  const cid = commIdOf(post)
-  const shownComm = comm || COMMUNITIES.find((c) => c.id === cid)
-  const shareUrl = `${window.location.origin}/t/${cid}/post/${post.id}`
+  if (error) {
+    return (
+      <div className="app-page narrow">
+        <h2 className="app-title">Fehler</h2>
+        <p className="app-sub">{error}</p>
+        <Link to={`/t/${name}`} className="btn btn-ghost">
+          <i className="fa-solid fa-arrow-left" /> Zurück zur Community
+        </Link>
+      </div>
+    )
+  }
 
-  const repliesOf = (c) => [...(c.replies || []), ...(extraReplies[c.id] || [])]
-  const commentLikes = (c) => c.likes + (likedComments[c.id] ? 1 : 0)
-  const toggleCommentLike = (id) => setLikedComments((m) => ({ ...m, [id]: !m[id] }))
-
-  const score = (c) => c.likes + repliesOf(c).length * 5
-  const sortedBase = [...baseComments].sort((a, b) =>
-    commentSort === 'beste' ? score(b) - score(a) : 0
-  )
-  const q = query.trim().toLowerCase()
-  const visible = q
-    ? sortedBase.filter(
-        (c) => c.text.toLowerCase().includes(q) || c.author.toLowerCase().includes(q)
-      )
-    : sortedBase
-  const totalCount =
-    baseComments.reduce((n, c) => n + 1 + repliesOf(c).length, 0)
+  const shareUrl = `${window.location.origin}/t/${comm.slug}/post/${post.id}`
 
   const copyShareUrl = async () => {
     try {
@@ -84,117 +135,12 @@ export default function Post() {
       ta.value = shareUrl
       document.body.appendChild(ta)
       ta.select()
-      try { document.execCommand('copy') } catch { /* Demo: egal */ }
+      try { document.execCommand('copy') } catch { /* egal */ }
       ta.remove()
     }
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
   }
-
-  const submitTop = (e) => {
-    e.preventDefault()
-    const text = topDraft.trim()
-    if (!text) return
-    setExtraComments((list) => [
-      ...list,
-      { id: `u-${Date.now()}`, author: 'du', time: 'jetzt', likes: 0, text, replies: [] },
-    ])
-    setTopDraft('')
-  }
-
-  const submitReply = (e, commentId) => {
-    e.preventDefault()
-    const text = replyDraft.trim()
-    if (!text) return
-    setExtraReplies((m) => ({
-      ...m,
-      [commentId]: [
-        ...(m[commentId] || []),
-        { id: `r-${Date.now()}`, author: 'du', time: 'jetzt', likes: 0, text },
-      ],
-    }))
-    setReplyDraft('')
-    setReplyTo(null)
-  }
-
-  const renderComment = (c, depth = 0) => (
-    <div className="comment" key={c.id}>
-      <span className="comment-ava" aria-hidden="true">
-        <i className="fa-solid fa-circle-user" />
-      </span>
-      <div className="comment-main">
-        <div className="comment-head">
-          u/{c.author}
-          {c.author === post.author && <span className="op-badge">OP</span>}
-          <small>{c.time}</small>
-        </div>
-        <p className="comment-text">{c.text}</p>
-        <div className="comment-actions">
-          <button
-            type="button"
-            className={`comment-btn${likedComments[c.id] ? ' active' : ''}`}
-            aria-pressed={!!likedComments[c.id]}
-            onClick={() => toggleCommentLike(c.id)}
-          >
-            <i className={`${likedComments[c.id] ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {commentLikes(c)}
-          </button>
-          {depth === 0 && (
-            <button
-              type="button"
-              className="comment-btn"
-              onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyDraft('') }}
-            >
-              <i className="fa-solid fa-reply" /> Antworten
-            </button>
-          )}
-        </div>
-        {replyTo === c.id && (
-          <form className="reply-form" onSubmit={(e) => submitReply(e, c.id)}>
-            <input
-              value={replyDraft}
-              onChange={(e) => setReplyDraft(e.target.value)}
-              placeholder={`Antworten an u/${c.author} …`}
-              aria-label="Antwort schreiben"
-              maxLength={280}
-              autoFocus
-            />
-            <button type="submit" className="btn btn-brand btn-sm" disabled={!replyDraft.trim()}>
-              <i className="fa-solid fa-paper-plane" />
-            </button>
-          </form>
-        )}
-        {repliesOf(c).length > 0 && (
-          <div className="replies">
-            {repliesOf(c).map((r) => (
-              <div className="comment" key={r.id}>
-                <span className="comment-ava" aria-hidden="true">
-                  <i className="fa-solid fa-circle-user" />
-                </span>
-                <div className="comment-main">
-                  <div className="comment-head">
-                    u/{r.author}
-                    {r.author === post.author && <span className="op-badge">OP</span>}
-                    <small>{r.time}</small>
-                  </div>
-                  <p className="comment-text">{r.text}</p>
-                  <div className="comment-actions">
-                    <button
-                      type="button"
-                      className={`comment-btn${likedComments[r.id] ? ' active' : ''}`}
-                      aria-pressed={!!likedComments[r.id]}
-                      onClick={() => toggleCommentLike(r.id)}
-                    >
-                      <i className={`${likedComments[r.id] ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {commentLikes(r)}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
 
   return (
     <div className="app-page">
@@ -203,122 +149,93 @@ export default function Post() {
           {/* Zurück + Meta wie bei Reddit */}
           <div className="backrow">
             <Link
-              to={shownComm ? `/t/${shownComm.id}` : '/app'}
+              to={`/t/${comm.slug}`}
               className="iconbtn"
               aria-label="Zurück"
             >
               <i className="fa-solid fa-arrow-left" />
             </Link>
             <span className="postline">
-              <Link to={`/t/${cid}`} className="comm-link">t/{post.community}</Link>
+              <Link to={`/t/${comm.slug}`} className="comm-link">t/{comm.name}</Link>
               <span className="dot" aria-hidden="true">·</span>
-              <span className="posttime">{post.time}</span>
+              <span className="posttime">{post.date}</span>
               <span className="dot" aria-hidden="true">·</span>
-              <Link to={`/u/${post.author}`} className="postuser-link">u/{post.author}</Link>
+              <Link to={`/u/${post.author.username}`} className="postuser-link">u/{post.author.username}</Link>
             </span>
           </div>
 
-          <h2 className="post-detail-title">{post.title || post.text}</h2>
-          {post.title && <PostBody post={post} large />}
+          <h2 className="post-detail-title">{post.title}</h2>
+          <div className="post-detail-author">
+            <Link to={`/u/${post.author.username}`} className="avatar" aria-label={`Profil von ${post.author.username}`}>
+              {post.author.avatarUrl
+                ? <img src={avatarSrc(post.author.avatarUrl)} alt="" />
+                : <i className="fa-solid fa-circle-user" />}
+            </Link>
+          </div>
+          <PostBody post={{ ...post, images: (post.images || []).map(mediaSrc) }} large />
 
           <div className="post-toolbar detail-toolbar">
-            <button
-              type="button"
-              className={`toolbtn sm${likedPost ? ' active' : ''}`}
-              aria-pressed={likedPost}
-              onClick={() => setLikedPost((v) => !v)}
-            >
-              <i className={`${likedPost ? 'fa-solid' : 'fa-regular'} fa-heart`} />
-              {(post.likes + (likedPost ? 1 : 0)).toLocaleString('de-DE')}
-            </button>
             <button type="button" className="toolbtn sm" onClick={() => setShareOpen(true)}>
               <i className="fa-solid fa-share-nodes" /> Teilen
             </button>
-          </div>
-
-          {/* Mitmachen (fixierte Eingabeleiste ganz unten, wie im Chat) */}
-          <form className="composer" onSubmit={submitTop}>
-            <div className="composer-inner">
-              <span className="comment-ava" aria-hidden="true">
-                <i className="fa-solid fa-circle-user" />
-              </span>
-              <input
-                value={topDraft}
-                onChange={(e) => setTopDraft(e.target.value)}
-                placeholder="Beteilige dich an der Unterhaltung"
-                aria-label="Kommentar schreiben"
-                maxLength={280}
-              />
-              <button type="submit" className="btn btn-brand btn-sm" disabled={!topDraft.trim()} aria-label="Absenden">
-                <i className="fa-solid fa-paper-plane" />
+            {post.canDelete && (
+              <button type="button" className="toolbtn sm danger-tool" onClick={() => setDeleteOpen(true)}>
+                <i className="fa-solid fa-trash" /> Löschen
               </button>
-            </div>
-          </form>
-
-          {/* Sortieren + Suchen */}
-          <div className="comments-head" id="kommentare">
-            <h3 className="comments-title">
-              Kommentare <span className="comments-count">{totalCount}</span>
-            </h3>
-          </div>
-          <div className="comments-bar">
-            <div className="toolbar" role="tablist" aria-label="Kommentare sortieren">
-              {COMMENT_SORTS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={commentSort === s.id}
-                  className={`toolbtn${commentSort === s.id ? ' active' : ''}`}
-                  onClick={() => setCommentSort(s.id)}
-                >
-                  <i className={`fa-solid ${s.icon}`} /> {s.label}
-                </button>
-              ))}
-            </div>
-            <label className="mini-search">
-              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Kommentare durchsuchen"
-                aria-label="Kommentare durchsuchen"
-              />
-            </label>
-          </div>
-
-          <div className="comments-list">
-            {visible.map((c) => renderComment(c))}
-            {visible.length === 0 && (
-              <p className="feed-hint">Keine Kommentare gefunden – schreib den ersten!</p>
             )}
+          </div>
+
+          {/* Kommentare kommen später */}
+          <div className="follow-empty">
+            <i className="fa-solid fa-comments big" aria-hidden="true" />
+            <p>Kommentare kommen bald.</p>
           </div>
         </div>
 
         {/* Community-Box rechts (sticky, wie überall) */}
         <aside className="start-side" aria-label="Community">
-          {shownComm && (
-            <CommunityCard
-              comm={shownComm}
-              stats={[
-                { value: shownComm.members, label: 'Mitglieder' },
-                { value: totalCount, label: 'Kommentare' },
-              ]}
-              showOpenLink
-            />
-          )}
+          <CommunityCard
+            comm={comm}
+            followed={comm.followed}
+            onToggleFollow={toggleFollow}
+            stats={[
+              { value: Number(comm.members || 0).toLocaleString('de-DE'), label: 'Mitglieder' },
+              { value: '–', label: 'Beiträge' },
+            ]}
+            showOpenLink
+          />
         </aside>
       </div>
 
       {/* Teilen-Menü wie bei Shorts */}
       {shareOpen && (
         <ShareSheet
-          sub={`t/${post.community} · ${post.title || post.text}`}
+          sub={`t/${comm.name} · ${post.title}`}
           url={shareUrl}
           copied={copied}
           onCopy={copyShareUrl}
           onClose={() => setShareOpen(false)}
         />
+      )}
+
+      {/* Post löschen bestätigen */}
+      {deleteOpen && (
+        <div className="sheet-backdrop" onClick={() => !deleting && setDeleteOpen(false)}>
+          <div className="sheet sheet-slim" role="alertdialog" aria-modal="true" aria-label="Post löschen" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head"><strong className="sheet-title">Post löschen?</strong></div>
+            <div className="sheet-body">
+              <p className="sheet-sub">Der Post wird endgültig entfernt (inkl. Bilder).</p>
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" disabled={deleting} onClick={() => setDeleteOpen(false)}>Abbrechen</button>
+              <button type="button" className="btn btn-danger" disabled={deleting} onClick={confirmDelete}>
+                {deleting
+                  ? <><i className="fa-solid fa-circle-notch fa-spin" /> Löschen …</>
+                  : <><i className="fa-solid fa-trash" /> Löschen</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

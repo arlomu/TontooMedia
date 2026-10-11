@@ -648,10 +648,10 @@ export default function Studio({ showToast }) {
       {ctx && (() => {
         const row = findRow(ctx.kind, ctx.id)
         if (!row) return null
-        // Echte Posts haben keine Detailseite – Teilen zeigt die Community.
+        // Echte Posts haben jetzt eine Detailseite – Teilen zeigt den Post.
         const url = ctx.kind === 'short'
           ? shortUrl(row.id)
-          : `${window.location.origin}/t/${row.communitySlug || ''}`
+          : `${window.location.origin}/t/${row.communitySlug || ''}/post/${row.id}`
         return (
           <div className="ctx-backdrop" onClick={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }}>
             <div className="ctx-menu" role="menu" aria-label="Zeilen-Menü" style={{ top: ctx.y, left: ctx.x }} onClick={(e) => e.stopPropagation()}>

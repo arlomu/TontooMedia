@@ -343,6 +343,7 @@ export default function Community({ showToast }) {
                 const imgs = (p.images || []).map(mediaSrc)
                 const open = !!expanded[p.id]
                 const shown = open ? imgs : imgs.slice(0, 1)
+                const detailUrl = `/t/${comm.slug}/post/${p.id}`
                 return (
                   <article
                     key={p.id}
@@ -377,8 +378,10 @@ export default function Community({ showToast }) {
                       )}
                     </div>
 
-                    <h4 className="post-title">{p.title}</h4>
-                    <PostBody post={{ ...p, images: shown }} />
+                    <Link to={detailUrl} className="post-titlelink">
+                      <h4 className="post-title">{p.title}</h4>
+                    </Link>
+                    <PostBody post={{ ...p, images: shown }} detailUrl={detailUrl} />
 
                     {imgs.length > 1 && (
                       <button

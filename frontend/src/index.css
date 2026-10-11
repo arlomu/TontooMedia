@@ -1091,6 +1091,12 @@ a.cell-title:hover { text-decoration: underline; }
 .postuser-link:hover { color: var(--accent); }
 .post-detail-title { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; margin: 0 0 10px; overflow-wrap: break-word; }
 .detail-toolbar { margin-bottom: 16px; }
+/* Löschen-Button in der Post-Toolbar (Detailseite) */
+.danger-tool { color: var(--danger); }
+.danger-tool:hover { border-color: var(--danger); }
+/* Autor-Avatar unter dem Detail-Titel */
+.post-detail-author { margin: 0 0 4px; }
+.post-detail-author .avatar { width: 44px; height: 44px; font-size: 19px; }
 /* Titel/Text im Feed öffnen die Detailansicht */
 .post-titlelink, .post-textlink { display: block; text-decoration: none; color: inherit; }
 .post-titlelink .post-title, .post-textlink .posttext { transition: color 0.12s; }

@@ -175,6 +175,11 @@ export const apiListPosts = (slug) =>
     (d) => d.posts || []
   )
 
+export const apiGetPost = (slug, id) =>
+  request(`/api/communities/${encodeURIComponent(slug)}/posts/${id}`, {
+    auth: true,
+  }).then((d) => ({ post: d.post, community: d.community }))
+
 // Post-Erstellung per XHR (Bilder als Dateien).
 export const apiCreatePost = ({ slug, title, text, tags, imageFiles }) =>
   new Promise((resolve, reject) => {

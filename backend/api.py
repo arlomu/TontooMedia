@@ -34,6 +34,7 @@ Endpunkte (alle unter /api/...):
    PATCH  /api/communities/<slug> (Bearer + Admin, multipart description+rules+image?) -> {community}
    DELETE /api/communities/<slug> (Bearer + Admin) -> {ok: true}
    GET    /api/communities/<slug>/posts -> {posts: [...]} (öffentlich, neueste zuerst)
+   GET    /api/communities/<slug>/posts/<id> -> {post, community} (404 wenn unbekannt)
    POST   /api/communities/<slug>/posts (Bearer, multipart title+text+tags+image0+image1) -> {post}
    DELETE /api/communities/<slug>/posts/<id> (Bearer + Admin/Autor) -> {ok: true}
    GET    /api/me/posts (Bearer) -> {posts: [...]} (eigene Posts, fürs Studio)
@@ -502,6 +503,22 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_recent_communities(user_id)
             return self._ok({"communities": [public_community(r) for r in rows]})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/posts/(\d+)", self.path)
+        if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Login kein canDelete
+            with DB_LOCK:
+                comm = _storage.get_community(m.group(1))
+                if comm is None:
+                    return self._fail(404, "Community nicht gefunden.")
+                rows = _storage.list_community_posts(comm["id"], viewer_id)
+                match = next((r for r in rows if r["id"] == int(m.group(2))), None)
+                if match is None:
+                    return self._fail(404, "Post nicht gefunden.")
+                full = _storage.community_with_stats(comm["id"], viewer_id)
+            return self._ok({
+                "post": public_post(match),
+                "community": public_community(full),
+            })
         m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/posts", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Login kein canDelete
