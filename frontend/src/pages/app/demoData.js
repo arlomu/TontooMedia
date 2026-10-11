@@ -9,10 +9,12 @@ export const COMMUNITIES = [
 ]
 
 export const DEMO_POSTS = [
-  { id: 1, author: 'mia.postet', community: 'Fotografie', time: 'vor 2 Min', text: 'Goldene Stunde > alles. Beispiel-Post aus der Demo.', likes: 128, comments: 24, icon: 'fa-camera', color: 'ic-teal' },
-  { id: 2, author: 'pixel.tom', community: 'Gaming', time: 'vor 26 Min', text: 'Dieser Clutch war unreal. Beispiel-Post aus der Demo.', likes: 342, comments: 51, icon: 'fa-gamepad', color: 'ic-violet' },
-  { id: 3, author: 'beat.lena', community: 'Musik', time: 'vor 1 Std', text: 'Neuer Demo-Track ist raus – Link in den Kommis (Beispiel).', likes: 89, comments: 12, icon: 'fa-music', color: 'ic-yellow' },
-  { id: 4, author: 'koch.finn', community: 'Kochen', time: 'vor 3 Std', text: '3-Zutaten-Pasta, 15 Minuten. Beispiel-Post aus der Demo.', likes: 210, comments: 33, icon: 'fa-utensils', color: 'ic-teal' },
+  { id: 1, author: 'mia.postet', community: 'Fotografie', commId: 'fotografie', title: 'Goldene Stunde über den Dächern', time: 'vor 2 Min', text: 'War gestern mit der 50mm unterwegs – kein Filter, nur 19:42 Uhr und etwas Glück. Volles Album liegt in t/fotografie. Was sagt ihr zum Beschnitt?', likes: 128, comments: 24, icon: 'fa-camera', color: 'ic-teal' },
+  { id: 2, author: 'pixel.tom', community: 'Gaming', commId: 'gaming', title: 'Dieser 1v3-Clutch war unreal', time: 'vor 26 Min', text: 'Letzte Runde, 12 HP, und dann sitzt der Flick. Clip liegt auch als Short vor – schaut rein und sagt mir, ob ich das als Tutorial aufdröseln soll.', likes: 342, comments: 51, icon: 'fa-gamepad', color: 'ic-violet' },
+  { id: 3, author: 'beat.lena', community: 'Musik', commId: 'musik', title: 'Neuer Demo-Track aus dem Schlafzimmer-Studio', time: 'vor 1 Std', text: 'Drop bei 0:20 ist mein Lieblingsteil. Monitorboxen standen auf Umzugskartons, trotzdem pumpt es. Feedback zu Mix und Master?', likes: 89, comments: 12, icon: 'fa-music', color: 'ic-yellow' },
+  { id: 4, author: 'koch.finn', community: 'Kochen', commId: 'kochen', title: '3-Zutaten-Pasta in 15 Minuten', time: 'vor 3 Std', text: 'Pasta, Kirschtomaten, Parmesan – mehr braucht es nachts um 1 nicht. Rezept mit Zeiten steht in den Kommis. Wer hat die schärfere Variante?', likes: 210, comments: 33, icon: 'fa-utensils', color: 'ic-teal' },
+  { id: 5, author: 'tech.ana', community: 'Tech', commId: 'tech', title: 'Mein Setup 2026: klein, leise, schnell', time: 'vor 5 Std', text: 'Endlich alles verkabelt: ein Dock, zwei Monitore, null Lüfterlärm. Stückliste und Kostenaufstellung in t/tech. Was würdet ihr anders machen?', likes: 176, comments: 41, icon: 'fa-microchip', color: 'ic-violet' },
+  { id: 6, author: 'foto.nina', community: 'Fotografie', commId: 'fotografie', title: 'Blende 1.8 vs. 2.8 – seht ihr den Unterschied?', time: 'vor 8 Std', text: 'Gleiche Szene, zwei Blenden, zwei Bilder. Beispiel-Post aus der Demo – stimmt ab, welches Bokeh ihr ruhiger findet.', likes: 94, comments: 18, icon: 'fa-camera', color: 'ic-teal' },
 ]
 
 export const DEMO_SHORTS = [
@@ -51,6 +53,30 @@ export const DEMO_SHORTS = [
     icon: 'fa-music',
     color: 'ic-yellow',
     dur: '0:44',
+  },
+  {
+    id: 4,
+    author: 'koch.finn',
+    title: 'Mitternachtspasta in 15 Min',
+    sound: 'Originalton – koch.finn',
+    likes: '45.210',
+    comments: '1.102',
+    remixes: '38',
+    icon: 'fa-utensils',
+    color: 'ic-teal',
+    dur: '0:29',
+  },
+  {
+    id: 5,
+    author: 'tech.ana',
+    title: 'Setup-Tour: ein Kabel, alles dran',
+    sound: 'lofi beats – tech.ana',
+    likes: '61.733',
+    comments: '1.875',
+    remixes: '112',
+    icon: 'fa-microchip',
+    color: 'ic-violet',
+    dur: '0:51',
   },
 ]
 
