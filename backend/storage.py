@@ -32,6 +32,21 @@ CREATE TABLE IF NOT EXISTS users (
     avatar TEXT,
     created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS shorts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    visibility TEXT NOT NULL DEFAULT 'Öffentlich',
+    comments_off INTEGER NOT NULL DEFAULT 0,
+    filename TEXT NOT NULL,
+    thumb TEXT,
+    duration REAL NOT NULL DEFAULT 0,
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0,
+    views INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
 """
 
 _SESSION_SCHEMA = """
@@ -232,6 +247,108 @@ class Storage:
         conn = self._require_sessions()
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
         conn.commit()
+
+    # ---------- Shorts ----------
+
+    def create_short(
+        self,
+        user_id: int,
+        title: str,
+        tags: str,
+        visibility: str,
+        comments_off: bool,
+        filename: str,
+        thumb: Optional[str],
+        duration: float,
+        width: int,
+        height: int,
+    ) -> int:
+        """Legt einen Short an, gibt die neue ID zurück. Tags als JSON-String."""
+        conn = self._require()
+        cur = conn.execute(
+            "INSERT INTO shorts (user_id, title, tags, visibility, comments_off,"
+            " filename, thumb, duration, width, height, views, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)",
+            (user_id, title.strip(), tags, visibility, 1 if comments_off else 0,
+             filename, thumb, duration, width, height, int(time.time())),
+        )
+        conn.commit()
+        log.info("Short angelegt: id=%d (user=%d)", cur.lastrowid, user_id)
+        return cur.lastrowid
+
+    def list_shorts(self, user_id: int) -> list:
+        """Alle Shorts eines Users, neueste zuerst (als Dicts)."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT id, user_id, title, tags, visibility, comments_off,"
+            " filename, thumb, duration, width, height, views, created_at"
+            " FROM shorts WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_short(self, short_id: int) -> Optional[dict]:
+        """Holt einen Short per ID, oder None."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT id, user_id, title, tags, visibility, comments_off,"
+            " filename, thumb, duration, width, height, views, created_at"
+            " FROM shorts WHERE id = ?",
+            (short_id,),
+        )
+        row = cur.fetchone()
+        return dict(zip([d[0] for d in cur.description], row)) if row else None
+
+    def update_short(
+        self,
+        short_id: int,
+        title: Optional[str] = None,
+        tags: Optional[str] = None,
+        visibility: Optional[str] = None,
+        comments_off: Optional[bool] = None,
+        thumb: Optional[str] = None,
+        clear_thumb: bool = False,
+    ) -> None:
+        """Aktualisiert Titel/Tags/Sichtbarkeit/Kommentare/Thumbnail (nur gesetzte Felder)."""
+        conn = self._require()
+        sets, vals = [], []
+        if title is not None:
+            sets.append("title = ?")
+            vals.append(title.strip())
+        if tags is not None:
+            sets.append("tags = ?")
+            vals.append(tags)
+        if visibility is not None:
+            sets.append("visibility = ?")
+            vals.append(visibility)
+        if comments_off is not None:
+            sets.append("comments_off = ?")
+            vals.append(1 if comments_off else 0)
+        if thumb is not None:
+            sets.append("thumb = ?")
+            vals.append(thumb)
+        elif clear_thumb:
+            sets.append("thumb = NULL")
+        if not sets:
+            return
+        vals.append(short_id)
+        conn.execute(f"UPDATE shorts SET {', '.join(sets)} WHERE id = ?", vals)
+        conn.commit()
+
+    def delete_short(self, short_id: int) -> None:
+        """Löscht einen Short-Datensatz (Dateien löscht functions/shorts.py)."""
+        conn = self._require()
+        conn.execute("DELETE FROM shorts WHERE id = ?", (short_id,))
+        conn.commit()
+
+    def count_views(self, user_id: int) -> int:
+        """Summe aller Short-Aufrufe eines Users."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COALESCE(SUM(views), 0) FROM shorts WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return row[0] if row else 0
 
 
 if __name__ == "__main__":

@@ -25,6 +25,9 @@ export const setToken = (token) => {
 // Baut aus einer relativen Avatar-URL (/api/avatar/...) die volle URL.
 export const avatarSrc = (path) => (path ? `${API_BASE}${path}` : null)
 
+// Baut aus einer relativen Media-URL (/api/media/...) die volle URL.
+export const mediaSrc = (path) => (path ? `${API_BASE}${path}` : '')
+
 async function request(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' }
   if (auth) {
@@ -96,3 +99,63 @@ export const apiChangePassword = (current, next) =>
 
 export const apiDeleteAccount = (username) =>
   request('/api/me', { method: 'DELETE', auth: true, body: { username } })
+
+// ---- Studio / Shorts (echt, Port 3001) ----
+
+export const apiListShorts = () =>
+  request('/api/shorts', { auth: true }).then((d) => d.shorts || [])
+
+export const apiStudioOverview = () =>
+  request('/api/studio/overview', { auth: true }).then((d) => d.overview)
+
+export const apiUpdateShort = (id, patch) =>
+  request(`/api/shorts/${id}`, { method: 'PATCH', auth: true, body: patch }).then(
+    (d) => d.short
+  )
+
+export const apiUploadShortThumb = (id, dataUrl) =>
+  request(`/api/shorts/${id}/thumb`, { method: 'POST', auth: true, body: { data: dataUrl } }).then(
+    (d) => d.short
+  )
+
+export const apiDeleteShort = (id) =>
+  request(`/api/shorts/${id}`, { method: 'DELETE', auth: true })
+
+// Multipart-Upload per XHR (damit es echten Fortschritt gibt).
+export const apiUploadShort = ({
+  file,
+  thumbFile,
+  title,
+  tags,
+  visibility,
+  commentsOff,
+  onProgress,
+}) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/shorts/upload`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total)
+    }
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* egal */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data.short)
+      else reject(new Error(data.error || `Fehler ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Server nicht erreichbar. Läuft das Backend?'))
+    const fd = new FormData()
+    fd.append('video', file)
+    if (thumbFile) fd.append('thumb', thumbFile)
+    fd.append('title', title)
+    fd.append('tags', JSON.stringify(tags || []))
+    fd.append('visibility', visibility)
+    fd.append('commentsOff', commentsOff ? '1' : '0')
+    xhr.send(fd)
+  })

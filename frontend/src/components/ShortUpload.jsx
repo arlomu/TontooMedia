@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { apiUploadShort } from '../lib/api.js'
 
 const MAX_TAGS = 8
 const MAX_DUR = 90 // 1:30 – länger geht nicht
@@ -67,11 +68,11 @@ const captureMiddleFrame = (url, duration) => new Promise((resolve) => {
   }
 })
 
-// Short-Upload als Wizard (Demo, kein Backend):
+// Short-Upload als Wizard (echt, Backend auf Port 3001):
 // Schritt 1 fragt nur nach dem Video (max. 1:30, 9:16-Vorschau wie bei YT Shorts) –
 // erst danach kommt Schritt 2 (Titel, #Tags, Öffentlich/Privat, Kommentare
 // an/aus, Thumbnail: custom oder automatisch mittlerer Frame).
-// onDone bekommt die Daten für die Studio-Liste.
+// onDone bekommt den echten Short vom Server für die Studio-Liste.
 export default function ShortUpload({ onDone, onCancel }) {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
@@ -86,6 +87,10 @@ export default function ShortUpload({ onDone, onCancel }) {
   const [visibility, setVisibility] = useState('Öffentlich')
   const [commentsOn, setCommentsOn] = useState(true)
   const [thumb, setThumb] = useState('')
+  const [thumbFile, setThumbFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef(null)
   const thumbRef = useRef(null)
 
@@ -150,24 +155,53 @@ export default function ShortUpload({ onDone, onCancel }) {
     if (thumb.startsWith('blob:')) {
       try { URL.revokeObjectURL(thumb) } catch { /* egal */ }
     }
+    setThumbFile(f)
     setThumb(URL.createObjectURL(f))
+  }
+
+  const clearThumb = () => {
+    if (thumb.startsWith('blob:')) {
+      try { URL.revokeObjectURL(thumb) } catch { /* egal */ }
+    }
+    setThumbFile(null)
+    setThumb('')
   }
 
   const shownThumb = thumb || autoThumb
 
-  const upload = () => {
-    if (!file || !title.trim()) return
-    onDone?.({
-      title: title.trim(),
-      tags,
-      visibility,
-      commentsOff: !commentsOn,
-      thumb: shownThumb,
-      dur: meta ? fmtDur(meta.dur) : '–',
-      width: meta?.w || 0,
-      height: meta?.h || 0,
-      format: '9:16',
-    })
+  // dataURL (Auto-Thumb) -> File, damit es als Multipart-Teil mit kann
+  const dataUrlToFile = async (dataUrl, name) => {
+    try {
+      const res = await fetch(dataUrl)
+      const blob = await res.blob()
+      if (!blob.size) return null
+      return new File([blob], name, { type: blob.type || 'image/jpeg' })
+    } catch {
+      return null
+    }
+  }
+
+  const upload = async () => {
+    if (!file || !title.trim() || uploading) return
+    setUploading(true)
+    setProgress(0)
+    setUploadError('')
+    try {
+      const sendThumb = thumbFile || (autoThumb ? await dataUrlToFile(autoThumb, 'thumb.jpg') : null)
+      const short = await apiUploadShort({
+        file,
+        thumbFile: sendThumb,
+        title: title.trim(),
+        tags,
+        visibility,
+        commentsOff: !commentsOn,
+        onProgress: (p) => setProgress(Math.round(p * 100)),
+      })
+      onDone?.(short)
+    } catch (e) {
+      setUploadError(e.message || 'Upload fehlgeschlagen.')
+      setUploading(false)
+    }
   }
 
   return (
@@ -195,7 +229,7 @@ export default function ShortUpload({ onDone, onCancel }) {
             >
               <i className="fa-solid fa-cloud-arrow-up dropic ic-teal" />
               <strong>Video hierher ziehen oder klicken</strong>
-              <small>MP4, MOV, max. 1:30 – nur Demo, nichts wird hochgeladen</small>
+              <small>MP4, MOV, max. 1:30 – wird als Short verarbeitet (HD / 60fps)</small>
             </button>
             <input
               ref={fileRef}
@@ -314,7 +348,7 @@ export default function ShortUpload({ onDone, onCancel }) {
                     <i className="fa-solid fa-upload" /> {thumb ? 'Anderes wählen' : 'Bild wählen'}
                   </button>
                   {thumb ? (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setThumb('')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={clearThumb}>
                       <i className="fa-solid fa-rotate-left" /> Auto (mittlerer Frame)
                     </button>
                   ) : (
@@ -345,15 +379,27 @@ export default function ShortUpload({ onDone, onCancel }) {
           </>
         ) : (
           <>
-            <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>
+            <button type="button" className="btn btn-ghost" disabled={uploading} onClick={() => setStep(1)}>
               <i className="fa-solid fa-arrow-left" /> Zurück
             </button>
-            <button type="button" className="btn btn-brand" disabled={!title.trim()} onClick={upload}>
-              <i className="fa-solid fa-cloud-arrow-up" /> Upload
+            <button type="button" className="btn btn-brand" disabled={!title.trim() || uploading} onClick={upload}>
+              {uploading
+                ? <><i className="fa-solid fa-circle-notch fa-spin" /> {progress} %</>
+                : <><i className="fa-solid fa-cloud-arrow-up" /> Upload</>}
             </button>
           </>
         )}
       </div>
+      {uploading && (
+        <div className="upload-progress" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      )}
+      {uploadError && (
+        <p className="formerror sheet-error" role="alert">
+          <i className="fa-solid fa-circle-exclamation" /> {uploadError}
+        </p>
+      )}
     </>
   )
 }

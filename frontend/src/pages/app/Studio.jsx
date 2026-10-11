@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   COMMUNITIES,
-  DEMO_STUDIO_OVERVIEW,
   DEMO_STUDIO_POSTS,
-  DEMO_STUDIO_SHORTS,
   commIdOf,
   postUrlOf,
 } from './demoData.js'
@@ -11,6 +9,14 @@ import ShareSheet from '../../components/ShareSheet.jsx'
 import PostEditor from '../../components/PostEditor.jsx'
 import ShortUpload from '../../components/ShortUpload.jsx'
 import { getCustomTontoos } from './customTontoos.js'
+import {
+  apiDeleteShort,
+  apiListShorts,
+  apiStudioOverview,
+  apiUpdateShort,
+  apiUploadShortThumb,
+  mediaSrc,
+} from '../../lib/api.js'
 
 const TABS = [
   { id: 'shorts', label: 'Shorts', icon: 'fa-clapperboard' },
@@ -32,25 +38,61 @@ const visPill = (s) => s.visibility === 'Privat'
   ? { label: 'Privat', cls: 'private' }
   : { label: 'Öffentlich', cls: 'live' }
 
-// Creator-Studio (Demo): Kennzahlen, Shorts/Post-Verwaltung mit Bearbeiten,
-// Hochladen, Planen und Löschen. Alles Beispiel, kein Backend.
+// Creator-Studio: Kennzahlen + Shorts sind echt (Backend Port 3001),
+// Posts bleiben vorerst Demo (kommen später).
+const rowOf = (s) => ({
+  id: s.id,
+  title: s.title,
+  tags: s.tags || [],
+  visibility: s.visibility || 'Öffentlich',
+  commentsOff: !!s.commentsOff,
+  dur: s.dur || '–',
+  date: s.date || '–',
+  views: s.views || 0,
+  likes: s.likes || 0,
+  comments: s.comments ?? 0,
+  thumb: mediaSrc(s.thumbUrl),
+  videoUrl: mediaSrc(s.videoUrl),
+  icon: 'fa-clapperboard',
+  color: 'ic-teal',
+})
+
+const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+  try {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result)
+    r.onerror = reject
+    r.readAsDataURL(file)
+  } catch (e) {
+    reject(e)
+  }
+})
+
 export default function Studio({ showToast }) {
   const notify = (msg) => showToast?.(msg)
   const [tab, setTab] = useState('shorts')
   const [period, setPeriod] = useState(28)
   const [query, setQuery] = useState('')
-  const [shorts, setShorts] = useState(DEMO_STUDIO_SHORTS)
+  const [shorts, setShorts] = useState([])
+  const [shortsLoading, setShortsLoading] = useState(true)
+  const [shortsError, setShortsError] = useState('')
+  const [ovApi, setOvApi] = useState(null)
   const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
   const [ctx, setCtx] = useState(null) // { x, y, kind, id } Zeilen-Menü
   const [deleteTarget, setDeleteTarget] = useState(null) // { kind, id } fürs Lösch-Modal
+  const [deleting, setDeleting] = useState(false)
   const [shareItem, setShareItem] = useState(null) // { url, sub }
   const [copiedShare, setCopiedShare] = useState(false)
   // Short bearbeiten
   const [esId, setEsId] = useState(null)
   const [esTitle, setEsTitle] = useState('')
   const [esThumb, setEsThumb] = useState('')
+  const [esThumbFile, setEsThumbFile] = useState(null)
+  const [esHadThumb, setEsHadThumb] = useState(false)
   const [esVis, setEsVis] = useState('Öffentlich')
+  const [esComments, setEsComments] = useState(true)
+  const [esSaving, setEsSaving] = useState(false)
   const esThumbRef = useRef(null)
   // Post bearbeiten / erstellen
   const [epId, setEpId] = useState(null)
@@ -81,19 +123,32 @@ export default function Studio({ showToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen, deleteTarget])
 
-  // Short-Upload abschließen → oben in die Liste (Demo)
-  const finishUpload = (data) => {
-    setShorts((s) => [{
-      id: `up-${Date.now()}`, title: data.title,
-      likes: '0', comments: data.commentsOff ? '–' : '0', remixes: '0',
-      icon: 'fa-clapperboard', color: 'ic-teal', dur: data.dur || '–',
-      views: 0, date: 'heute', status: 'live', visibility: data.visibility,
-      tags: data.tags, thumb: data.thumb, commentsOff: data.commentsOff,
-    }, ...s])
+  // Short-Upload abschließen → oben in die Liste (echt vom Server)
+  const finishUpload = (short) => {
+    setShorts((s) => [rowOf(short), ...s])
     setUploadOpen(false)
     setTab('shorts')
-    notify('Short hochgeladen (Demo).')
+    notify('Short hochgeladen.')
   }
+
+  // Shorts + Kennzahlen laden
+  const loadShorts = async () => {
+    setShortsLoading(true)
+    setShortsError('')
+    try {
+      const [list, overview] = await Promise.all([apiListShorts(), apiStudioOverview()])
+      setShorts((list || []).map(rowOf))
+      setOvApi(overview)
+    } catch (e) {
+      setShortsError(e.message || 'Laden fehlgeschlagen.')
+    } finally {
+      setShortsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadShorts()
+  }, [])
 
   const placeMenu = (e) => ({
     x: Math.max(8, Math.min(e.clientX, window.innerWidth - 240)),
@@ -115,14 +170,27 @@ export default function Studio({ showToast }) {
     })
   }
 
-  // Löschen erst nach Bestätigung im Modal
-  const confirmDelete = () => {
-    if (!deleteTarget) return
+  // Löschen erst nach Bestätigung im Modal (Shorts echt, Posts Demo)
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return
     const { kind, id } = deleteTarget
-    if (kind === 'short') setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
-    else setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
-    setDeleteTarget(null)
-    notify('Gelöscht (Demo).')
+    if (kind !== 'short') {
+      setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
+      setDeleteTarget(null)
+      notify('Gelöscht (Demo).')
+      return
+    }
+    setDeleting(true)
+    try {
+      await apiDeleteShort(id)
+      setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
+      setDeleteTarget(null)
+      notify('Short gelöscht.')
+    } catch (e) {
+      notify(e.message || 'Löschen fehlgeschlagen.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const openShare = (url, sub) => {
@@ -143,23 +211,60 @@ export default function Studio({ showToast }) {
     copyTimer.current = setTimeout(() => setCopiedShare(false), 1600)
   }
 
-  // Short-Edit öffnen / speichern (Titel, Sichtbarkeit, Thumbnail)
+  // Short-Edit öffnen / speichern (Titel, Sichtbarkeit, Kommentare, Thumbnail)
   const openEditShort = (s) => {
     setCtx(null)
     setEsId(s.id)
     setEsTitle(s.title)
     setEsThumb(s.thumb || '')
+    setEsThumbFile(null)
+    setEsHadThumb(!!s.thumb)
     setEsVis(s.visibility || 'Öffentlich')
+    setEsComments(!s.commentsOff)
   }
-  const saveShort = () => {
-    if (!esTitle.trim()) return
-    setShorts((list) => list.map((x) =>
-      String(x.id) === String(esId)
-        ? { ...x, title: esTitle.trim(), thumb: esThumb, visibility: esVis }
-        : x
-    ))
-    setEsId(null)
-    notify('Short gespeichert (Demo).')
+  const saveShort = async () => {
+    if (!esTitle.trim() || esSaving) return
+    setEsSaving(true)
+    try {
+      const patch = {
+        title: esTitle.trim(),
+        visibility: esVis,
+        commentsOff: !esComments,
+      }
+      if (!esThumbFile && esHadThumb && !esThumb) patch.removeThumb = true
+      let updated = await apiUpdateShort(esId, patch)
+      if (esThumbFile) {
+        updated = await apiUploadShortThumb(esId, await fileToDataUrl(esThumbFile))
+      }
+      const row = rowOf(updated)
+      setShorts((list) => list.map((x) =>
+        String(x.id) === String(esId)
+          ? { ...row, icon: x.icon, color: x.color }
+          : x
+      ))
+      setEsId(null)
+      notify('Short gespeichert.')
+    } catch (e) {
+      notify(e.message || 'Speichern fehlgeschlagen.')
+    } finally {
+      setEsSaving(false)
+    }
+  }
+  const takeEsThumb = (files) => {
+    const f = [...(files || [])].find((x) => x.type.startsWith('image/'))
+    if (!f) return
+    if (esThumb.startsWith('blob:')) {
+      try { URL.revokeObjectURL(esThumb) } catch { /* egal */ }
+    }
+    setEsThumbFile(f)
+    setEsThumb(URL.createObjectURL(f))
+  }
+  const clearEsThumb = () => {
+    if (esThumb.startsWith('blob:')) {
+      try { URL.revokeObjectURL(esThumb) } catch { /* egal */ }
+    }
+    setEsThumbFile(null)
+    setEsThumb('')
   }
 
   // Post-Edit öffnen / speichern (gleicher Editor, Community fest)
@@ -186,8 +291,13 @@ export default function Studio({ showToast }) {
     return pool.find((x) => String(x.id) === String(id))
   }
 
-  // Kennzahlen-Karten
-  const ov = DEMO_STUDIO_OVERVIEW
+  // Kennzahlen-Karten (echt vom Server; alles 0 bis was passiert)
+  const Z7 = [0, 0, 0, 0, 0, 0, 0]
+  const ov = ovApi || {
+    views: 0, watchHours: 0, subs: 0, likes: 0,
+    delta: { views: 0, watchHours: 0, subs: 0, likes: 0 },
+    daily: { views: Z7, watch: Z7, subs: Z7, likes: Z7 },
+  }
   const factor = period / 28
   const scale = (n) => Math.round(n * factor)
   const stats = [
@@ -352,8 +462,21 @@ export default function Studio({ showToast }) {
                     </tr>
                   )
                 })}
-                {visibleShorts.length === 0 && (
+                {visibleShorts.length === 0 && !shortsLoading && !shortsError && (
                   <tr><td colSpan={7} className="cell-sub">{q ? `Keine Shorts für „${query.trim()}“ gefunden.` : 'Keine Shorts – lade oben welche hoch.'}</td></tr>
+                )}
+                {shortsLoading && (
+                  <tr><td colSpan={7} className="cell-sub">
+                    <i className="fa-solid fa-circle-notch fa-spin" /> Shorts werden geladen …
+                  </td></tr>
+                )}
+                {shortsError && (
+                  <tr><td colSpan={7} className="cell-sub">
+                    {shortsError}{' '}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={loadShorts}>
+                      <i className="fa-solid fa-rotate-right" /> Erneut versuchen
+                    </button>
+                  </td></tr>
                 )}
               </tbody>
             </table>
@@ -476,7 +599,7 @@ export default function Studio({ showToast }) {
                         <i className="fa-solid fa-upload" /> {esThumb ? 'Anderes wählen' : 'Bild wählen'}
                       </button>
                       {esThumb ? (
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEsThumb('')}>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={clearEsThumb}>
                           <i className="fa-solid fa-rotate-left" /> Entfernen
                         </button>
                       ) : (
@@ -490,11 +613,7 @@ export default function Studio({ showToast }) {
                       className="file-hidden"
                       aria-hidden="true"
                       tabIndex={-1}
-                      onChange={(e) => {
-                        const f = [...(e.target.files || [])].find((x) => x.type.startsWith('image/'))
-                        e.target.value = ''
-                        if (f) setEsThumb(URL.createObjectURL(f))
-                      }}
+                      onChange={(e) => { takeEsThumb(e.target.files); e.target.value = '' }}
                     />
                   </div>
                 </div>
@@ -514,11 +633,24 @@ export default function Studio({ showToast }) {
                     ))}
                   </div>
                 </div>
+                <div className="switch-row">
+                  <span>Kommentare<small>Zuschauer dürfen kommentieren (Standard an)</small></span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={esComments}
+                    aria-label="Kommentare"
+                    className={`switch${esComments ? ' on' : ''}`}
+                    onClick={() => setEsComments((v) => !v)}
+                  />
+                </div>
               </div>
             </div>
             <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setEsId(null)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" disabled={!esTitle.trim()} onClick={saveShort}>Speichern</button>
+              <button type="button" className="btn btn-ghost" disabled={esSaving} onClick={() => setEsId(null)}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" disabled={!esTitle.trim() || esSaving} onClick={saveShort}>
+                {esSaving ? <><i className="fa-solid fa-circle-notch fa-spin" /> Speichern …</> : 'Speichern'}
+              </button>
             </div>
           </div>
         </div>
@@ -584,13 +716,16 @@ export default function Studio({ showToast }) {
               <div className="sheet-head"><strong className="sheet-title">Wirklich löschen?</strong></div>
               <div className="sheet-body">
                 <p className="sheet-sub">
-                  „{row?.title || row?.text || 'Dieser Inhalt'}“ wird endgültig entfernt (Demo).
+                  „{row?.title || row?.text || 'Dieser Inhalt'}“ wird endgültig entfernt
+                  {deleteTarget.kind === 'short' ? ' (inkl. Video).' : ' (Demo).'}
                 </p>
               </div>
               <div className="sheet-foot">
-                <button type="button" className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>Abbrechen</button>
-                <button type="button" className="btn btn-danger" onClick={confirmDelete}>
-                  <i className="fa-solid fa-trash" /> Löschen
+                <button type="button" className="btn btn-ghost" disabled={deleting} onClick={() => setDeleteTarget(null)}>Abbrechen</button>
+                <button type="button" className="btn btn-danger" disabled={deleting} onClick={confirmDelete}>
+                  {deleting
+                    ? <><i className="fa-solid fa-circle-notch fa-spin" /> Löschen …</>
+                    : <><i className="fa-solid fa-trash" /> Löschen</>}
                 </button>
               </div>
             </div>

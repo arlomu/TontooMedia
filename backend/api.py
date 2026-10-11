@@ -11,18 +11,34 @@ Endpunkte (alle unter /api/...):
   POST   /api/me/password   {current, new} -> {ok: true}
   DELETE /api/me            {username} (Bestätigung) -> {ok: true}
   GET    /api/avatar/<datei>  Avatar-Bild (Fallback: Standard-Avatar)
+  GET    /api/shorts        (Bearer) -> {shorts: [...]} (eigene Shorts)
+  POST   /api/shorts/upload (Bearer, multipart) -> {short}
+  PATCH  /api/shorts/<id>   {title?, visibility?, removeThumb?} -> {short}
+  POST   /api/shorts/<id>/thumb {data: dataURL} -> {short}
+  DELETE /api/shorts/<id>   -> {ok: true}
+  GET    /api/studio/overview (Bearer) -> Kennzahlen
+  GET    /api/media/<datei>   Video/Thumbnail (mit Range-Support)
 
 Auth per `Authorization: Bearer <token>`. Alles Demo, kein HTTPS.
 """
 import json
+import re
 import sys
 import threading
 from base64 import b64decode
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
 
 try:
+    from .functions.shorts import (
+        THUMB_DIR,
+        VIDEO_DIR,
+        create_short,
+        delete_short,
+        update_short,
+    )
     from .functions.user import (
         change_password,
         clear_avatar,
@@ -35,6 +51,13 @@ try:
     from .logger import get_logger
     from .storage import Storage
 except ImportError:  # direkter Start via `python backend/api.py`
+    from functions.shorts import (
+        THUMB_DIR,
+        VIDEO_DIR,
+        create_short,
+        delete_short,
+        update_short,
+    )
     from functions.user import (
         change_password,
         clear_avatar,
@@ -78,6 +101,82 @@ def public_user(user: dict) -> dict:
     }
 
 
+def fmt_dur(seconds: float) -> str:
+    """Sekunden -> 'm:ss' (z. B. 0:32)."""
+    try:
+        total = max(0, int(seconds))
+    except (TypeError, ValueError):
+        return "–"
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def public_short(row: dict) -> dict:
+    """Short-Datensatz fürs Frontend (Studio-Tabelle)."""
+    import json as _json
+
+    try:
+        tags = _json.loads(row.get("tags") or "[]")
+    except ValueError:
+        tags = []
+    created = row.get("created_at") or 0
+    is_today = datetime.fromtimestamp(created).date() == datetime.now().date() if created else False
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "tags": tags,
+        "visibility": row["visibility"],
+        "commentsOff": bool(row.get("comments_off")),
+        "dur": fmt_dur(row.get("duration") or 0),
+        "seconds": round(float(row.get("duration") or 0), 1),
+        "date": "heute" if is_today else (
+            datetime.fromtimestamp(created).strftime("%d.%m.%Y") if created else "–"
+        ),
+        "views": row.get("views") or 0,
+        "likes": 0,  # Interaktionen kommen später
+        "comments": "–" if row.get("comments_off") else 0,
+        "thumbUrl": f"/api/media/{row['thumb']}" if row.get("thumb") else None,
+        "videoUrl": f"/api/media/{row['filename']}" if row.get("filename") else None,
+    }
+
+
+def parse_multipart(body: bytes, content_type: str) -> tuple:
+    """Minimaler Multipart-Parser (ohne Deps).
+    Gibt (fields: dict, files: {name: {filename, content_type, data}}) zurück."""
+    fields, files = {}, {}
+    m = re.search(r"boundary=([^;]+)", content_type or "")
+    if not m or not body:
+        return fields, files
+    boundary = m.group(1).strip().strip('"').encode("latin-1")
+    for chunk in body.split(b"--" + boundary):
+        if b"\r\n\r\n" not in chunk:
+            continue
+        head, data = chunk.split(b"\r\n\r\n", 1)
+        if data.endswith(b"\r\n"):
+            data = data[:-2]
+        if data.endswith(b"--"):
+            data = data[:-2]
+        disp, ctype = "", "application/octet-stream"
+        for line in head.decode("latin-1").split("\r\n"):
+            low = line.lower()
+            if low.startswith("content-disposition:"):
+                disp = line
+            elif low.startswith("content-type:"):
+                ctype = line.split(":", 1)[1].strip()
+        nm = re.search(r'name="([^"]+)"', disp)
+        if not nm:
+            continue
+        fn = re.search(r'filename="([^"]+)"', disp)
+        if fn and fn.group(1):
+            files[nm.group(1)] = {
+                "filename": Path(fn.group(1)).name,
+                "content_type": ctype,
+                "data": data,
+            }
+        else:
+            fields[nm.group(1)] = data.decode("utf-8", "replace")
+    return fields, files
+
+
 class _Handler(BaseHTTPRequestHandler):
     server_version = "TontooAPI/0.1"
 
@@ -112,6 +211,20 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _read_bytes(self, max_bytes: int) -> Optional[bytes]:
+        """Liest den Body roh (für Multipart-Uploads). None bei zu groß/Fehler."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return None
+        if length <= 0 or length > max_bytes:
+            return None
+        try:
+            data = self.rfile.read(length)
+        except Exception:
+            return None
+        return data if len(data) == length else None
+
     def _bearer(self) -> Optional[str]:
         auth = self.headers.get("Authorization") or ""
         if auth.startswith("Bearer "):
@@ -141,8 +254,35 @@ class _Handler(BaseHTTPRequestHandler):
             if user is None:
                 return self._fail(401, "Nicht eingeloggt.")
             return self._ok({"user": public_user(user)})
+        if self.path == "/api/shorts":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                rows = _storage.list_shorts(user_id)
+            return self._ok({"shorts": [public_short(r) for r in rows]})
+        if self.path == "/api/studio/overview":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                views = _storage.count_views(user_id)
+                shorts = _storage.list_shorts(user_id)
+            zero_daily = [0, 0, 0, 0, 0, 0, 0]
+            return self._ok({"overview": {
+                "views": views,
+                "watchHours": 0,
+                "subs": 0,
+                "subsGain": 0,
+                "likes": 0,
+                "shorts": len(shorts),
+                "delta": {"views": 0, "watchHours": 0, "subs": 0, "likes": 0},
+                "daily": {"views": zero_daily, "watch": zero_daily, "subs": zero_daily, "likes": zero_daily},
+            }})
         if self.path.startswith("/api/avatar/"):
             return self._serve_avatar(self.path[len("/api/avatar/"):])
+        if self.path.startswith("/api/media/"):
+            return self._serve_media(self.path[len("/api/media/"):])
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_POST(self) -> None:  # noqa: N802
@@ -197,6 +337,55 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400, str(e))
             return self._ok({"ok": True})
+        if self.path == "/api/shorts/upload":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            raw = self._read_bytes(350 * 1024 * 1024)
+            if raw is None:
+                return self._fail(413, "Upload ist leer oder größer als 350 MB.")
+            fields, files = parse_multipart(raw, self.headers.get("Content-Type"))
+            video = files.get("video")
+            if not video or not video["data"]:
+                return self._fail(400, "Kein Video dabei.")
+            import json as _json
+
+            try:
+                tags = _json.loads(fields.get("tags") or "[]")
+            except ValueError:
+                tags = []
+            thumb_file = files.get("thumb")
+            try:
+                with DB_LOCK:
+                    short = create_short(
+                        _storage, user_id, video["data"], video["filename"],
+                        fields.get("title", ""), tags,
+                        fields.get("visibility", "Öffentlich"),
+                        fields.get("commentsOff", "") in ("1", "true", "True"),
+                        thumb_file["data"] if thumb_file else None,
+                    )
+            except ValueError as e:
+                return self._fail(400, str(e))
+            with DB_LOCK:
+                fresh = _storage.get_short(short["id"])
+            return self._send(201, {"short": public_short(fresh)})
+        m = re.fullmatch(r"/api/shorts/(\d+)/thumb", self.path)
+        if m:
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            data_url = self._read_json().get("data", "")
+            try:
+                _, _, b64 = data_url.partition(",")
+                raw = b64decode(b64 or data_url)
+            except Exception:
+                return self._fail(400, "Ungültige Bilddaten.")
+            try:
+                with DB_LOCK:
+                    fresh = update_short(_storage, user_id, int(m.group(1)), thumb_bytes=raw)
+            except ValueError as e:
+                return self._fail(400 if "gefunden" not in str(e) else 404, str(e))
+            return self._ok({"short": public_short(fresh)})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_PATCH(self) -> None:  # noqa: N802
@@ -217,6 +406,30 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400, str(e))
             return self._ok({"user": public_user(fresh)})
+        m = re.fullmatch(r"/api/shorts/(\d+)", self.path)
+        if m:
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            body = self._read_json()
+            kwargs = {}
+            if "title" in body:
+                kwargs["title"] = body["title"]
+            if "tags" in body:
+                kwargs["tags"] = body["tags"]
+            if "visibility" in body:
+                kwargs["visibility"] = body["visibility"]
+            if "commentsOff" in body:
+                kwargs["comments_off"] = bool(body["commentsOff"])
+            if body.get("removeThumb"):
+                kwargs["remove_thumb"] = True
+            try:
+                with DB_LOCK:
+                    fresh = update_short(_storage, user_id, int(m.group(1)), **kwargs)
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            return self._ok({"short": public_short(fresh)})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_DELETE(self) -> None:  # noqa: N802
@@ -244,6 +457,18 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400, str(e))
             return self._ok({"ok": True})
+        m = re.fullmatch(r"/api/shorts/(\d+)", self.path)
+        if m:
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    delete_short(_storage, user_id, int(m.group(1)))
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            return self._ok({"ok": True})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def _serve_avatar(self, name: str) -> None:
@@ -260,6 +485,64 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def _serve_media(self, name: str) -> None:
+        """ Liefert Videos/Thumbnails aus db/media (mit Range-Support fürs Seeken)."""
+        safe = Path(name).name
+        if not safe or safe != name:
+            return self._fail(404, "Nicht gefunden.")
+        target = VIDEO_DIR / safe
+        if not target.is_file():
+            target = THUMB_DIR / safe
+        if not target.is_file():
+            return self._fail(404, "Nicht gefunden.")
+        ctype = {
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+            ".mov": "video/quicktime",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }.get(target.suffix.lower(), "application/octet-stream")
+        size = target.stat().st_size
+        start, end = 0, size - 1
+        partial = False
+        range_header = self.headers.get("Range") or ""
+        m = re.fullmatch(r"bytes=(\d*)-(\d*)", range_header.strip())
+        if m and size > 0:
+            rs, re_ = m.groups()
+            try:
+                if rs:
+                    start = int(rs)
+                if re_:
+                    end = min(int(re_), size - 1)
+                if 0 <= start <= end < size:
+                    partial = True
+            except ValueError:
+                partial = False
+                start, end = 0, size - 1
+        length = end - start + 1
+        self.send_response(206 if partial else 200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        if partial:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        with target.open("rb") as f:
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(1024 * 1024, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
 
     def log_message(self, fmt: str, *args) -> None:  # noqa: N802
         log.debug("%s - %s", self.address_string(), fmt % args)

@@ -557,6 +557,16 @@ main.app-wrap { max-width: none; padding: 0; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 12px 20px 18px;
 }
+/* Upload-Fortschritt (Short-Wizard): dünner Balken unter dem Sheet-Fuß */
+.upload-progress {
+  height: 6px; margin: 0 20px 14px; border-radius: 999px;
+  background: var(--border); overflow: hidden;
+}
+.upload-progress span {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--accent); transition: width 0.15s;
+}
+.formerror.sheet-error { margin: 0 20px 14px; }
 /* Schmale Variante für kurze Bestätigungen */
 .sheet-slim { width: min(420px, 100%); }
 

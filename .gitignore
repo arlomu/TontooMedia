@@ -13,6 +13,7 @@ venv/
 # Lokale Datenbank (wird beim Start erzeugt)
 *.db
 db/avatars/
+db/media/
 
 # OS / Editor
 .DS_Store
