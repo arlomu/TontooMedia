@@ -3,8 +3,14 @@ import { Link } from 'react-router-dom'
 import { mediaSrc } from '../lib/api.js'
 
 // Sticky Community-Box für die rechte Seitenleiste (Post-Ansicht + t/-Seite):
-// Icon/Bild + Name, Beschreibung, Folgen-Button, Stats, Regeln.
+// Icon/Bild + Name, Beschreibung, Admin, Folgen-Button, Stats, Regeln.
 // Mit onToggleFollow gesteuert (echt), sonst lokaler Demo-State.
+// Regeln kommen aus comm.rules (Admin-editierbar), sonst Standard.
+const FALLBACK_RULES = [
+  'Bleib freundlich – kein Hate, kein Spam.',
+  'Nur eigene Inhalte oder mit Quelle.',
+  'Titel müssen zum Inhalt passen.',
+]
 export default function CommunityCard({
   comm,
   stats = [],
@@ -75,9 +81,9 @@ export default function CommunityCard({
       )}
       <h5 className="rules-head">Regeln</h5>
       <ol className="rules-list">
-        <li>Bleib freundlich – kein Hate, kein Spam.</li>
-        <li>Nur eigene Inhalte oder mit Quelle.</li>
-        <li>Titel müssen zum Inhalt passen.</li>
+        {(Array.isArray(comm.rules) && comm.rules.length ? comm.rules : FALLBACK_RULES).map((r, i) => (
+          <li key={i}>{r}</li>
+        ))}
       </ol>
       {showOpenLink && (
         <Link to={`/t/${slug}`} className="shelf-link rules-link">

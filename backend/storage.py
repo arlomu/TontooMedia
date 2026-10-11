@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS communities (
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     image TEXT,
+    rules TEXT NOT NULL DEFAULT '[]',
     creator_id INTEGER,
     created_at INTEGER NOT NULL
 );
@@ -162,6 +163,13 @@ class Storage:
             ccols = set()
         if ccols and "parent_id" not in ccols:
             self._conn.execute("ALTER TABLE short_comments ADD COLUMN parent_id INTEGER")
+        # Regeln kamen später: rules-Spalte bei alten communities ergänzen.
+        try:
+            cmcols = {row[1] for row in self._conn.execute("PRAGMA table_info(communities)").fetchall()}
+        except Exception:
+            cmcols = set()
+        if cmcols and "rules" not in cmcols:
+            self._conn.execute("ALTER TABLE communities ADD COLUMN rules TEXT NOT NULL DEFAULT '[]'")
 
     def stop(self) -> None:
         """Schließt die DB-Verbindungen."""
@@ -675,14 +683,15 @@ class Storage:
         description: str,
         creator_id: int,
         image: Optional[str] = None,
+        rules_json: str = "[]",
     ) -> dict:
         """Legt eine Community an (slug eindeutig). Gibt die Zeile zurück."""
         conn = self._require()
         now = int(time.time())
         cur = conn.execute(
-            "INSERT INTO communities (slug, name, description, image, creator_id, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (slug, name, description, image, creator_id, now),
+            "INSERT INTO communities (slug, name, description, image, rules, creator_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (slug, name, description, image, rules_json, creator_id, now),
         )
         conn.commit()
         return self.get_community_by_id(cur.lastrowid)
@@ -692,6 +701,17 @@ class Storage:
         conn.execute(
             "UPDATE communities SET image = ? WHERE id = ?",
             (filename, community_id),
+        )
+        conn.commit()
+
+    def update_community(
+        self, community_id: int, description: str, rules_json: str
+    ) -> None:
+        """Aktualisiert Beschreibung + Regeln (JSON) einer Community."""
+        conn = self._require()
+        conn.execute(
+            "UPDATE communities SET description = ?, rules = ? WHERE id = ?",
+            (description, rules_json, community_id),
         )
         conn.commit()
 

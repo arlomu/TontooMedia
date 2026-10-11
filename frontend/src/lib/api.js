@@ -195,7 +195,30 @@ export const apiRecentCommunities = () =>
     .then((d) => d.communities || [])
     .catch(() => [])
 
-// Community-Erstellung per XHR (Bild als Datei, kein Data-URL-Umweg).
+// Admin-Edit per PATCH (multipart: description + rules-JSON + optionales Bild).
+export const apiUpdateCommunity = ({ slug, description, rules, imageFile }) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PATCH', `${API_BASE}/api/communities/${encodeURIComponent(slug)}`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* egal */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data.community)
+      else reject(new Error(data.error || `Fehler ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Server nicht erreichbar. Läuft das Backend?'))
+    const fd = new FormData()
+    fd.append('description', description || '')
+    fd.append('rules', JSON.stringify(rules || []))
+    if (imageFile) fd.append('image', imageFile)
+    xhr.send(fd)
+  })
 export const apiCreateCommunity = ({ name, description, imageFile }) =>
   new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()

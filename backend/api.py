@@ -31,6 +31,7 @@ Endpunkte (alle unter /api/...):
    POST   /api/communities (Bearer, multipart name+description+image) -> {community}
    GET    /api/communities/recent (Bearer) -> {communities: [...]} (letzte 5 Besuche)
    GET    /api/communities/<slug> -> {community} (404 wenn unbekannt)
+   PATCH  /api/communities/<slug> (Bearer + Admin, multipart description+rules+image?) -> {community}
    POST   /api/communities/<slug>/follow (Bearer) -> {followed, followers} (Toggle)
    POST   /api/communities/<slug>/visit (Bearer) -> {ok: true} (Besuch merken)
   POST   /api/shorts/<id>/view -> {views}
@@ -51,7 +52,9 @@ from typing import Optional
 try:
     from .functions.community import (
         create_community,
+        rules_of,
         toggle_community_follow,
+        update_community,
         visit_community,
     )
     from .functions.shorts import (
@@ -79,7 +82,9 @@ try:
 except ImportError:  # direkter Start via `python backend/api.py`
     from functions.community import (
         create_community,
+        rules_of,
         toggle_community_follow,
+        update_community,
         visit_community,
     )
     from functions.shorts import (
@@ -227,6 +232,7 @@ def public_community(row: dict) -> dict:
         "members": row.get("members_n") or 0,
         "followed": bool(row.get("followed")),
         "creator": row.get("creator"),
+        "rules": rules_of(row),
     }
 
 
@@ -697,6 +703,32 @@ class _Handler(BaseHTTPRequestHandler):
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_PATCH(self) -> None:  # noqa: N802
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})", self.path)
+        if m:
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            raw = self._read_bytes(5 * 1024 * 1024)
+            if raw is None:
+                return self._fail(413, "Upload ist leer oder größer als 5 MB.")
+            fields, files = parse_multipart(raw, self.headers.get("Content-Type"))
+            image = files.get("image")
+            try:
+                with DB_LOCK:
+                    full = update_community(
+                        _storage, user_id, m.group(1),
+                        fields.get("description", ""),
+                        fields.get("rules", "[]"),
+                        image["data"] if image and image["data"] else None,
+                    )
+            except ValueError as e:
+                msg = str(e)
+                if "gefunden" in msg:
+                    return self._fail(404, msg)
+                if "Nur der Admin" in msg:
+                    return self._fail(403, msg)
+                return self._fail(400, msg)
+            return self._ok({"community": public_community(full)})
         if self.path == "/api/me":
             user, user_id = self._auth_user()
             if user is None:
