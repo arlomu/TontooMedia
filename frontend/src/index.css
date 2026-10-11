@@ -357,7 +357,7 @@ main.app-wrap { max-width: none; padding: 0; }
 .shorts-page { display: flex; flex-direction: column; width: 100%; min-height: calc(100vh - 80px); min-height: calc(100dvh - 80px); }
 .shorts-center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 6px 0 10px; min-height: calc(100vh - 80px); min-height: calc(100dvh - 80px); }
 .shorts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.shorts-stage { display: flex; gap: 14px; align-items: center; justify-content: center; width: 100%; }
+.shorts-stage { position: relative; display: flex; gap: 14px; align-items: center; justify-content: center; width: 100%; }
 .short-player {
   position: relative; height: min(calc(100vh - 120px), 860px); height: min(calc(100dvh - 120px), 860px);
   aspect-ratio: 9 / 16; width: auto; max-width: 100%; min-height: 520px;
@@ -379,13 +379,13 @@ main.app-wrap { max-width: none; padding: 0; }
   transition: transform 0.12s, border-color 0.15s;
 }
 .short-bigplay:hover { transform: scale(1.06); border-color: var(--brand); }
-.short-progress { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 4px; padding: 8px 10px 0; }
+.short-progress { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 4px; padding: 8px 12px 0; }
 .short-progress span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); }
 .short-progress span.done { background: var(--text-sec); }
 .short-progress span.now { background: var(--brand); }
 .short-top {
   position: absolute; top: 0; left: 0; right: 0;
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: flex-start; align-items: center;
   padding: 16px 12px 0;
 }
 .short-topgroup { display: flex; gap: 8px; }
@@ -419,7 +419,11 @@ main.app-wrap { max-width: none; padding: 0; }
 .short-author { color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
 .follow-btn { padding: 7px 14px; font-size: 13px; }
 .short-title { color: #fff; font-weight: 600; font-size: 15px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
-.short-nav { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.short-nav {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;
+}
+.short-nav .iconbtn { width: 48px; height: 48px; font-size: 17px; }
 .short-nav .iconbtn:disabled { opacity: 0.3; cursor: default; transform: none; }
 
 @media (max-width: 560px) {
@@ -429,6 +433,8 @@ main.app-wrap { max-width: none; padding: 0; }
     width: 100%; height: auto; min-height: 0;
     max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px);
   }
+  .short-nav { position: static; transform: none; }
+  .short-nav .iconbtn { width: 44px; height: 44px; }
 }
 
 /* Studio */
