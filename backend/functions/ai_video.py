@@ -9,6 +9,7 @@ FreeRouter wird geteilt).
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import sys
 import threading
@@ -64,6 +65,15 @@ def is_failed_line(line: str) -> bool:
     return "FEHLGESCHLAGEN:" in low or "FEHLER:" in low
 
 
+TOOL_RE = re.compile(r"\] TOOL ([A-Za-z0-9_]+):")
+
+
+def tool_of_line(line: str) -> Optional[str]:
+    """Tool-Namen aus CLI-stdout ziehen (`[..] TOOL <name>: ..`), sonst None."""
+    m = TOOL_RE.search(line or "")
+    return m.group(1) if m else None
+
+
 def videos_dir() -> Path:
     # db/media/videos neben der Backend-DB (wie functions/shorts.py).
     base = Path(__file__).resolve().parent.parent.parent / "db" / "media" / "videos"
@@ -113,6 +123,7 @@ def public_job(job: dict) -> dict:
         "title": job.get("title") or "",
         "message": job.get("message") or "",
         "shortId": job.get("short_id"),
+        "tools": list(job.get("tools") or []),
         "created": job.get("created") or 0,
     }
 
@@ -149,6 +160,7 @@ def start_job(storage, user_id: int, title: str, tags: list, prompt: str,
         "status": "wartet",
         "message": "Wartet auf freien Slot …",
         "short_id": None,
+        "tools": [],
         "created": int(time.time()),
     }
     with _jobs_lock:
@@ -194,6 +206,13 @@ def _run_job(storage, job_id: str) -> None:
                 tail.append(line.rstrip())
                 if len(tail) > 30:
                     tail.pop(0)
+                # Debug: ausgeführte Tools mitschneiden (nur Namen, in Reihenfolge).
+                tool = tool_of_line(line)
+                if tool:
+                    with _jobs_lock:
+                        seen = _jobs.get(job_id, {}).get("tools") or []
+                        if tool not in seen:
+                            _jobs[job_id]["tools"] = (seen + [tool])[:50]
                 phase = phase_of_line(line)
                 if phase == PHASE_CUT:
                     _set(job_id, status=PHASE_CUT, message="Szenen werden geschnitten …")

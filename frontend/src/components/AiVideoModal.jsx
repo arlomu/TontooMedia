@@ -16,9 +16,10 @@ export default function AiVideoModal({ notify, onDone, onClose }) {
   const [error, setError] = useState('')
   const [starting, setStarting] = useState(false)
   // Laufender Job
-  const [job, setJob] = useState(null) // { id, status, message }
+  const [job, setJob] = useState(null) // { id, status, message, tools }
   const [jobError, setJobError] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
   const fileRef = useRef(null)
   const waitRef = useRef(null)
   const pollRef = useRef(null)
@@ -157,6 +158,32 @@ export default function AiVideoModal({ notify, onDone, onClose }) {
             <i className="fa-solid fa-circle-notch fa-spin" aria-hidden="true" />{' '}
             {finishing ? 'Fertig! Dein Video ist bereit.' : (job.message || 'Generierung läuft …')}
           </p>
+          <button
+            type="button"
+            className={`toolbtn sm${showDebug ? ' active' : ''}`}
+            aria-pressed={showDebug}
+            onClick={() => setShowDebug((v) => !v)}
+          >
+            <i className="fa-solid fa-bug" /> Debug: Tools {(job.tools || []).length > 0 && `(${(job.tools || []).length})`}
+          </button>
+          {showDebug && (
+            <div className="ai-tools" aria-live="polite">
+              {(job.tools || []).length === 0 ? (
+                <p className="feed-hint">Noch kein Tool ausgeführt – läuft live mit.</p>
+              ) : (
+                <ol>
+                  {(job.tools || []).map((t, i) => (
+                    <li key={`${t}-${i}`}>
+                      <i className="fa-solid fa-wrench" aria-hidden="true" /> {t}
+                      {i === (job.tools || []).length - 1 && job.status !== 'fertig' && (
+                        <span className="ai-tool-live"> läuft</span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
           <p className="feed-hint">Das dauert ca. 4–6 Minuten. Du kannst das Fenster schließen – der Short landet automatisch in deiner Liste.</p>
         </div>
       </>

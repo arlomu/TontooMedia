@@ -371,6 +371,13 @@ main.app-wrap { max-width: none; padding: 0; }
 /* KI-Wartebild (iframe, 1:1 aus TontooVideo) */
 .vga-frame { width: 100%; height: 480px; border: 0; border-radius: 14px; background: #05060a; display: block; }
 .ai-status { margin: 12px 0 4px; font-size: 14px; font-weight: 700; }
+/* Debug: live gestreamte Tool-Namen des KI-Jobs */
+.ai-tools { margin: 10px 0 4px; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; }
+.ai-tools ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ai-tools li { font-family: ui-monospace, Consolas, monospace; color: var(--text-sec); }
+.ai-tools li i { color: var(--brand); margin-right: 6px; }
+.ai-tool-live { color: var(--accent); font-weight: 700; animation: ai-blink 1.2s ease-in-out infinite; }
+@keyframes ai-blink { 50% { opacity: 0.35; } }
 @media (max-width: 640px) { .vga-frame { height: 420px; } }
 /* 1-Kommentar-Vorschau pro Zeile im Start-Feed */
 .top-comment {
