@@ -1,17 +1,28 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiLogin } from '../lib/api.js'
 
-export default function Login() {
+export default function Login({ onAuth }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!username.trim() || !password) return setError('Bitte Username und Passwort eingeben.')
     setError(null)
-    navigate('/app')
+    setBusy(true)
+    try {
+      const user = await apiLogin(username.trim(), password)
+      onAuth?.(user)
+      navigate('/app')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -48,8 +59,8 @@ export default function Login() {
           </p>
         )}
 
-        <button type="submit" className="btn btn-brand btn-lg authbtn">
-          <i className="fa-solid fa-right-to-bracket" /> Anmelden
+        <button type="submit" className="btn btn-brand btn-lg authbtn" disabled={busy}>
+          <i className="fa-solid fa-right-to-bracket" /> {busy ? 'Moment …' : 'Anmelden'}
         </button>
 
         <p className="authswitch">

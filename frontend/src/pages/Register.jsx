@@ -1,21 +1,31 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiRegister } from '../lib/api.js'
 
-export default function Register() {
+export default function Register({ onAuth }) {
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return setError('Bitte einen Namen eingeben.')
     if (!username.trim()) return setError('Bitte einen Username eingeben.')
     if (password.length < 4) return setError('Das Passwort muss mindestens 4 Zeichen haben.')
     setError(null)
-    // Basis: keine weiteren Anforderungen, direkt weiter zur App
-    navigate('/app')
+    setBusy(true)
+    try {
+      const user = await apiRegister(name.trim(), username.trim(), password)
+      onAuth?.(user)
+      navigate('/app')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -62,8 +72,8 @@ export default function Register() {
           </p>
         )}
 
-        <button type="submit" className="btn btn-brand btn-lg authbtn">
-          <i className="fa-solid fa-user-plus" /> Registrieren
+        <button type="submit" className="btn btn-brand btn-lg authbtn" disabled={busy}>
+          <i className="fa-solid fa-user-plus" /> {busy ? 'Moment …' : 'Registrieren'}
         </button>
 
         <p className="authswitch">

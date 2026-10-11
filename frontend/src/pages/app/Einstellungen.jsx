@@ -1,33 +1,73 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { apiLogout, apiResetAvatar, apiUpdateMe, apiUploadAvatar, avatarSrc } from '../../lib/api.js'
 
 const USER_RE = /^[a-z0-9._]{3,20}$/
 const BIO_MAX = 160
+const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
 
-const AVATAR_PRESETS = [
-  { icon: 'fa-circle-user', color: '' },
-  { icon: 'fa-user-astronaut', color: 'ic-yellow' },
-  { icon: 'fa-user-ninja', color: 'ic-teal' },
-  { icon: 'fa-ghost', color: 'ic-violet' },
-  { icon: 'fa-robot', color: 'ic-teal' },
-  { icon: 'fa-cat', color: 'ic-yellow' },
-  { icon: 'fa-dog', color: 'ic-violet' },
-  { icon: 'fa-dragon', color: 'ic-yellow' },
-]
-
-export default function Einstellungen({ showToast }) {
+// Echter Einstellungs-Tab: Profil kommt vom Backend (Prefill aus dem
+// eingeloggten Account, Bio startet leer), speichert automatisch per API.
+// Avatar: Standard ist Tontoo_Black, Upload geht echt (max. 1024px).
+// Passwort & Konto-löschen bleiben Demo.
+export default function Einstellungen({ showToast, user, onUser }) {
   const navigate = useNavigate()
   const toast = (msg) => showToast?.(msg)
 
-  // ---------- Profil (wird automatisch übernommen, kein Speichern nötig) ----------
-  const [username, setUsername] = useState('tontoo.fan')
-  const [name, setName] = useState('Tontoo Fan')
-  const [bio, setBio] = useState('Tontoo-Fan der ersten Stunde.')
+  // ---------- Profil (echt, Auto-Save per API) ----------
+  const [username, setUsername] = useState(user?.username || '')
+  const [name, setName] = useState(user?.name || '')
+  const [bio, setBio] = useState(user?.bio || '')
+  const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState(null)
+  const [avatarBusy, setAvatarBusy] = useState(false)
   const saveTimer = useRef(null)
+  const lastUserId = useRef(user?.id)
   useEffect(() => () => clearTimeout(saveTimer.current), [])
 
-  const [avatar, setAvatar] = useState(null) // null = Standard, sonst { type:'icon', icon } oder { type:'img', src }
+  // Bei neuem Login / frischen User-Daten Felder übernehmen
+  useEffect(() => {
+    if (user && user.id !== lastUserId.current) {
+      lastUserId.current = user.id
+      setUsername(user.username || '')
+      setName(user.name || '')
+      setBio(user.bio || '')
+      setSavedAt(null)
+    }
+  }, [user])
+
+  const userError =
+    !username.trim()
+      ? 'Bitte einen Username eingeben.'
+      : !USER_RE.test(username.trim())
+        ? '3–20 Zeichen, nur a–z, 0–9, Punkt und Unterstrich.'
+        : null
+
+  // Auto-Save: 700 ms nach der letzten Änderung per PATCH /api/me
+  useEffect(() => {
+    if (!user || userError) return
+    const patch = { name: name.trim(), username: username.trim(), bio: bio.trim() }
+    if (patch.name === user.name && patch.username === user.username && patch.bio === (user.bio || '')) return
+    setSaving(true)
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const fresh = await apiUpdateMe(patch)
+        onUser?.(fresh)
+        setSavedAt(Date.now())
+      } catch (err) {
+        toast(err.message)
+      } finally {
+        setSaving(false)
+      }
+    }, 700)
+    return () => clearTimeout(saveTimer.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, name, bio])
+
+  const avatarUrl = avatarSrc(user?.avatarUrl) || DEFAULT_AVATAR
+
+  // ---------- Avatar (echt) ----------
   const [avatarOpen, setAvatarOpen] = useState(false)
   const fileRef = useRef(null)
 
@@ -38,34 +78,45 @@ export default function Einstellungen({ showToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [avatarOpen])
 
-  const pickAvatar = (icon) => {
-    if (avatar?.src?.startsWith('blob:')) URL.revokeObjectURL(avatar.src)
-    setAvatar(icon === 'fa-circle-user' ? null : { type: 'icon', icon })
-    toast('Profilbild aktualisiert.')
-  }
+  const readFile = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'))
+      reader.readAsDataURL(file)
+    })
 
-  const uploadAvatar = (e) => {
+  const uploadAvatar = async (e) => {
     const f = e.target.files?.[0]
     e.target.value = ''
-    if (!f) return
-    if (avatar?.src?.startsWith('blob:')) URL.revokeObjectURL(avatar.src)
-    setAvatar({ type: 'img', src: URL.createObjectURL(f) })
-    toast('Profilbild aktualisiert.')
+    if (!f || avatarBusy) return
+    setAvatarBusy(true)
+    try {
+      const fresh = await apiUploadAvatar(await readFile(f))
+      onUser?.(fresh)
+      toast('Profilbild gespeichert.')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setAvatarBusy(false)
+    }
   }
 
-  const touchSaved = () => {
-    clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => setSavedAt(Date.now()), 700)
+  const resetAvatar = async () => {
+    if (avatarBusy) return
+    setAvatarBusy(true)
+    try {
+      const fresh = await apiResetAvatar()
+      onUser?.(fresh)
+      toast('Standardbild wiederhergestellt.')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setAvatarBusy(false)
+    }
   }
 
-  const userError =
-    !username.trim()
-      ? 'Bitte einen Username eingeben.'
-      : !USER_RE.test(username.trim())
-        ? '3–20 Zeichen, nur a–z, 0–9, Punkt und Unterstrich.'
-        : null
-
-  // ---------- Passwort ----------
+  // ---------- Passwort (Demo) ----------
   const [pwNow, setPwNow] = useState('')
   const [pwNew, setPwNew] = useState('')
   const [pwAgain, setPwAgain] = useState('')
@@ -102,13 +153,37 @@ export default function Einstellungen({ showToast }) {
   const [delName, setDelName] = useState('')
   const delMatch = delName.trim().toLowerCase() === username.trim().toLowerCase() && username.trim() !== ''
 
-  const logout = () => {
-    toast('Abgemeldet (Beispiel).')
+  const logout = async () => {
+    await apiLogout()
+    onUser?.(null)
     navigate('/login')
   }
   const deleteAccount = () => {
     toast('Konto gelöscht (Beispiel).')
     navigate('/')
+  }
+
+  // Session lädt noch → kurz warten, sonst flackert der Login-Hinweis
+  if (user === undefined) {
+    return (
+      <div className="app-page narrow">
+        <h2 className="app-title">Einstellungen</h2>
+        <p className="app-sub">Lädt …</p>
+      </div>
+    )
+  }
+
+  // Noch nicht eingeloggt → Hinweis statt Formular
+  if (!user) {
+    return (
+      <div className="app-page narrow">
+        <h2 className="app-title">Einstellungen</h2>
+        <p className="app-sub">Logge dich ein, um dein Profil zu verwalten.</p>
+        <Link to="/login" className="btn btn-brand">
+          <i className="fa-solid fa-right-to-bracket" /> Zum Login
+        </Link>
+      </div>
+    )
   }
 
   return (
@@ -122,11 +197,7 @@ export default function Einstellungen({ showToast }) {
 
         <div className="profile-hero">
           <button type="button" className="avatar-btn" onClick={() => setAvatarOpen(true)} aria-label="Profilbild ändern">
-            {avatar?.type === 'img' ? (
-              <img src={avatar.src} alt="Profilbild" />
-            ) : (
-              <i className={`fa-solid ${avatar?.icon || 'fa-circle-user'}`} />
-            )}
+            <img src={avatarUrl} alt="Profilbild" />
             <span className="avatar-edit" aria-hidden="true">
               <i className="fa-solid fa-camera" />
             </span>
@@ -146,7 +217,7 @@ export default function Einstellungen({ showToast }) {
             value={username}
             autoComplete="username"
             maxLength={20}
-            onChange={(e) => { setUsername(e.target.value); touchSaved() }}
+            onChange={(e) => setUsername(e.target.value)}
             aria-invalid={!!userError}
           />
         </label>
@@ -164,7 +235,7 @@ export default function Einstellungen({ showToast }) {
             value={name}
             autoComplete="name"
             maxLength={40}
-            onChange={(e) => { setName(e.target.value); touchSaved() }}
+            onChange={(e) => setName(e.target.value)}
           />
         </label>
 
@@ -175,12 +246,17 @@ export default function Einstellungen({ showToast }) {
             value={bio}
             rows={3}
             maxLength={BIO_MAX}
-            onChange={(e) => { setBio(e.target.value); touchSaved() }}
+            onChange={(e) => setBio(e.target.value)}
           />
         </label>
         <div className="char-row">{bio.length} / {BIO_MAX}</div>
 
-        {savedAt && (
+        {saving && (
+          <p className="saved-hint">
+            <i className="fa-solid fa-circle-notch fa-spin ic-teal" /> Speichert …
+          </p>
+        )}
+        {!saving && savedAt && (
           <p className="saved-hint">
             <i className="fa-solid fa-check ic-teal" /> Automatisch gespeichert
           </p>
@@ -232,7 +308,7 @@ export default function Einstellungen({ showToast }) {
         </div>
       </section>
 
-      {/* Profilbild-Modal */}
+      {/* Profilbild-Modal (echt) */}
       {avatarOpen && (
         <div className="sheet-backdrop" onClick={() => setAvatarOpen(false)}>
           <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Profilbild ändern" onClick={(e) => e.stopPropagation()}>
@@ -240,37 +316,37 @@ export default function Einstellungen({ showToast }) {
               <strong className="sheet-title">Profilbild ändern</strong>
             </div>
             <div className="sheet-body">
-              <div className="avatar-grid">
-                {AVATAR_PRESETS.map((p) => {
-                  const selected = avatar === null
-                    ? p.icon === 'fa-circle-user'
-                    : avatar.type === 'icon' && avatar.icon === p.icon
-                  return (
-                    <button
-                      key={p.icon}
-                      type="button"
-                      className={`avatar-opt${selected ? ' selected' : ''}`}
-                      aria-pressed={selected}
-                      aria-label={`Avatar ${p.icon}`}
-                      onClick={() => pickAvatar(p.icon)}
-                    >
-                      <i className={`fa-solid ${p.icon} ${p.color}`} />
-                    </button>
-                  )
-                })}
+              <div className="avatar-preview">
+                <img src={avatarUrl} alt="Aktuelles Profilbild" />
               </div>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 hidden
                 aria-hidden="true"
                 tabIndex={-1}
                 onChange={uploadAvatar}
               />
-              <button type="button" className="btn btn-ghost btn-block" onClick={() => fileRef.current?.click()}>
-                <i className="fa-solid fa-upload" /> Eigenes Bild hochladen
+              <button
+                type="button"
+                className="btn btn-brand btn-block"
+                disabled={avatarBusy}
+                onClick={() => fileRef.current?.click()}
+              >
+                <i className="fa-solid fa-upload" /> {avatarBusy ? 'Lädt …' : 'Eigenes Bild hochladen'}
               </button>
+              {user.hasAvatar && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  disabled={avatarBusy}
+                  onClick={resetAvatar}
+                >
+                  <i className="fa-solid fa-rotate-left" /> Standardbild (Tontoo Black)
+                </button>
+              )}
+              <p className="feed-hint">PNG, JPEG oder WebP bis 3 MB – wird auf max. 1024 px verkleinert.</p>
             </div>
             <div className="sheet-foot">
               <button type="button" className="btn btn-ghost" onClick={() => setAvatarOpen(false)}>Abbrechen</button>
@@ -280,7 +356,7 @@ export default function Einstellungen({ showToast }) {
         </div>
       )}
 
-      {/* Passwort-Modal */}
+      {/* Passwort-Modal (Demo) */}
       {pwOpen && (
         <div className="sheet-backdrop" onClick={closePw}>
           <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Passwort ändern" onClick={(e) => e.stopPropagation()}>

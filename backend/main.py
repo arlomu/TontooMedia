@@ -1,7 +1,8 @@
 """TontooMedia Backend - Main Entry Point.
 
-Startet aktuell nur:
-  - storage.py  (Platzhalter)
+Startet aktuell:
+  - storage.py  (SQLite in db/users.db)
+  - api.py      (JSON-API auf Port 3001)
   - webserver.py (React-Frontend auf Port 3000)
 
 Später kommt hier die eigentliche Main-Logic hin.
@@ -14,6 +15,7 @@ from pathlib import Path
 # Ermöglicht `python backend/main.py` sowie `python -m backend.main`
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from api import start as start_api, stop as stop_api  # noqa: E402
 from logger import get_logger, setup  # noqa: E402
 from storage import Storage  # noqa: E402
 from webserver import PORT, start as start_webserver, stop as stop_webserver  # noqa: E402
@@ -42,15 +44,18 @@ def main() -> int:
 
     storage = Storage()
     storage.start()
+    start_api(storage)
 
     try:
         start_webserver(PORT)
     except FileNotFoundError:
         log.error("Webserver konnte nicht starten (Frontend-Ordner fehlt).")
+        stop_api()
         storage.stop()
         return 1
     except Exception as exc:  # noqa: BLE001
         log.error("Webserver-Fehler: %s", exc)
+        stop_api()
         storage.stop()
         return 1
 
@@ -63,6 +68,7 @@ def main() -> int:
         log.info("KeyboardInterrupt, beende ...")
 
     stop_webserver()
+    stop_api()
     storage.stop()
     log.info("=== TontooMedia Backend beendet ===")
     return 0

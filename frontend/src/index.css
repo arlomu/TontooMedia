@@ -716,17 +716,13 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   background: var(--brand); color: var(--brand-ink); font-size: 11px;
   border: 2px solid var(--surface);
 }
-.avatar-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+.avatar-preview { display: grid; place-items: center; padding: 4px 0 14px; }
+.avatar-preview img {
+  width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--brand); background: var(--bg);
 }
-.avatar-opt {
-  aspect-ratio: 1; border-radius: 50%; cursor: pointer;
-  display: grid; place-items: center; font-size: 24px; color: var(--text);
-  background: var(--surface2); border: 2px solid transparent;
-  transition: border-color 0.15s, transform 0.1s;
-}
-.avatar-opt:hover { transform: scale(1.06); border-color: var(--text-3rd); }
-.avatar-opt.selected { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(245, 179, 1, 0.25); }
+.sheet-body .btn-block { margin-top: 10px; }
+.sheet-body .btn-block:first-of-type { margin-top: 0; }
 .profile-prev { display: flex; flex-direction: column; min-width: 0; }
 .profile-prev strong { font-size: 16px; color: var(--text); }
 .profile-prev small { font-size: 13px; color: var(--text-sec); font-weight: 600; }
