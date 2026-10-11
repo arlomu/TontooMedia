@@ -6,13 +6,14 @@ import Register from './pages/Register.jsx'
 import AppLayout from './components/AppLayout.jsx'
 import Start from './pages/app/Start.jsx'
 import Shorts from './pages/app/Shorts.jsx'
+import Followed from './pages/app/Followed.jsx'
 import Studio from './pages/app/Studio.jsx'
 import Einstellungen from './pages/app/Einstellungen.jsx'
 import Community from './pages/app/Community.jsx'
 import User from './pages/app/User.jsx'
 
 // Routen mit der App-Sidebar (statt Landing-Navbar/Footer)
-const APP_ROUTES = ['/app', '/shorts', '/studio', '/einstellungen']
+const APP_ROUTES = ['/app', '/shorts', '/followed', '/studio', '/einstellungen']
 const isAppRoute = (path) =>
   APP_ROUTES.includes(path) || path.startsWith('/t/') || path.startsWith('/u/')
 
@@ -123,6 +124,7 @@ export default function App() {
           <Route element={<AppLayout showToast={showToast} />}>
             <Route path="/app" element={<Start />} />
             <Route path="/shorts" element={<Shorts />} />
+            <Route path="/followed" element={<Followed />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen />} />
             <Route path="/t/:name" element={<Community />} />

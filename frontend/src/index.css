@@ -267,7 +267,8 @@ main.app-wrap { max-width: none; padding: 0; }
 .side-item:hover { background: var(--surface2); color: var(--text); }
 .side-item.active { background: var(--surface2); color: var(--text); font-weight: 600; }
 .side-item.active > i { color: var(--brand); }
-.side-comms { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 6px; }
+.side-spacer { height: 18px; }
+.side-comms { padding-top: 2px; }
 .comms-head { display: flex; align-items: center; justify-content: space-between; }
 .comms-toggle {
   display: flex; align-items: center; gap: 8px;
@@ -285,7 +286,8 @@ main.app-wrap { max-width: none; padding: 0; }
   display: grid; place-items: center;
   background: var(--surface2); border: 1px solid var(--border); font-size: 14px;
 }
-.side-foot { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.side-foot { margin-top: auto; padding-top: 8px; }
+.side-div { border: none; border-top: 1px solid var(--border); margin: 6px 4px 10px; }
 .app-main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
 .app-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
 .app-topbrand { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
@@ -399,6 +401,17 @@ main.app-wrap { max-width: none; padding: 0; }
   background: var(--surface2); border: 1px solid var(--border); font-size: 26px;
 }
 .comm-desc { color: var(--text-sec); font-size: 14.5px; line-height: 1.6; margin: 0 0 6px; }
+
+/* Followed */
+.follow-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.follow-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 15px;
+  color: var(--text); text-decoration: none; font-size: 13.5px; font-weight: 600;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.follow-chip:hover { border-color: var(--brand); transform: translateY(-1px); }
 
 /* ---------- App-Responsive: Sidebar einklappbar ---------- */
 @media (max-width: 900px) {

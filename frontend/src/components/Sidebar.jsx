@@ -24,10 +24,12 @@ export default function Sidebar({ open, onClose, showToast }) {
         <NavLink to="/shorts" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
           <i className="fa-solid fa-clapperboard" /> Shorts
         </NavLink>
-        <NavLink to="/studio" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
-          <i className="fa-solid fa-video" /> Studio
+        <NavLink to="/followed" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
+          <i className="fa-solid fa-heart" /> Followed
         </NavLink>
       </nav>
+
+      <div className="side-spacer" aria-hidden="true" />
 
       <div className="side-comms">
         <div className="comms-head">
@@ -65,6 +67,10 @@ export default function Sidebar({ open, onClose, showToast }) {
       </div>
 
       <div className="side-foot">
+        <hr className="side-div" />
+        <NavLink to="/studio" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
+          <i className="fa-solid fa-video" /> Studio
+        </NavLink>
         <NavLink to="/einstellungen" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
           <i className="fa-solid fa-gear" /> Einstellungen
         </NavLink>
