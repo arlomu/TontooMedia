@@ -18,6 +18,7 @@ export default function Start() {
   const [liked, setLiked] = useState({})
   const [saved, setSaved] = useState({})
   const [copied, setCopied] = useState(null)
+  const [sharePost, setSharePost] = useState(null) // Post im Teilen-Menü (wie bei Shorts)
   const [ctx, setCtx] = useState(null) // { x, y, post } – eigenes Rechtsklick-Menü
   const shelfRef = useRef(null)
   const copyTimer = useRef(null)
@@ -36,6 +37,14 @@ export default function Start() {
       window.removeEventListener('scroll', close, true)
     }
   }, [ctx])
+
+  // Escape schließt das Teilen-Menü
+  useEffect(() => {
+    if (!sharePost) return
+    const onKey = (e) => e.key === 'Escape' && setSharePost(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sharePost])
 
   const filtered = [...DEMO_POSTS].sort((a, b) => {
     if (sort === 'top') return b.likes - a.likes
@@ -200,11 +209,11 @@ export default function Start() {
                     </span>
                     <button
                       type="button"
-                      className={`toolbtn sm${copied === p.id ? ' active' : ''}`}
-                      onClick={() => copyLink(p)}
+                      className="toolbtn sm"
+                      aria-label="Teilen"
+                      onClick={() => setSharePost(p)}
                     >
-                      <i className={`fa-solid ${copied === p.id ? 'fa-check' : 'fa-share-nodes'}`} />
-                      {copied === p.id ? 'Kopiert!' : 'Teilen'}
+                      <i className="fa-solid fa-share-nodes" /> Teilen
                     </button>
                     <span className="tool-spacer" />
                     <button
@@ -248,6 +257,31 @@ export default function Start() {
           </div>
         </aside>
       </div>
+
+      {/* Teilen-Menü wie bei Shorts (eigenes Modal statt Browser-Dialog) */}
+      {sharePost && (
+        <div className="sheet-backdrop" onClick={() => setSharePost(null)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Teilen" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong className="sheet-title">Teilen</strong>
+            </div>
+            <div className="sheet-body">
+              <p className="sheet-sub">t/{sharePost.community} · {sharePost.title || sharePost.text}</p>
+              <div className="sheet-url">
+                <span className="sheet-urltext">{`${window.location.origin}/t/${commIdOf(sharePost)}`}</span>
+                <button type="button" className="btn btn-brand btn-sm" onClick={() => copyLink(sharePost)}>
+                  <i className={`fa-solid ${copied === sharePost.id ? 'fa-check' : 'fa-copy'}`} />
+                  {copied === sharePost.id ? 'Kopiert!' : 'Kopieren'}
+                </button>
+              </div>
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={() => setSharePost(null)}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" onClick={() => setSharePost(null)}>Fertig</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Eigenes Rechtsklick-Menü statt Browser-Menü */}
       {ctx && (
