@@ -8,6 +8,8 @@ Endpunkte (alle unter /api/...):
   PATCH  /api/me            {name?, username?, bio?} -> {user}
   POST   /api/me/avatar     {data: "data:image/...;base64,..."} -> {user}
   DELETE /api/me/avatar     -> {user} (zurück zum Standard)
+  POST   /api/me/password   {current, new} -> {ok: true}
+  DELETE /api/me            {username} (Bestätigung) -> {ok: true}
   GET    /api/avatar/<datei>  Avatar-Bild (Fallback: Standard-Avatar)
 
 Auth per `Authorization: Bearer <token>`. Alles Demo, kein HTTPS.
@@ -22,7 +24,9 @@ from typing import Optional
 
 try:
     from .functions.user import (
+        change_password,
         clear_avatar,
+        delete_account,
         login,
         register,
         save_avatar,
@@ -32,7 +36,9 @@ try:
     from .storage import Storage
 except ImportError:  # direkter Start via `python backend/api.py`
     from functions.user import (
+        change_password,
         clear_avatar,
+        delete_account,
         login,
         register,
         save_avatar,
@@ -180,6 +186,17 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400, str(e))
             return self._ok({"user": public_user(fresh)})
+        if self.path == "/api/me/password":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            body = self._read_json()
+            try:
+                with DB_LOCK:
+                    change_password(_storage, user_id, body.get("current", ""), body.get("new", ""))
+            except ValueError as e:
+                return self._fail(400, str(e))
+            return self._ok({"ok": True})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_PATCH(self) -> None:  # noqa: N802
@@ -217,6 +234,16 @@ class _Handler(BaseHTTPRequestHandler):
                 clear_avatar(_storage, user_id)
                 fresh = _storage.get_user_by_id(user_id)
             return self._ok({"user": public_user(fresh)})
+        if self.path == "/api/me":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    delete_account(_storage, user_id, self._read_json().get("username", ""))
+            except ValueError as e:
+                return self._fail(400, str(e))
+            return self._ok({"ok": True})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def _serve_avatar(self, name: str) -> None:

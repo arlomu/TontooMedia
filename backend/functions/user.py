@@ -182,3 +182,42 @@ def clear_avatar(storage: Storage, user_id: int) -> None:
             pass
     storage.set_avatar(user_id, None)
     log.info("Avatar zurückgesetzt: id=%d", user_id)
+
+
+def change_password(storage: Storage, user_id: int, current: str, new: str) -> None:
+    """Wechselt das Passwort nach Prüfung des aktuellen.
+
+    Wirft ValueError mit deutscher Meldung bei falschem aktuellem
+    Passwort, zu kurzem oder gleichem neuem Passwort.
+    """
+    user = storage.get_user_by_id(user_id)
+    if user is None:
+        raise ValueError("User nicht gefunden.")
+    check = storage.check_password(user["username"], current or "")
+    if check is None:
+        raise ValueError("Das aktuelle Passwort stimmt nicht.")
+    if not new or len(new) < MIN_PASSWORD_LEN:
+        raise ValueError(f"Das neue Passwort muss mindestens {MIN_PASSWORD_LEN} Zeichen haben.")
+    if new == current:
+        raise ValueError("Das neue Passwort unterscheidet sich nicht vom alten.")
+    storage.set_password(user_id, new)
+    log.info("Passwort geändert: id=%d", user_id)
+
+
+def delete_account(storage: Storage, user_id: int, confirm_username: str) -> None:
+    """Löscht das Konto unwiderruflich (Profil, Sessions, Avatar-Datei).
+
+    Der Bestätigungs-Username muss exakt passen, sonst ValueError.
+    """
+    user = storage.get_user_by_id(user_id)
+    if user is None:
+        raise ValueError("User nicht gefunden.")
+    if (confirm_username or "").strip() != user["username"]:
+        raise ValueError("Der Username stimmt nicht mit deinem überein.")
+    if user.get("avatar"):
+        try:
+            (AVATAR_DIR / user["avatar"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+    storage.delete_user(user_id)
+    log.info("Konto gelöscht: %s (id=%d)", user["username"], user_id)

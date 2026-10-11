@@ -90,3 +90,9 @@ export const apiUploadAvatar = (dataUrl) =>
 
 export const apiResetAvatar = () =>
   request('/api/me/avatar', { method: 'DELETE', auth: true }).then((d) => d.user)
+
+export const apiChangePassword = (current, next) =>
+  request('/api/me/password', { method: 'POST', auth: true, body: { current, new: next } })
+
+export const apiDeleteAccount = (username) =>
+  request('/api/me', { method: 'DELETE', auth: true, body: { username } })

@@ -176,6 +176,25 @@ class Storage:
         conn.execute("UPDATE users SET avatar = ? WHERE id = ?", (filename, user_id))
         conn.commit()
 
+    def set_password(self, user_id: int, password: str) -> None:
+        """Setzt ein neues Passwort (wird intern gehasht)."""
+        conn = self._require()
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (_hash(password), user_id),
+        )
+        conn.commit()
+
+    def delete_user(self, user_id: int) -> None:
+        """Löscht User + dessen Sessions unwiderruflich (Avatar-Datei: user.py)."""
+        conn = self._require()
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        sessions = self._require_sessions()
+        sessions.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        sessions.commit()
+        log.info("User gelöscht: id=%d", user_id)
+
     def _require_sessions(self) -> sqlite3.Connection:
         if self._sessions is None:
             raise RuntimeError("Storage ist nicht gestartet (start() vergessen?).")

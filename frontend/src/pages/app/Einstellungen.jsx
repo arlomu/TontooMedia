@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiLogout, apiResetAvatar, apiUpdateMe, apiUploadAvatar, avatarSrc } from '../../lib/api.js'
+import { apiChangePassword, apiDeleteAccount, apiLogout, apiResetAvatar, apiUpdateMe, apiUploadAvatar, avatarSrc, setToken } from '../../lib/api.js'
 
 const USER_RE = /^[a-z0-9._]{3,20}$/
 const BIO_MAX = 160
@@ -9,7 +9,7 @@ const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
 // Echter Einstellungs-Tab: Profil kommt vom Backend (Prefill aus dem
 // eingeloggten Account, Bio startet leer), speichert automatisch per API.
 // Avatar: Standard ist Tontoo_Black, Upload geht echt (max. 1024px).
-// Passwort & Konto-löschen bleiben Demo.
+// Passwortwechsel und Konto-Löschung gehen ebenfalls echt.
 export default function Einstellungen({ showToast, user, onUser }) {
   const navigate = useNavigate()
   const toast = (msg) => showToast?.(msg)
@@ -116,11 +116,12 @@ export default function Einstellungen({ showToast, user, onUser }) {
     }
   }
 
-  // ---------- Passwort (Demo) ----------
+  // ---------- Passwort (echt) ----------
   const [pwNow, setPwNow] = useState('')
   const [pwNew, setPwNew] = useState('')
   const [pwAgain, setPwAgain] = useState('')
   const [pwError, setPwError] = useState(null)
+  const [pwBusy, setPwBusy] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
 
   const closePw = () => {
@@ -138,19 +139,29 @@ export default function Einstellungen({ showToast, user, onUser }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [pwOpen])
 
-  const changePassword = (e) => {
+  const changePassword = async (e) => {
     e.preventDefault()
     if (!pwNow) return setPwError('Bitte dein aktuelles Passwort eingeben.')
     if (pwNew.length < 4) return setPwError('Das neue Passwort muss mindestens 4 Zeichen haben.')
     if (pwNew !== pwAgain) return setPwError('Die neuen Passwörter stimmen nicht überein.')
     if (pwNew === pwNow) return setPwError('Das neue Passwort unterscheidet sich nicht vom alten.')
-    closePw()
-    toast('Passwort geändert (Beispiel).')
+    setPwError(null)
+    setPwBusy(true)
+    try {
+      await apiChangePassword(pwNow, pwNew)
+      closePw()
+      toast('Passwort geändert.')
+    } catch (err) {
+      setPwError(err.message)
+    } finally {
+      setPwBusy(false)
+    }
   }
 
-  // ---------- Konto ----------
+  // ---------- Konto (echt löschen, Demo war gestern) ----------
   const [delStep, setDelStep] = useState(0) // 0 = Button, 1 = Bestätigung
   const [delName, setDelName] = useState('')
+  const [delBusy, setDelBusy] = useState(false)
   const delMatch = delName.trim().toLowerCase() === username.trim().toLowerCase() && username.trim() !== ''
 
   const logout = async () => {
@@ -158,9 +169,19 @@ export default function Einstellungen({ showToast, user, onUser }) {
     onUser?.(null)
     navigate('/login')
   }
-  const deleteAccount = () => {
-    toast('Konto gelöscht (Beispiel).')
-    navigate('/')
+  const deleteAccount = async () => {
+    if (!delMatch || delBusy) return
+    setDelBusy(true)
+    try {
+      await apiDeleteAccount(delName.trim())
+      setToken(null)
+      onUser?.(null)
+      navigate('/')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setDelBusy(false)
+    }
   }
 
   // Session lädt noch → kurz warten, sonst flackert der Login-Hinweis
@@ -299,8 +320,8 @@ export default function Einstellungen({ showToast, user, onUser }) {
                 <button type="button" className="btn btn-ghost" onClick={() => { setDelStep(0); setDelName('') }}>
                   Doch nicht
                 </button>
-                <button type="button" className="btn btn-danger" disabled={!delMatch} onClick={deleteAccount}>
-                  <i className="fa-solid fa-trash-can" /> Endgültig löschen
+                <button type="button" className="btn btn-danger" disabled={!delMatch || delBusy} onClick={deleteAccount}>
+                  <i className="fa-solid fa-trash-can" /> {delBusy ? 'Löscht …' : 'Endgültig löschen'}
                 </button>
               </div>
             </div>
@@ -402,7 +423,9 @@ export default function Einstellungen({ showToast, user, onUser }) {
               </div>
               <div className="sheet-foot">
                 <button type="button" className="btn btn-ghost" onClick={closePw}>Abbrechen</button>
-                <button type="submit" className="btn btn-brand"><i className="fa-solid fa-key" /> Ändern</button>
+                <button type="submit" className="btn btn-brand" disabled={pwBusy}>
+                  <i className="fa-solid fa-key" /> {pwBusy ? 'Moment …' : 'Ändern'}
+                </button>
               </div>
             </form>
           </div>
