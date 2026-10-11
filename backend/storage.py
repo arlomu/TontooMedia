@@ -318,7 +318,11 @@ class Storage:
     # ---------- Folgen ----------
 
     def toggle_follow(self, follower_id: int, followed_id: int) -> bool:
-        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird."""
+        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird.
+
+        Wirft ValueError bei Selbst-Follow."""
+        if follower_id == followed_id:
+            raise ValueError("Du kannst dir nicht selbst folgen.")
         conn = self._require()
         row = conn.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
@@ -712,7 +716,8 @@ class Storage:
             "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
             " WHERE f.community_id = c.id) AS members_n,"
             " (SELECT COUNT(*) FROM community_follows f2"
-            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed,"
+            " (SELECT u.username FROM users u WHERE u.id = c.creator_id) AS creator"
             " FROM communities c WHERE c.id = ?",
             (viewer_id if viewer_id is not None else -1, community_id),
         )
@@ -726,7 +731,8 @@ class Storage:
             "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
             " WHERE f.community_id = c.id) AS members_n,"
             " EXISTS(SELECT 1 FROM community_follows f2"
-            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed,"
+            " (SELECT u.username FROM users u WHERE u.id = c.creator_id) AS creator"
             " FROM communities c ORDER BY c.id DESC",
             (vid,),
         )
@@ -768,7 +774,8 @@ class Storage:
         conn = self._require()
         cur = conn.execute(
             "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
-            " WHERE f.community_id = c.id) AS members_n"
+            " WHERE f.community_id = c.id) AS members_n,"
+            " (SELECT u.username FROM users u WHERE u.id = c.creator_id) AS creator"
             " FROM community_follows fo JOIN communities c ON c.id = fo.community_id"
             " WHERE fo.user_id = ? ORDER BY c.slug ASC",
             (user_id,),
@@ -795,7 +802,8 @@ class Storage:
             "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
             " WHERE f.community_id = c.id) AS members_n,"
             " EXISTS(SELECT 1 FROM community_follows f2"
-            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed,"
+            " (SELECT u.username FROM users u WHERE u.id = c.creator_id) AS creator"
             " FROM community_visits v JOIN communities c ON c.id = v.community_id"
             " WHERE v.user_id = ? ORDER BY v.visited_at DESC LIMIT ?",
             (vid, user_id, limit),

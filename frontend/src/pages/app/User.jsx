@@ -103,10 +103,6 @@ export default function User({ showToast, me }) {
   const isOwn = me && me.id === u.id
 
   const flipFollow = async () => {
-    if (!me) {
-      toast('Logge dich ein, um zu folgen.')
-      return
-    }
     if (followBusy) return
     setFollowBusy(true)
     try {
@@ -154,7 +150,13 @@ export default function User({ showToast, me }) {
             {profile.posts === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length}{' '}
             {shorts.length === 1 ? 'Short' : 'Shorts'}
           </p>
-          {!isOwn && (
+          {/* Folgen: echt per API. Ausgeloggt → zum Login, eigenes Profil → kein Button. */}
+          {!isOwn && me !== undefined && !me && (
+            <Link to="/login" className="btn btn-sm btn-brand">
+              Folgen
+            </Link>
+          )}
+          {!isOwn && me && (
             <button
               type="button"
               className={`btn btn-sm ${profile.followed ? 'btn-ghost' : 'btn-brand'}`}
