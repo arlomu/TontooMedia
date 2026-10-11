@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { apiGetUser, avatarSrc, mediaSrc } from '../../lib/api.js'
+import { apiGetUser, apiToggleFollow, avatarSrc, mediaSrc } from '../../lib/api.js'
 
 const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
@@ -14,12 +14,14 @@ const SORTS = [
 // Profil: /u/:user – echt per API. 404 wenn es den User nicht gibt.
 // Follower + Folgen sind echt, Posts gibt es noch nicht (immer 0),
 // Shorts sind die echten öffentlichen Shorts des Users.
-export default function User() {
+export default function User({ showToast, me }) {
   const { user: username } = useParams()
   const [tab, setTab] = useState('posts')
   const [sort, setSort] = useState('new')
   const [status, setStatus] = useState('loading') // loading | ready | missing | error
   const [profile, setProfile] = useState(null)
+  const [followBusy, setFollowBusy] = useState(false)
+  const toast = (msg) => showToast?.(msg)
 
   useEffect(() => {
     let alive = true
@@ -98,6 +100,25 @@ export default function User() {
 
   const u = profile.user
   const shorts = profile.shorts
+  const isOwn = me && me.id === u.id
+
+  const flipFollow = async () => {
+    if (!me) {
+      toast('Logge dich ein, um zu folgen.')
+      return
+    }
+    if (followBusy) return
+    setFollowBusy(true)
+    try {
+      const r = await apiToggleFollow(username)
+      setProfile((p) => ({ ...p, followed: r.followed, followers: r.followers }))
+      toast(r.followed ? `u/${username} gefolgt.` : `u/${username} entfolgt.`)
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setFollowBusy(false)
+    }
+  }
 
   // Sortierung: Neustes (neueste zuerst), Ältestes,
   // Beliebteste (1 Like = 3 Views, 2 Kommentare = 1 View)
@@ -133,10 +154,23 @@ export default function User() {
             {profile.posts === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length}{' '}
             {shorts.length === 1 ? 'Short' : 'Shorts'}
           </p>
-          {/* Folgen-Button (Deko, ohne Funktion) */}
-          <button type="button" className="btn btn-sm btn-brand">
-            Folgen
-          </button>
+          {!isOwn && (
+            <button
+              type="button"
+              className={`btn btn-sm ${profile.followed ? 'btn-ghost' : 'btn-brand'}`}
+              aria-pressed={profile.followed}
+              disabled={followBusy}
+              onClick={flipFollow}
+            >
+              {profile.followed ? (
+                <>
+                  <i className="fa-solid fa-check" /> Gefolgt
+                </>
+              ) : (
+                'Folgen'
+              )}
+            </button>
+          )}
         </div>
       </div>
 
