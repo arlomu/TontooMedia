@@ -129,10 +129,6 @@ export default function User({ showToast }) {
           ))}
         </div>
       )}
-
-      <Link to="/app" className="btn btn-ghost profile-back">
-        <i className="fa-solid fa-arrow-left" /> Zurück zur Startseite
-      </Link>
     </div>
   )
 }

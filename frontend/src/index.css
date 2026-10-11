@@ -681,7 +681,6 @@ main.app-wrap { max-width: none; padding: 0; }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
 }
 .profile-shorts .short-card { width: auto; }
-.profile-back { margin-top: 18px; }
 /* Community-Hero als Karte */
 .comm-hero-card {
   display: flex; align-items: center; gap: 16px;
