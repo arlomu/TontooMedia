@@ -1069,6 +1069,67 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .tool-spacer { flex: 1; }
 .chipbtn.static { cursor: default; }
 
+/* ---------- Short-Upload-Wizard ---------- */
+.steps { display: flex; gap: 8px; margin-bottom: 14px; }
+.step {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-3rd); font-family: var(--font-body);
+}
+.step .n {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.step.active { color: var(--text); }
+.step.active .n { border-color: var(--brand); color: var(--brand); }
+.step.done { color: var(--text); }
+.step.done .n { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-size: 10px; }
+.videopick {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: transparent; border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 28px 20px; color: var(--text); cursor: pointer; font-family: var(--font-body);
+  transition: border-color 0.15s, background 0.15s;
+}
+.videopick:hover { border-color: var(--brand); background: var(--surface); }
+.videopick.dragging { border-color: var(--brand); background: var(--surface2); }
+.videopick .dropic { font-size: 32px; }
+.videopick strong { font-size: 15px; }
+.videopick small { color: var(--text-3rd); font-size: 12.5px; }
+.file-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 10px 10px 14px;
+}
+.file-row > i { font-size: 20px; }
+.file-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.file-meta strong {
+  font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-meta small { color: var(--text-3rd); font-size: 12px; }
+.wiz-video {
+  width: 100%; max-height: 240px; border-radius: 10px;
+  border: 1px solid var(--border); background: #000;
+}
+.switch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 4px 0; font-size: 14px; font-weight: 600; font-family: var(--font-body);
+}
+.switch-row small { display: block; font-weight: 400; color: var(--text-3rd); font-size: 12.5px; margin-top: 2px; }
+.thumb-pick { display: flex; align-items: center; gap: 12px; }
+.thumb-frame {
+  width: 64px; height: 114px; flex-shrink: 0;
+  display: grid; place-items: center; overflow: hidden;
+  background: var(--surface2); border: 1px dashed var(--border);
+  border-radius: 10px; color: var(--text-3rd); font-size: 20px;
+}
+.thumb-frame img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.thumb-meta small { color: var(--text-3rd); font-size: 12.5px; line-height: 1.5; }
+.thumb-mini img.thumb-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 8px;
+}
+
 /* ---------- Post-Editor (Reddit-Stil) ---------- */
 .editor { display: flex; flex-direction: column; gap: 12px; }
 .editor-title {

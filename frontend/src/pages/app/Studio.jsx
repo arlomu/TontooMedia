@@ -9,6 +9,7 @@ import {
 } from './demoData.js'
 import ShareSheet from '../../components/ShareSheet.jsx'
 import PostEditor from '../../components/PostEditor.jsx'
+import ShortUpload from '../../components/ShortUpload.jsx'
 import { getCustomTontoos } from './customTontoos.js'
 
 const TABS = [
@@ -53,6 +54,7 @@ export default function Studio({ showToast }) {
   const [epId, setEpId] = useState(null)
   const [npOpen, setNpOpen] = useState(false)
   const [npComm, setNpComm] = useState(COMMUNITIES[0].id)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const armTimer = useRef(null)
   const copyTimer = useRef(null)
 
@@ -63,7 +65,7 @@ export default function Studio({ showToast }) {
 
   // Escape schließt Menüs und Dialoge
   useEffect(() => {
-    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem) return
+    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem && !uploadOpen) return
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       setCtx(null)
@@ -72,10 +74,25 @@ export default function Studio({ showToast }) {
       setEpId(null)
       setNpOpen(false)
       setShareItem(null)
+      setUploadOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ctx, createAt, esId, epId, npOpen, shareItem])
+  }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen])
+
+  // Short-Upload abschließen → oben in die Liste (Demo)
+  const finishUpload = (data) => {
+    setShorts((s) => [{
+      id: `up-${Date.now()}`, author: 'du', title: data.title,
+      likes: '0', comments: data.commentsOff ? '–' : '0', remixes: '0',
+      icon: 'fa-clapperboard', color: 'ic-teal', dur: data.dur || '–',
+      views: 0, date: 'heute', status: 'live', visibility: data.visibility,
+      desc: '', tags: data.tags, thumb: data.thumb, commentsOff: data.commentsOff,
+    }, ...s])
+    setUploadOpen(false)
+    setTab('shorts')
+    notify('Short hochgeladen (Demo).')
+  }
 
   const placeMenu = (e) => ({
     x: Math.max(8, Math.min(e.clientX, window.innerWidth - 240)),
@@ -294,12 +311,19 @@ export default function Studio({ showToast }) {
                       <td>
                         <span className="cell-main">
                           <span className="thumb-mini" aria-hidden="true">
-                            <i className={`fa-solid ${s.icon} ${s.color}`} />
+                            {s.thumb ? (
+                              <img className="thumb-img" src={s.thumb} alt="" />
+                            ) : (
+                              <i className={`fa-solid ${s.icon} ${s.color}`} />
+                            )}
                             <span className="thumb-dur">{s.dur}</span>
                           </span>
                           <span className="cell-text">
                             <strong className="cell-title">{s.title}</strong>
-                            <small className="cell-sub">@{s.author}</small>
+                            <small className="cell-sub">
+                              @{s.author}
+                              {!!s.tags?.length && ` · ${s.tags.map((t) => `#${t}`).join(' ')}`}
+                            </small>
                           </span>
                         </span>
                       </td>
@@ -392,8 +416,7 @@ export default function Studio({ showToast }) {
         <div className="ctx-backdrop" onClick={() => setCreateAt(null)} onContextMenu={(e) => { e.preventDefault(); setCreateAt(null) }}>
           <div className="ctx-menu" role="menu" aria-label="Erstellen" style={{ top: createAt.y, left: createAt.x }} onClick={(e) => e.stopPropagation()}>
             <div className="ctx-title">Erstellen</div>
-            {/* Demo-Einträge ohne Funktion */}
-            <button type="button" onClick={() => setCreateAt(null)}>
+            <button type="button" onClick={() => { setCreateAt(null); setUploadOpen(true) }}>
               <i className="fa-solid fa-clapperboard ic-yellow" /> Short hochladen
             </button>
             <button type="button" onClick={() => setCreateAt(null)}>
@@ -500,6 +523,20 @@ export default function Studio({ showToast }) {
               submitLabel="Posten"
               onSubmit={() => {}}
               onCancel={() => setNpOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Short-Upload (Wizard) */}
+      {uploadOpen && (
+        <div className="sheet-backdrop" onClick={() => setUploadOpen(false)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Short hochladen" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head"><strong className="sheet-title">Short hochladen</strong></div>
+            <ShortUpload
+              key="upload"
+              onDone={finishUpload}
+              onCancel={() => setUploadOpen(false)}
             />
           </div>
         </div>
