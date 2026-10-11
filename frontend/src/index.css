@@ -106,6 +106,8 @@ a { color: var(--accent); }
 .btn-ghost:hover { background: var(--surface2); }
 .btn-brand { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .btn-brand:hover { background: #ffc61a; border-color: #ffc61a; box-shadow: 0 4px 18px rgba(245, 179, 1, 0.35); }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover { border-color: #ef8080; box-shadow: 0 4px 18px rgba(224, 93, 93, 0.35); }
 .btn-lg { padding: 13px 22px; font-size: 15px; }
 .btn-sm { padding: 7px 12px; font-size: 13px; }
 
@@ -544,6 +546,8 @@ main.app-wrap { max-width: none; padding: 0; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 12px 20px 18px;
 }
+/* Schmale Variante für kurze Bestätigungen */
+.sheet-slim { width: min(420px, 100%); }
 
 /* Studio-Dashboard */
 .app-content:has(.studio-page) { max-width: none; width: 100%; }
@@ -613,7 +617,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .cell-sub { font-size: 12px; color: var(--text-3rd); }
 .nowrap { white-space: nowrap; }
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
-.iconbtn.danger-arm { color: var(--danger); border-color: var(--danger); animation: pop 0.16s ease; }
 .row-actions .go-live { color: var(--accent); }
 
 /* Status-Pillen */

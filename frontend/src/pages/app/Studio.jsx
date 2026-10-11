@@ -42,7 +42,7 @@ export default function Studio({ showToast }) {
   const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
   const [ctx, setCtx] = useState(null) // { x, y, kind, id } Zeilen-Menü
-  const [armDelete, setArmDelete] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null) // { kind, id } fürs Lösch-Modal
   const [shareItem, setShareItem] = useState(null) // { url, sub }
   const [copiedShare, setCopiedShare] = useState(false)
   // Short bearbeiten
@@ -55,17 +55,15 @@ export default function Studio({ showToast }) {
   const [npOpen, setNpOpen] = useState(false)
   const [npComm, setNpComm] = useState(COMMUNITIES[0].id)
   const [uploadOpen, setUploadOpen] = useState(false)
-  const armTimer = useRef(null)
   const copyTimer = useRef(null)
 
   useEffect(() => () => {
-    clearTimeout(armTimer.current)
     clearTimeout(copyTimer.current)
   }, [])
 
   // Escape schließt Menüs und Dialoge
   useEffect(() => {
-    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem && !uploadOpen) return
+    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem && !uploadOpen && !deleteTarget) return
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       setCtx(null)
@@ -75,10 +73,11 @@ export default function Studio({ showToast }) {
       setNpOpen(false)
       setShareItem(null)
       setUploadOpen(false)
+      setDeleteTarget(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen])
+  }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen, deleteTarget])
 
   // Short-Upload abschließen → oben in die Liste (Demo)
   const finishUpload = (data) => {
@@ -114,20 +113,14 @@ export default function Studio({ showToast }) {
     })
   }
 
-  // Löschen mit 2-Klick-Bestätigung (kein Browser-Dialog)
-  const askDelete = (kind, id) => {
-    const key = `${kind}:${id}`
-    if (armDelete === key) {
-      clearTimeout(armTimer.current)
-      setArmDelete(null)
-      if (kind === 'short') setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
-      else setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
-      notify('Gelöscht (Demo).')
-    } else {
-      setArmDelete(key)
-      clearTimeout(armTimer.current)
-      armTimer.current = setTimeout(() => setArmDelete(null), 3000)
-    }
+  // Löschen erst nach Bestätigung im Modal
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    const { kind, id } = deleteTarget
+    if (kind === 'short') setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
+    else setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
+    setDeleteTarget(null)
+    notify('Gelöscht (Demo).')
   }
 
   const openShare = (url, sub) => {
@@ -204,20 +197,17 @@ export default function Studio({ showToast }) {
 
   const counts = { shorts: shorts.length, posts: posts.length }
 
-  const delBtn = (kind, id, label) => {
-    const armed = armDelete === `${kind}:${id}`
-    return (
-      <button
-        type="button"
-        className={`iconbtn sm${armed ? ' danger-arm' : ''}`}
-        title={armed ? 'Wirklich löschen? Nochmal klicken.' : (label || 'Löschen')}
-        aria-label={armed ? 'Wirklich löschen? Nochmal klicken.' : (label || 'Löschen')}
-        onClick={() => askDelete(kind, id)}
-      >
-        <i className={`fa-solid ${armed ? 'fa-triangle-exclamation' : 'fa-trash'}`} />
-      </button>
-    )
-  }
+  const delBtn = (kind, id, label) => (
+    <button
+      type="button"
+      className="iconbtn sm"
+      title={label || 'Löschen'}
+      aria-label={label || 'Löschen'}
+      onClick={() => setDeleteTarget({ kind, id })}
+    >
+      <i className="fa-solid fa-trash" />
+    </button>
+  )
 
   return (
     <div className="app-page studio-page">
@@ -439,7 +429,7 @@ export default function Studio({ showToast }) {
               <button type="button" onClick={() => openShare(url, row.title || row.text)}>
                 <i className="fa-solid fa-share-nodes ic-teal" /> Teilen
               </button>
-              <button type="button" onClick={() => { setCtx(null); askDelete(ctx.kind, ctx.id) }}>
+              <button type="button" onClick={() => { const t = { kind: ctx.kind, id: ctx.id }; setCtx(null); setDeleteTarget(t) }}>
                 <i className="fa-solid fa-trash ic-danger" /> Löschen
               </button>
             </div>
@@ -536,6 +526,29 @@ export default function Studio({ showToast }) {
           </div>
         </div>
       )}
+
+      {/* Löschen bestätigen */}
+      {deleteTarget && (() => {
+        const row = findRow(deleteTarget.kind, deleteTarget.id)
+        return (
+          <div className="sheet-backdrop" onClick={() => setDeleteTarget(null)}>
+            <div className="sheet sheet-slim" role="alertdialog" aria-modal="true" aria-label="Löschen bestätigen" onClick={(e) => e.stopPropagation()}>
+              <div className="sheet-head"><strong className="sheet-title">Wirklich löschen?</strong></div>
+              <div className="sheet-body">
+                <p className="sheet-sub">
+                  „{row?.title || row?.text || 'Dieser Inhalt'}“ wird endgültig entfernt (Demo).
+                </p>
+              </div>
+              <div className="sheet-foot">
+                <button type="button" className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>Abbrechen</button>
+                <button type="button" className="btn btn-danger" onClick={confirmDelete}>
+                  <i className="fa-solid fa-trash" /> Löschen
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Teilen-Link kopieren */}
       {shareItem && (
