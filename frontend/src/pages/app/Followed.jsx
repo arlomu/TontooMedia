@@ -46,9 +46,6 @@ export default function Followed({ showToast }) {
 
   return (
     <div className="app-page">
-      <h2 className="app-title">Followed</h2>
-      <p className="app-sub">Leute und Tontoos, denen du folgst.</p>
-
       <section className="follow-card" aria-label="Gefolgte User">
         <div className="follow-cardhead">
           <span className="comm-ic" aria-hidden="true">
