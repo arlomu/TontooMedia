@@ -58,3 +58,69 @@ export const DEMO_UPLOADS = [
   { id: 1, title: 'Mein erster Vlog (Beispiel)', status: 'Entwurf', views: '—', icon: 'fa-video', color: 'ic-teal' },
   { id: 2, title: 'Setup-Tour 2026 (Beispiel)', status: 'Geplant', views: '—', icon: 'fa-microchip', color: 'ic-violet' },
 ]
+
+// Beispiel-Kommentare pro Short (mit Antworten) – kein Backend, nur Demo.
+export const DEMO_COMMENTS = {
+  1: [
+    {
+      id: '1-k1', author: 'mia.postet', time: 'vor 3 Std.', likes: 1204,
+      text: 'Dieser Flick am Ende war komplett irre, habe es mir fünfmal angeschaut.',
+      replies: [
+        { id: '1-k1-a1', author: 'pixel.tom', time: 'vor 2 Std.', likes: 214, text: 'Danke! War auch komplett ungeplant.' },
+        { id: '1-k1-a2', author: 'koch.finn', time: 'vor 1 Std.', likes: 87, text: 'Clip des Jahres, nichts anderes.' },
+      ],
+    },
+    {
+      id: '1-k2', author: 'beat.lena', time: 'vor 5 Std.', likes: 342,
+      text: 'Der Sound dazu passt viel zu gut.',
+      replies: [],
+    },
+    {
+      id: '1-k3', author: 'gaming.fan99', time: 'vor 8 Std.', likes: 158,
+      text: 'Tutorial wann? Will das auch können.',
+      replies: [
+        { id: '1-k3-a1', author: 'pixel.tom', time: 'vor 6 Std.', likes: 45, text: 'Kommt diese Woche, versprochen.' },
+      ],
+    },
+  ],
+  2: [
+    {
+      id: '2-k1', author: 'beat.lena', time: 'vor 4 Std.', likes: 689,
+      text: 'Die Farben sind ja mal komplett gemalt.',
+      replies: [
+        { id: '2-k1-a1', author: 'mia.postet', time: 'vor 3 Std.', likes: 132, text: 'Kein Filter, nur 19:42 Uhr und Glück.' },
+      ],
+    },
+    {
+      id: '2-k2', author: 'pixel.tom', time: 'vor 7 Std.', likes: 204,
+      text: 'Welche Stadt ist das? Brauche den Spot.',
+      replies: [],
+    },
+    {
+      id: '2-k3', author: 'foto.nina', time: 'vor 1 Tag', likes: 97,
+      text: 'Mit welchem Objektiv? Schärfe ist top.',
+      replies: [
+        { id: '2-k3-a1', author: 'mia.postet', time: 'vor 20 Std.', likes: 61, text: '50mm, Blende 1.8 – mehr war es nicht.' },
+      ],
+    },
+  ],
+  3: [
+    {
+      id: '3-k1', author: 'pixel.tom', time: 'vor 2 Std.', likes: 453,
+      text: 'Der Drop bei 0:20 bleibt im Kopf.',
+      replies: [],
+    },
+    {
+      id: '3-k2', author: 'mia.postet', time: 'vor 6 Std.', likes: 287,
+      text: 'Schlafzimmer-Studio schlägt alles, Liebe dafür.',
+      replies: [
+        { id: '3-k2-a1', author: 'beat.lena', time: 'vor 5 Std.', likes: 119, text: 'Monitorboxen standen auf Umzugskartons.' },
+      ],
+    },
+    {
+      id: '3-k3', author: 'koch.finn', time: 'vor 1 Tag', likes: 76,
+      text: 'Läuft bei mir jetzt in Dauerschleife.',
+      replies: [],
+    },
+  ],
+}

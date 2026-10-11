@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { DEMO_SHORTS } from './demoData.js'
+import { DEMO_COMMENTS, DEMO_SHORTS } from './demoData.js'
 
 // Jeder Short hat seine eigene URL: /shorts/:id (zieht beim Scrollen mit).
 const indexFromId = (id) => {
@@ -21,6 +21,13 @@ export default function Shorts({ showToast }) {
   const [slide, setSlide] = useState(null) // { from, to, dir } während der Wechsel-Animation
   const [drag, setDrag] = useState(0) // Live-Finger-Offset beim Ziehen (mobil)
   const [snapping, setSnapping] = useState(false) // true = weich zurückschnappen
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [extraComments, setExtraComments] = useState({}) // selbst gepostet, pro Short-id
+  const [extraReplies, setExtraReplies] = useState({}) // selbst gepostet, pro Kommentar-id
+  const [likedComments, setLikedComments] = useState({}) // Kommentar-id -> bool
+  const [replyTo, setReplyTo] = useState(null) // Kommentar-id oder null
+  const [draft, setDraft] = useState('')
   const stageRef = useRef(null)
   const dragRef = useRef(null)
   const wheelCool = useRef(0)
@@ -29,7 +36,7 @@ export default function Shorts({ showToast }) {
   const snapTimer = useRef(null)
 
   const short = DEMO_SHORTS[idx]
-  const demo = (msg) => showToast(msg || 'Das ist nur ein Beispiel.')
+  const shareUrl = `${window.location.origin}/shorts/${short.id}`
 
   useEffect(() => () => {
     clearTimeout(timerRef.current)
@@ -45,6 +52,80 @@ export default function Shorts({ showToast }) {
     }
     setIdx(indexFromId(id))
   }, [id, navigate])
+
+  // Menüs beim Short-Wechsel schließen
+  useEffect(() => {
+    setCommentsOpen(false)
+    setShareOpen(false)
+    setReplyTo(null)
+  }, [idx])
+
+  // Escape schließt offene Menüs
+  useEffect(() => {
+    if (!commentsOpen && !shareOpen) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setCommentsOpen(false)
+        setShareOpen(false)
+        setReplyTo(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [commentsOpen, shareOpen])
+
+  const closeComments = () => {
+    setCommentsOpen(false)
+    setReplyTo(null)
+  }
+
+  // Alle Kommentare zum aktuellen Short: Demo + selbst gepostete
+  const allComments = [...(DEMO_COMMENTS[short.id] || []), ...(extraComments[short.id] || [])]
+  const repliesOf = (c) => [...(c.replies || []), ...(extraReplies[c.id] || [])]
+  const commentLikes = (c) => c.likes + (likedComments[c.id] ? 1 : 0)
+  const toggleCommentLike = (cid) => setLikedComments((m) => ({ ...m, [cid]: !m[cid] }))
+  const nameOf = (cid) => {
+    for (const c of allComments) {
+      if (c.id === cid) return c.author
+      for (const r of repliesOf(c)) if (r.id === cid) return r.author
+    }
+    return ''
+  }
+
+  const submitComment = (e) => {
+    e.preventDefault()
+    const text = draft.trim()
+    if (!text) return
+    const entry = { id: `u-${Date.now()}`, author: 'du', time: 'jetzt', text, likes: 0, replies: [] }
+    if (replyTo) {
+      setExtraReplies((m) => ({ ...m, [replyTo]: [...(m[replyTo] || []), entry] }))
+      showToast('Antwort gepostet (Beispiel).')
+    } else {
+      setExtraComments((m) => ({ ...m, [short.id]: [...(m[short.id] || []), entry] }))
+      showToast('Kommentar gepostet (Beispiel).')
+    }
+    setDraft('')
+    setReplyTo(null)
+  }
+
+  const copyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      showToast('Link kopiert.')
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = shareUrl
+      document.body.appendChild(ta)
+      ta.select()
+      try {
+        document.execCommand('copy')
+        showToast('Link kopiert.')
+      } catch {
+        showToast('Kopieren geht hier nicht (Beispiel).')
+      }
+      ta.remove()
+    }
+  }
 
   // Wechseln mit Push-Animation: neue Karte kommt vom Screen-Boden,
   // alte geht oben hinter der Suche weg (wie auf YouTube)
@@ -181,11 +262,11 @@ export default function Shorts({ showToast }) {
           <i className={`${liked[s.id] ? 'fa-solid liked' : 'fa-regular'} fa-heart`} />
         </button>
         <span className="rail-count">{s.likes}</span>
-        <button type="button" className="rail-btn" aria-label="Kommentare" onClick={() => demo('Kommentare kommen später (Beispiel).')}>
+        <button type="button" className="rail-btn" aria-label="Kommentare" onClick={() => setCommentsOpen(true)}>
           <i className="fa-regular fa-comment" />
         </button>
         <span className="rail-count">{s.comments}</span>
-        <button type="button" className="rail-btn" aria-label="Teilen" onClick={() => demo('Link kopiert (Beispiel).')}>
+        <button type="button" className="rail-btn" aria-label="Teilen" onClick={() => setShareOpen(true)}>
           <i className="fa-solid fa-share" />
         </button>
         <span className="rail-count">Teilen</span>
@@ -259,6 +340,116 @@ export default function Shorts({ showToast }) {
         </div>
       </div>
       </div>
+
+      {/* Kommentare-Menü */}
+      {commentsOpen && (
+        <div className="sheet-backdrop" onClick={closeComments}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Kommentare" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong className="sheet-title">Kommentare <span className="sheet-count">{short.comments}</span></strong>
+            </div>
+            <div className="sheet-body">
+              {allComments.map((c) => (
+                <div className="comment" key={c.id}>
+                  <span className="comment-ava" aria-hidden="true">
+                    <i className="fa-solid fa-circle-user" />
+                  </span>
+                  <div className="comment-main">
+                    <div className="comment-head">@{c.author} <small>{c.time}</small></div>
+                    <p className="comment-text">{c.text}</p>
+                    <div className="comment-actions">
+                      <button
+                        type="button"
+                        className={`comment-btn${likedComments[c.id] ? ' active' : ''}`}
+                        aria-pressed={!!likedComments[c.id]}
+                        onClick={() => toggleCommentLike(c.id)}
+                      >
+                        <i className={`${likedComments[c.id] ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {commentLikes(c)}
+                      </button>
+                      <button type="button" className="comment-btn" onClick={() => setReplyTo(c.id)}>
+                        <i className="fa-solid fa-reply" /> Antworten
+                      </button>
+                    </div>
+                    {repliesOf(c).length > 0 && (
+                      <div className="replies">
+                        {repliesOf(c).map((r) => (
+                          <div className="comment" key={r.id}>
+                            <span className="comment-ava" aria-hidden="true">
+                              <i className="fa-solid fa-circle-user" />
+                            </span>
+                            <div className="comment-main">
+                              <div className="comment-head">@{r.author} <small>{r.time}</small></div>
+                              <p className="comment-text">{r.text}</p>
+                              <div className="comment-actions">
+                                <button
+                                  type="button"
+                                  className={`comment-btn${likedComments[r.id] ? ' active' : ''}`}
+                                  aria-pressed={!!likedComments[r.id]}
+                                  onClick={() => toggleCommentLike(r.id)}
+                                >
+                                  <i className={`${likedComments[r.id] ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {commentLikes(r)}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {replyTo && (
+              <div className="reply-hint">
+                <span>Antwort an <strong>@{nameOf(replyTo)}</strong></span>
+                <button type="button" className="comment-btn" onClick={() => setReplyTo(null)}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+            )}
+            <form className="comment-inputrow" onSubmit={submitComment}>
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={replyTo ? `Antworten an @${nameOf(replyTo)} …` : 'Kommentieren …'}
+                aria-label={replyTo ? 'Antwort schreiben' : 'Kommentar schreiben'}
+                maxLength={280}
+              />
+              <button type="submit" className="btn btn-brand btn-sm" disabled={!draft.trim()} aria-label="Absenden">
+                <i className="fa-solid fa-paper-plane" />
+              </button>
+            </form>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={closeComments}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" onClick={closeComments}>Fertig</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teilen-Menü */}
+      {shareOpen && (
+        <div className="sheet-backdrop" onClick={() => setShareOpen(false)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Teilen" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong className="sheet-title">Teilen</strong>
+            </div>
+            <div className="sheet-body">
+              <p className="sheet-sub">@{short.author} · {short.title}</p>
+              <div className="sheet-url">
+                <span className="sheet-urltext">{shareUrl}</span>
+                <button type="button" className="btn btn-brand btn-sm" onClick={copyShareUrl}>
+                  <i className="fa-solid fa-copy" /> Kopieren
+                </button>
+              </div>
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={() => setShareOpen(false)}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" onClick={() => setShareOpen(false)}>Fertig</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
