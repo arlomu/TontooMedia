@@ -1273,7 +1273,9 @@ def start(storage: Storage, port: int = API_PORT) -> None:
     """Startet den API-Server (non-blocking, eigener Thread)."""
     global _storage, _server
     _storage = storage
-    _server = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    # 0.0.0.0 statt 127.0.0.1, damit das Backend auch über LAN-IP/Domain
+    # erreichbar ist (Frontend nutzt den gleichen Host wie die Webseite).
+    _server = ThreadingHTTPServer(("0.0.0.0", port), _Handler)
     log.info("API-Server auf http://localhost:%d", port)
     threading.Thread(target=_server.serve_forever, daemon=True).start()
 
@@ -1292,7 +1294,7 @@ def run_forever(storage: Storage, port: int = API_PORT) -> None:
     """Startet den API-Server und blockiert (für direkten Start/Test)."""
     global _storage, _server
     _storage = storage
-    _server = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    _server = ThreadingHTTPServer(("0.0.0.0", port), _Handler)
     log.info("API-Server auf http://localhost:%d (Strg+C zum Beenden).", port)
     try:
         _server.serve_forever()

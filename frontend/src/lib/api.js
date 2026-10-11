@@ -1,6 +1,32 @@
-// Echter API-Client fürs TontooMedia-Backend (Port 3001).
-// Token liegt in localStorage, wird als Bearer-Header mitgeschickt.
-const API_BASE = 'http://localhost:3001'
+// Echter API-Client fürs TontooMedia-Backend.
+// Die Basis-URL wird NICHT fest auf localhost verdrahtet, sondern dynamisch bestimmt:
+// - VITE_API_URL gesetzt (Build-/Deploy-Zeit) -> genau die nehmen
+//   (z. B. "https://api.example.com" oder "https://example.com" bei Reverse-Proxy).
+// - Sonst: gleicher Host wie die aufgerufene Webseite, Backend-Port 3001.
+//   http://localhost:3000 -> http://localhost:3001
+//   http://192.168.x.x:3000 -> http://192.168.x.x:3001
+// - Läuft die Seite selbst auf dem API-Port oder Standard-Port (80/443,
+//   also hinter Reverse-Proxy) -> Same-Origin ("") damit /api/... an dieselbe Domain geht.
+const ENV_BASE = ((import.meta.env && import.meta.env.VITE_API_URL) || '').trim().replace(/\/+$/, '')
+
+function resolveApiBase() {
+  if (ENV_BASE) return ENV_BASE
+  try {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const { protocol, hostname, port } = window.location
+      // Same-Origin, wenn die Seite selbst vom API-Port oder hinter
+      // einem Reverse-Proxy (Standard-Port) ausgeliefert wird.
+      if (port === '3001' || port === '' || port === '80' || port === '443') return ''
+      const proto = protocol === 'https:' ? 'https:' : 'http:'
+      return `${proto}//${hostname}:3001`
+    }
+  } catch {
+    /* Fallback unten */
+  }
+  return 'http://localhost:3001'
+}
+
+const API_BASE = resolveApiBase()
 const TOKEN_KEY = 'tontoo_token'
 
 export const apiBase = API_BASE
