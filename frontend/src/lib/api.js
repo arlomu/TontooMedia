@@ -187,6 +187,18 @@ export const apiFeedPosts = (sort = 'neu') =>
     (d) => d.posts || []
   )
 
+// ---- Globale Suche (/search, mit #-Tag-Suche) ----
+
+export const apiSearch = (q) =>
+  request(`/api/search?q=${encodeURIComponent(q || '')}`, { auth: true }).then((d) => ({
+    query: d.query || '',
+    isTag: !!d.isTag,
+    shorts: d.shorts || [],
+    posts: d.posts || [],
+    communities: d.communities || [],
+    users: d.users || [],
+  }))
+
 export const apiLikePost = (id) =>
   request(`/api/posts/${id}/like`, { method: 'POST', auth: true })
 

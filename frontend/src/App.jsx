@@ -13,9 +13,10 @@ import Einstellungen from './pages/app/Einstellungen.jsx'
 import Community from './pages/app/Community.jsx'
 import Post from './pages/app/Post.jsx'
 import User from './pages/app/User.jsx'
+import Search from './pages/app/Search.jsx'
 
 // Routen mit der App-Sidebar (statt Landing-Navbar/Footer)
-const APP_ROUTES = ['/app', '/shorts', '/followed', '/studio', '/einstellungen']
+const APP_ROUTES = ['/app', '/shorts', '/search', '/followed', '/studio', '/einstellungen']
 const isAppRoute = (path) =>
   APP_ROUTES.includes(path) || path.startsWith('/shorts/') || path.startsWith('/t/') || path.startsWith('/u/')
 
@@ -36,11 +37,8 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 2600)
   }
 
-  // Demo-Suche (kein Backend): zeigt nur einen Hinweis-Toast
-  const handleSearch = (q) => {
-    const query = q.trim()
-    showToast(query ? `Suche nach „${query}“ ist noch Demo.` : 'Tippe etwas zum Suchen ein.')
-  }
+  // Suche oben: die SearchBar navigiert selbst nach /search?q=...
+  // (kein Demo-Toast mehr – echte Backend-Suche)
 
   // Reveal-Animation beim Scrollen (neu pro Route)
   useEffect(() => {
@@ -147,10 +145,11 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login onAuth={setUser} />} />
           <Route path="/register" element={<Register onAuth={setUser} />} />
-          {/* Flache App-Routen, alle mit derselben Sidebar */}
-          <Route element={<AppLayout showToast={showToast} onSearch={handleSearch} />}>
+          {/* Flache App-Routen, alle mit derselben Sidebar + Suche oben */}
+          <Route element={<AppLayout showToast={showToast} />}>
             <Route path="/app" element={<Start />} />
             <Route path="/shorts/:id?" element={<Shorts showToast={showToast} />} />
+            <Route path="/search" element={<Search />} />
             <Route path="/followed" element={<Followed showToast={showToast} />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen showToast={showToast} user={user} onUser={setUser} />} />

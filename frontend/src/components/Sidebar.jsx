@@ -124,6 +124,9 @@ export default function Sidebar({ open, onClose, showToast }) {
         <NavLink to="/shorts" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
           <i className="fa-solid fa-clapperboard" /> Shorts
         </NavLink>
+        <NavLink to="/search" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
+          <i className="fa-solid fa-magnifying-glass" /> Suche
+        </NavLink>
         <NavLink to="/followed" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`} onClick={onClose}>
           <i className="fa-solid fa-heart" /> Followed
         </NavLink>

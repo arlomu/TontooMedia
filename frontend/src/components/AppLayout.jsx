@@ -4,7 +4,7 @@ import Sidebar from './Sidebar.jsx'
 import SearchBar from './SearchBar.jsx'
 
 // Layout für alle App-Routen: gleiche Sidebar + Content-Bereich.
-// Flache URLs: /app, /shorts, /followed, /studio, /einstellungen, /t/:name, /u/:user.
+// Flache URLs: /app, /shorts, /search, /followed, /studio, /einstellungen, /t/:name, /u/:user.
 export default function AppLayout({ showToast, onSearch }) {
   const [sideOpen, setSideOpen] = useState(false)
   const close = () => setSideOpen(false)

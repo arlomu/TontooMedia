@@ -24,6 +24,8 @@ Endpunkte (alle unter /api/...):
    GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
    GET    /api/feed/start    -> {shorts: [...]} (Start-Shelf: Woche/3 Tage/Neu)
    GET    /api/feed/posts?sort=neu|top|diskutiert -> {posts: [...]} (7 Stück, mit Top-Kommentar)
+   GET    /api/search?q=... -> {query, isTag, shorts[], posts[], communities[], users[]}
+     (global, nach Relevanz sortiert; mit führendem # reine Tag-Suche)
    POST   /api/posts/<id>/like (Bearer) -> {liked, likes} (Toggle)
    GET    /api/users/<name>  -> {user, followers, followed, posts[], shorts[]} (404 wenn unbekannt)
    POST   /api/users/<name>/follow (Bearer) -> {followed, followers} (Toggle)
@@ -66,6 +68,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qs, urlsplit
 
 try:
     from .functions.community import (
@@ -349,6 +352,18 @@ def public_followed_user(row: dict) -> dict:
     }
 
 
+def public_search_user(row: dict) -> dict:
+    """User-Treffer für /api/search (mit Bio + Followerzahl)."""
+    return {
+        "username": row["username"],
+        "name": row.get("name") or row["username"],
+        "bio": row.get("bio") or "",
+        "avatarUrl": avatar_url(row.get("avatar")),
+        "followers": row.get("followers") or 0,
+        "score": row.get("_score") or 0,
+    }
+
+
 def public_comment(row: dict) -> dict:
     return {
         "id": row["id"],
@@ -560,6 +575,27 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_feed_posts(sort, viewer_id)
             return self._ok({"posts": [public_post(r) for r in rows]})
+        if self.path == "/api/search" or self.path.startswith("/api/search?"):
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
+            try:
+                qs = parse_qs(urlsplit(self.path).query)
+                q = (qs.get("q", [""])[0] or "").strip()[:100]
+            except Exception:
+                q = ""
+            if not q:
+                return self._ok({"query": "", "isTag": False,
+                                 "shorts": [], "posts": [],
+                                 "communities": [], "users": []})
+            with DB_LOCK:
+                result = _storage.search_all(q, viewer_id, limit=10)
+            return self._ok({
+                "query": q,
+                "isTag": bool(result.get("isTag")),
+                "shorts": [public_feed_short(r) for r in result.get("shorts", [])],
+                "posts": [public_post(r) for r in result.get("posts", [])],
+                "communities": [public_community(r) for r in result.get("communities", [])],
+                "users": [public_search_user(u) for u in result.get("users", [])],
+            })
         if self.path == "/api/followed":
             _, user_id = self._auth_user()
             if user_id is None:

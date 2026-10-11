@@ -1379,6 +1379,246 @@ class Storage:
             return None
         return {"username": row[1], "text": row[0], "likes": row[2]}
 
+    # ---------- Suche (/search) ----------
+
+    @staticmethod
+    def _parse_tags(tags_raw) -> list:
+        """Tags-JSON -> kleingeschriebene Liste (robust gegen kaputte Daten)."""
+        import json as _json
+
+        try:
+            tags = _json.loads(tags_raw or "[]")
+        except ValueError:
+            return []
+        if not isinstance(tags, list):
+            return []
+        return [str(t or "").strip().lower() for t in tags if str(t or "").strip()]
+
+    def search_all(
+        self, query: str, viewer_id: Optional[int] = None, limit: int = 10
+    ) -> dict:
+        """Globale Suche über Shorts, Posts, Tontoos und User.
+
+        - Normal: Titel/Text/Name/Beschreibung/Bio + Tags, bestes Match zuerst.
+        - Mit führendem `#`: reine Tag-Suche (`#octos` findet Tag `octos`).
+        Jede Liste ist nach Score sortiert (dann neueste zuerst), max. `limit`.
+        """
+        import re as _re
+
+        q = (query or "").strip()[:100]
+        if not q:
+            return {"isTag": False, "shorts": [], "posts": [],
+                    "communities": [], "users": []}
+        is_tag = q.startswith("#")
+        if is_tag:
+            tag_q = q[1:].strip().lower()[:50]
+            if not tag_q:
+                return {"isTag": True, "shorts": [], "posts": [],
+                        "communities": [], "users": []}
+            return self._search_tag(tag_q, viewer_id, limit)
+        ql = q.lower()
+        tokens = [t for t in _re.split(r"\s+", ql) if t][:8]
+
+        def _text_score(text: str, exact_w: float, prefix_w: float,
+                        sub_w: float, token_w: float) -> float:
+            t = (text or "").strip().lower()
+            if not t:
+                return 0.0
+            if t == ql:
+                return exact_w
+            if t.startswith(ql):
+                return prefix_w
+            s = 0.0
+            if ql in t:
+                s += sub_w
+            for tok in tokens:
+                if tok and tok in t:
+                    s += token_w
+            return s
+
+        def _tag_score(tags: list) -> float:
+            s = 0.0
+            for t in tags:
+                if t == ql:
+                    s += 40.0
+                elif t.startswith(ql):
+                    s += 20.0
+                elif ql in t:
+                    s += 10.0
+                else:
+                    for tok in tokens:
+                        if tok and len(tok) >= 2 and tok in t:
+                            s += 4.0
+            return s
+
+        # ----- Shorts (nur öffentliche, mit Autor + Zählern) -----
+        short_rows = self.list_feed_shorts(viewer_id, limit=200)
+        scored_shorts = []
+        for r in short_rows:
+            tags = self._parse_tags(r.get("tags"))
+            score = _text_score(r.get("title") or "", 100.0, 70.0, 50.0, 15.0)
+            score += _tag_score(tags)
+            score += _text_score(r.get("username") or "", 15.0, 12.0, 8.0, 4.0)
+            score += _text_score(r.get("author_name") or "", 12.0, 10.0, 6.0, 3.0)
+            if score > 0:
+                scored_shorts.append((score, r.get("id") or 0, r))
+        scored_shorts.sort(key=lambda x: (-x[0], -x[1]))
+        shorts = [dict(r, _score=round(s, 1)) for s, _, r in scored_shorts[:limit]]
+
+        # ----- Posts (alle Communities, mit Autor + Community) -----
+        conn = self._require()
+        vid = viewer_id or -1
+        cur = conn.execute(
+            "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " c.slug AS community_slug, c.name AS community_name,"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n,"
+            " (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_n,"
+            " EXISTS(SELECT 1 FROM post_likes pl2"
+            "  WHERE pl2.post_id = p.id AND pl2.user_id = ?) AS liked"
+            " FROM posts p JOIN users u ON u.id = p.user_id"
+            " JOIN communities c ON c.id = p.community_id"
+            " ORDER BY p.id DESC LIMIT 200",
+            (vid,),
+        )
+        cols = [d[0] for d in cur.description]
+        post_rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        scored_posts = []
+        for r in post_rows:
+            tags = self._parse_tags(r.get("tags"))
+            score = _text_score(r.get("title") or "", 100.0, 70.0, 50.0, 12.0)
+            text = (r.get("text") or "").lower()
+            if ql in text:
+                score += 25.0
+            for tok in tokens:
+                if tok and len(tok) >= 2 and tok in text:
+                    score += 6.0
+            score += _tag_score(tags)
+            score += _text_score(
+                f"{r.get('community_name') or ''} {r.get('community_slug') or ''}",
+                12.0, 10.0, 8.0, 3.0)
+            score += _text_score(r.get("username") or "", 10.0, 8.0, 5.0, 2.0)
+            if score > 0:
+                scored_posts.append((score, r.get("id") or 0, r))
+        scored_posts.sort(key=lambda x: (-x[0], -x[1]))
+        posts = []
+        for s, _, r in scored_posts[:limit]:
+            r = dict(r, _score=round(s, 1))
+            r["can_delete"] = False
+            r["top_comment"] = self.top_post_comment(r["id"])
+            posts.append(r)
+
+        # ----- Tontoos (Communities) -----
+        scored_comms = []
+        for c in self.list_communities(viewer_id):
+            score = _text_score(c.get("name") or "", 90.0, 60.0, 40.0, 10.0)
+            score += _text_score(c.get("slug") or "", 90.0, 60.0, 40.0, 10.0)
+            score += _text_score(c.get("description") or "", 20.0, 15.0, 12.0, 5.0)
+            if score > 0:
+                scored_comms.append((score, c.get("id") or 0, c))
+        scored_comms.sort(key=lambda x: (-x[0], -x[1]))
+        communities = [dict(c, _score=round(s, 1)) for s, _, c in scored_comms[:limit]]
+
+        # ----- User -----
+        cur = conn.execute(
+            "SELECT id, name, username, bio, avatar FROM users LIMIT 200"
+        )
+        scored_users = []
+        for uid, name, username, bio, avatar in cur.fetchall():
+            score = _text_score(username or "", 90.0, 60.0, 40.0, 10.0)
+            score += _text_score(name or "", 50.0, 35.0, 25.0, 8.0)
+            score += _text_score(bio or "", 15.0, 10.0, 8.0, 3.0)
+            if score > 0:
+                scored_users.append((score, uid, {
+                    "id": uid, "name": name, "username": username,
+                    "bio": bio or "", "avatar": avatar,
+                }))
+        scored_users.sort(key=lambda x: (-x[0], -x[1]))
+        users = []
+        for s, uid, u in scored_users[:limit]:
+            u = dict(u, _score=round(s, 1))
+            u["followers"] = self.follower_count(uid)
+            users.append(u)
+
+        return {"isTag": False, "shorts": shorts, "posts": posts,
+                "communities": communities, "users": users}
+
+    def _search_tag(self, tag_q: str, viewer_id: Optional[int], limit: int) -> dict:
+        """Reine Tag-Suche für Queries mit führendem `#`."""
+        conn = self._require()
+        vid = viewer_id or -1
+
+        def _tag_points(tags: list) -> float:
+            best = 0.0
+            for t in tags:
+                if t == tag_q:
+                    best = max(best, 100.0)
+                elif t.startswith(tag_q):
+                    best = max(best, 60.0)
+                elif tag_q in t:
+                    best = max(best, 30.0)
+            return best
+
+        scored_shorts = []
+        for r in self.list_feed_shorts(viewer_id, limit=200):
+            pts = _tag_points(self._parse_tags(r.get("tags")))
+            # Titel mit #tag erwähnen zählt halb (z. B. "mein #octos Short").
+            if pts <= 0 and f"#{tag_q}" in (r.get("title") or "").lower():
+                pts = 20.0
+            if pts > 0:
+                scored_shorts.append((pts, r.get("id") or 0, r))
+        scored_shorts.sort(key=lambda x: (-x[0], -x[1]))
+
+        cur = conn.execute(
+            "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " c.slug AS community_slug, c.name AS community_name,"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n,"
+            " (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_n,"
+            " EXISTS(SELECT 1 FROM post_likes pl2"
+            "  WHERE pl2.post_id = p.id AND pl2.user_id = ?) AS liked"
+            " FROM posts p JOIN users u ON u.id = p.user_id"
+            " JOIN communities c ON c.id = p.community_id"
+            " ORDER BY p.id DESC LIMIT 200",
+            (vid,),
+        )
+        cols = [d[0] for d in cur.description]
+        scored_posts = []
+        for row in cur.fetchall():
+            r = dict(zip(cols, row))
+            pts = _tag_points(self._parse_tags(r.get("tags")))
+            blob = f"{r.get('title') or ''} {r.get('text') or ''}".lower()
+            if pts <= 0 and f"#{tag_q}" in blob:
+                pts = 20.0
+            if pts > 0:
+                scored_posts.append((pts, r.get("id") or 0, r))
+        scored_posts.sort(key=lambda x: (-x[0], -x[1]))
+
+        # Tontoos haben keine Tags – Name/Slug als Fallback (z. B. #lampen).
+        scored_comms = []
+        for c in self.list_communities(viewer_id):
+            name = (c.get("name") or "").lower()
+            slug = (c.get("slug") or "").lower()
+            pts = 0.0
+            if slug == tag_q or name == tag_q:
+                pts = 80.0
+            elif slug.startswith(tag_q) or name.startswith(tag_q):
+                pts = 40.0
+            elif tag_q in slug or tag_q in name:
+                pts = 20.0
+            if pts > 0:
+                scored_comms.append((pts, c.get("id") or 0, c))
+        scored_comms.sort(key=lambda x: (-x[0], -x[1]))
+
+        shorts = [dict(r, _score=round(s, 1)) for s, _, r in scored_shorts[:limit]]
+        posts = []
+        for s, _, r in scored_posts[:limit]:
+            r = dict(r, _score=round(s, 1))
+            r["can_delete"] = False
+            r["top_comment"] = self.top_post_comment(r["id"])
+            posts.append(r)
+        communities = [dict(c, _score=round(s, 1)) for s, _, c in scored_comms[:limit]]
+        return {"isTag": True, "shorts": shorts, "posts": posts,
+                "communities": communities, "users": []}
+
 
 if __name__ == "__main__":
     s = Storage()
