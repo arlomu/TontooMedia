@@ -16,7 +16,8 @@ Endpunkte (alle unter /api/...):
   PATCH  /api/shorts/<id>   {title?, visibility?, removeThumb?} -> {short}
   POST   /api/shorts/<id>/thumb {data: dataURL} -> {short}
   DELETE /api/shorts/<id>   -> {ok: true}
-  GET    /api/studio/overview (Bearer) -> Kennzahlen
+   GET    /api/studio/overview?days=7|28|90 (Bearer) -> echte Kennzahlen + Tages-Buckets
+   POST   /api/shorts/<id>/watch ({seconds}) -> echte Watch-Time buchen
    GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
    GET    /api/feed/start    -> {shorts: [...]} (Start-Shelf: Woche/3 Tage/Neu)
    GET    /api/feed/posts?sort=neu|top|diskutiert -> {posts: [...]} (7 Stück, mit Top-Kommentar)
@@ -84,6 +85,7 @@ try:
         THUMB_DIR,
         VIDEO_DIR,
         add_view,
+        add_watch,
         create_short,
         delete_short,
         post_comment,
@@ -123,6 +125,7 @@ except ImportError:  # direkter Start via `python backend/api.py`
         THUMB_DIR,
         VIDEO_DIR,
         add_view,
+        add_watch,
         create_short,
         delete_short,
         post_comment,
@@ -473,24 +476,23 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_shorts(user_id)
             return self._ok({"shorts": [public_short(r) for r in rows]})
-        if self.path == "/api/studio/overview":
+        if self.path == "/api/studio/overview" or self.path.startswith("/api/studio/overview?"):
             user, user_id = self._auth_user()
             if user is None:
                 return self._fail(401, "Nicht eingeloggt.")
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            days = 28
+            for part in qs.split("&"):
+                if part.startswith("days="):
+                    try:
+                        days = int(part.split("=", 1)[1])
+                    except ValueError:
+                        days = 28
+            if days not in (7, 28, 90):
+                return self._fail(400, "Unbekannter Zeitraum.")
             with DB_LOCK:
-                views = _storage.count_views(user_id)
-                shorts = _storage.list_shorts(user_id)
-            zero_daily = [0, 0, 0, 0, 0, 0, 0]
-            return self._ok({"overview": {
-                "views": views,
-                "watchHours": 0,
-                "subs": 0,
-                "subsGain": 0,
-                "likes": 0,
-                "shorts": len(shorts),
-                "delta": {"views": 0, "watchHours": 0, "subs": 0, "likes": 0},
-                "daily": {"views": zero_daily, "watch": zero_daily, "subs": zero_daily, "likes": zero_daily},
-            }})
+                overview = _storage.studio_overview(user_id, days)
+            return self._ok({"overview": overview})
         if self.path == "/api/feed/shorts":
             _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
             with DB_LOCK:
@@ -893,6 +895,19 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(404, str(e))
             return self._ok(result)
+        m = re.fullmatch(r"/api/shorts/(\d+)/watch", self.path)
+        if m:
+            body = self._read_json()
+            try:
+                secs = float(body.get("seconds") or 0)
+            except (TypeError, ValueError):
+                return self._fail(400, "Ungültige Sekunden.")
+            try:
+                with DB_LOCK:
+                    add_watch(_storage, int(m.group(1)), secs)
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok({"ok": True})
         m = re.fullmatch(r"/api/shorts/(\d+)/view", self.path)
         if m:
             try:

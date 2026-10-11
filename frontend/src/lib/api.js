@@ -105,8 +105,8 @@ export const apiDeleteAccount = (username) =>
 export const apiListShorts = () =>
   request('/api/shorts', { auth: true }).then((d) => d.shorts || [])
 
-export const apiStudioOverview = () =>
-  request('/api/studio/overview', { auth: true }).then((d) => d.overview)
+export const apiStudioOverview = (days = 28) =>
+  request(`/api/studio/overview?days=${days}`, { auth: true }).then((d) => d.overview)
 
 export const apiUpdateShort = (id, patch) =>
   request(`/api/shorts/${id}`, { method: 'PATCH', auth: true, body: patch }).then(
@@ -144,6 +144,12 @@ export const apiLikeShortComment = (commentId) =>
 
 export const apiViewShort = (id) =>
   request(`/api/shorts/${id}/view`, { method: 'POST' }).catch(() => null)
+
+export const apiWatchShort = (id, seconds) =>
+  request(`/api/shorts/${id}/watch`, {
+    method: 'POST',
+    body: { seconds: Math.round(seconds) },
+  }).catch(() => null)
 
 // ---- Startseite (echt) ----
 

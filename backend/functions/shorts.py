@@ -276,6 +276,14 @@ def add_view(storage: Storage, short_id: int) -> int:
     return storage.add_view(short_id)
 
 
+def add_watch(storage: Storage, short_id: int, seconds: float) -> None:
+    """Bucht echte Watch-Time (nur öffentliche Shorts, max. 30 Min pro Meldung)."""
+    short = storage.get_short(short_id)
+    if short is None or short["visibility"] != "Öffentlich":
+        raise ValueError("Short nicht gefunden.")
+    storage.add_watch(short_id, seconds)
+
+
 def post_comment(storage: Storage, user_id: int, short_id: int, text: str,
                  parent_id: Optional[int] = None) -> dict:
     """Kommentar/Reply anlegen (nur öffentlich + Kommentare an, nur 1 Stufe)."""

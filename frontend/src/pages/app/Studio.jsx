@@ -29,7 +29,11 @@ const PERIODS = [
 const VISIBILITIES = ['Öffentlich', 'Privat']
 
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
-const fmtDelta = (d) => `+${String(d).replace('.', ',')} %`
+const fmtDelta = (d) => {
+  const n = Number(d) || 0
+  const sign = n < 0 ? '−' : '+'
+  return `${sign}${String(Math.abs(n)).replace('.', ',')} %`
+}
 const shortUrl = (id) => `${window.location.origin}/shorts/${id}`
 
 // Sichtbarkeits-Pille: nur Öffentlich oder Privat
@@ -145,6 +149,15 @@ export default function Studio({ showToast }) {
     notify('Short hochgeladen.')
   }
 
+  // Echte Kennzahlen für den Zeitraum (Views, Watch-Time, Follower, Likes)
+  const loadOverview = async (days) => {
+    try {
+      setOvApi(await apiStudioOverview(days))
+    } catch {
+      /* still: alte Werte stehen lassen */
+    }
+  }
+
   // Shorts + Kennzahlen + eigene Posts laden
   const loadShorts = async () => {
     setShortsLoading(true)
@@ -152,7 +165,7 @@ export default function Studio({ showToast }) {
     setPostsLoading(true)
     setPostsError('')
     try {
-      const [list, overview] = await Promise.all([apiListShorts(), apiStudioOverview()])
+      const [list, overview] = await Promise.all([apiListShorts(), apiStudioOverview(period)])
       setShorts((list || []).map(rowOf))
       setOvApi(overview)
     } catch (e) {
@@ -178,6 +191,11 @@ export default function Studio({ showToast }) {
   useEffect(() => {
     loadShorts()
   }, [])
+
+  // Zeitraum wechseln lädt nur die Kennzahlen neu (Tabs bleiben).
+  useEffect(() => {
+    loadOverview(period)
+  }, [period]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const placeMenu = (e) => ({
     x: Math.max(8, Math.min(e.clientX, window.innerWidth - 240)),
@@ -361,20 +379,18 @@ export default function Studio({ showToast }) {
     return pool.find((x) => String(x.id) === String(id))
   }
 
-  // Kennzahlen-Karten (echt vom Server; alles 0 bis was passiert)
+  // Kennzahlen-Karten (echt vom Server, pro Zeitraum)
   const Z7 = [0, 0, 0, 0, 0, 0, 0]
   const ov = ovApi || {
-    views: 0, watchHours: 0, subs: 0, likes: 0,
+    views: 0, watchHours: 0, subs: 0, subsGain: 0, likes: 0,
     delta: { views: 0, watchHours: 0, subs: 0, likes: 0 },
     daily: { views: Z7, watch: Z7, subs: Z7, likes: Z7 },
   }
-  const factor = period / 28
-  const scale = (n) => Math.round(n * factor)
   const stats = [
-    { label: 'Aufrufe', icon: 'fa-eye', color: 'ic-yellow', value: fmt(scale(ov.views)), delta: ov.delta.views, bars: ov.daily.views },
-    { label: 'Wiedergabezeit', icon: 'fa-clock', color: 'ic-teal', value: `${fmt(scale(ov.watchHours))} Std.`, delta: ov.delta.watchHours, bars: ov.daily.watch },
-    { label: 'Follower', icon: 'fa-users', color: 'ic-violet', value: fmt(ov.subs), delta: ov.delta.subs, bars: ov.daily.subs },
-    { label: 'Likes', icon: 'fa-heart', color: 'ic-yellow', value: fmt(scale(ov.likes)), delta: ov.delta.likes, bars: ov.daily.likes },
+    { label: 'Aufrufe', icon: 'fa-eye', color: 'ic-yellow', value: fmt(ov.views), delta: ov.delta.views, bars: ov.daily.views },
+    { label: 'Wiedergabezeit', icon: 'fa-clock', color: 'ic-teal', value: `${fmt(ov.watchHours)} Std.`, delta: ov.delta.watchHours, bars: ov.daily.watch },
+    { label: 'Follower', icon: 'fa-users', color: 'ic-violet', value: `${fmt(ov.subs)} (+${fmt(ov.subsGain || 0)})`, delta: ov.delta.subs, bars: ov.daily.subs },
+    { label: 'Likes', icon: 'fa-heart', color: 'ic-yellow', value: fmt(ov.likes), delta: ov.delta.likes, bars: ov.daily.likes },
   ]
 
   const counts = { shorts: shorts.length, posts: posts.length }
@@ -433,7 +449,7 @@ export default function Studio({ showToast }) {
               </span>
               <div className="stat-row">
                 <strong className="stat-value">{s.value}</strong>
-                <span className="stat-delta up">{fmtDelta(s.delta)}</span>
+                <span className={`stat-delta ${(s.delta || 0) < 0 ? 'down' : 'up'}`}>{fmtDelta(s.delta)}</span>
               </div>
               <div className="minibar" aria-hidden="true">
                 {s.bars.map((v, i) => (

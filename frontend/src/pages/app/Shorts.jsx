@@ -8,6 +8,7 @@ import {
   apiShortComments,
   apiToggleFollow,
   apiViewShort,
+  apiWatchShort,
   avatarSrc,
   mediaSrc,
 } from '../../lib/api.js'
@@ -175,8 +176,35 @@ export default function Shorts({ showToast }) {
   }, [muted, playing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Aufruf zählen: nur was wirklich geschaut wird (3 s am Stück aktuell),
-  // pro Short max. 1× alle 5 Minuten (überlebt Reloads, kein Spam)
+  // pro Short max. 1× alle 5 Minuten (überlebt Reloads, kein Spam).
+  // Watch-Time läuft über denselben Cooldown: nur zum gezählten View
+  // wird 1× die geschauten Sekunden gemeldet (Pause/Weiterwischen).
   const viewTimer = useRef(null)
+  const watchableRef = useRef(false)
+  const watchedRef = useRef(0)
+  const watchStartRef = useRef(0)
+  const flushWatch = (id) => {
+    if (!watchableRef.current || !id) return
+    watchableRef.current = false
+    const v = videoRef.current
+    if (v && !v.paused && watchStartRef.current) {
+      watchedRef.current += (performance.now() - watchStartRef.current) / 1000
+    }
+    watchStartRef.current = 0
+    const secs = Math.round(Math.min(watchedRef.current, 300))
+    watchedRef.current = 0
+    if (secs >= 1) apiWatchShort(id, secs)
+  }
+  const notePlay = () => {
+    watchStartRef.current = performance.now()
+  }
+  const notePause = () => {
+    if (watchStartRef.current) {
+      watchedRef.current += (performance.now() - watchStartRef.current) / 1000
+      watchStartRef.current = 0
+    }
+    flushWatch(shortId)
+  }
   useEffect(() => {
     clearTimeout(viewTimer.current)
     if (!shortId) return
@@ -205,8 +233,15 @@ export default function Shorts({ showToast }) {
           setFeed((f) => f.map((x) => (x.id === shortId ? { ...x, views: d.views } : x)))
         }
       })
+      // Ab jetzt darf 1× Watch-Time gemeldet werden (gleicher Cooldown).
+      watchableRef.current = true
+      watchedRef.current = 0
     }, VIEW_DELAY)
-    return () => clearTimeout(viewTimer.current)
+    return () => {
+      clearTimeout(viewTimer.current)
+      flushWatch(shortId)
+      watchStartRef.current = 0
+    }
   }, [shortId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Erste Interaktion irgendwo (Klick/Taste) entstummt sofort, falls Ton
@@ -540,6 +575,8 @@ export default function Shorts({ showToast }) {
           onClick={tapVideo}
           onTimeUpdate={onTimeUpdate}
           onCanPlay={onCanPlay}
+          onPlay={notePlay}
+          onPause={notePause}
         />
       ) : (
         <div className="short-screen">

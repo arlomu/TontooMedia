@@ -129,6 +129,19 @@ CREATE TABLE IF NOT EXISTS post_likes (
     PRIMARY KEY (post_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id);
+CREATE TABLE IF NOT EXISTS short_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    short_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_short_views_short ON short_views(short_id);
+CREATE TABLE IF NOT EXISTS short_watches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    short_id INTEGER NOT NULL,
+    seconds REAL NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_short_watches_short ON short_watches(short_id);
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug);
@@ -493,6 +506,8 @@ class Storage:
         """Löscht einen Short-Datensatz (Dateien löscht functions/shorts.py)."""
         conn = self._require()
         conn.execute("DELETE FROM shorts WHERE id = ?", (short_id,))
+        conn.execute("DELETE FROM short_views WHERE short_id = ?", (short_id,))
+        conn.execute("DELETE FROM short_watches WHERE short_id = ?", (short_id,))
         conn.commit()
 
     def count_views(self, user_id: int) -> int:
@@ -502,6 +517,130 @@ class Storage:
             "SELECT COALESCE(SUM(views), 0) FROM shorts WHERE user_id = ?", (user_id,)
         ).fetchone()
         return row[0] if row else 0
+
+    def studio_overview(self, user_id: int, days: int = 28) -> dict:
+        """Echte Studio-Kennzahlen für die letzten `days` Tage.
+
+        Views/Watch-Time/Likes/Follows aus Events, Tages-Buckets für Charts,
+        Deltas in % gegen den Vorzeitraum.
+        """
+        if days not in (7, 28, 90):
+            days = 28
+        conn = self._require()
+        now = int(time.time())
+        start = now - days * 86400
+        prev = start - days * 86400
+        mine = "s.user_id = ? AND s.visibility = 'Öffentlich'"
+
+        def _sum(table: str, col: str, ts_col: str, lo: int, hi: int) -> float:
+            row = conn.execute(
+                f"SELECT COALESCE(SUM({col}), 0) FROM {table} t"
+                f" JOIN shorts s ON s.id = t.short_id"
+                f" WHERE {mine} AND t.{ts_col} >= ? AND t.{ts_col} < ?",
+                (user_id, lo, hi),
+            ).fetchone()
+            return float(row[0] or 0)
+
+        def _count(join: str, ts_col: str, lo: int, hi: int) -> int:
+            row = conn.execute(
+                f"SELECT COUNT(*) FROM {join}"
+                f" WHERE {mine} AND {ts_col} >= ? AND {ts_col} < ?",
+                (user_id, lo, hi),
+            ).fetchone()
+            return int(row[0] or 0)
+
+        short_join = "short_views t JOIN shorts s ON s.id = t.short_id"
+        like_join = "short_likes t JOIN shorts s ON s.id = t.short_id"
+        clike_join = (
+            "short_comment_likes t JOIN short_comments c ON c.id = t.comment_id"
+            " JOIN shorts s ON s.id = c.short_id"
+        )
+        views = _count(short_join, "t.created_at", start, now + 1)
+        views_prev = _count(short_join, "t.created_at", prev, start)
+        watch = _sum("short_watches", "seconds", "created_at", start, now + 1)
+        watch_prev = _sum("short_watches", "seconds", "created_at", prev, start)
+        likes = (
+            _count(like_join, "t.created_at", start, now + 1)
+            + _count(clike_join, "t.created_at", start, now + 1)
+            + self._count_post_likes(user_id, start, now + 1, conn)
+        )
+        likes_prev = (
+            _count(like_join, "t.created_at", prev, start)
+            + _count(clike_join, "t.created_at", prev, start)
+            + self._count_post_likes(user_id, prev, start, conn)
+        )
+        subs_row = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE followed_id = ?", (user_id,)
+        ).fetchone()
+        subs = int(subs_row[0] or 0)
+        gain_row = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE followed_id = ? AND created_at >= ?",
+            (user_id, start),
+        ).fetchone()
+        gain = int(gain_row[0] or 0)
+        gain_prev_row = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE followed_id = ?"
+            " AND created_at >= ? AND created_at < ?",
+            (user_id, prev, start),
+        ).fetchone()
+        gain_prev = int(gain_prev_row[0] or 0)
+        shorts_row = conn.execute(
+            "SELECT COUNT(*) FROM shorts WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        shorts_n = int(shorts_row[0] or 0)
+
+        def _pct(cur: float, old: float) -> float:
+            if old <= 0:
+                return 100.0 if cur > 0 else 0.0
+            return round((cur - old) / old * 100, 1)
+
+        daily = {"views": [], "watch": [], "subs": [], "likes": []}
+        for d in range(days, 0, -1):
+            lo = now - d * 86400
+            # Jüngster Bucket schließt bis jetzt ein (Events derselben Sekunde zählen).
+            hi = now - (d - 1) * 86400 if d > 1 else now + 1
+            daily["views"].append(_count(short_join, "t.created_at", lo, hi))
+            daily["watch"].append(round(_sum("short_watches", "seconds", "created_at", lo, hi) / 3600, 2))
+            g = conn.execute(
+                "SELECT COUNT(*) FROM follows WHERE followed_id = ?"
+                " AND created_at >= ? AND created_at < ?",
+                (user_id, lo, hi),
+            ).fetchone()
+            daily["subs"].append(int(g[0] or 0))
+            daily["likes"].append(
+                _count(like_join, "t.created_at", lo, hi)
+                + _count(clike_join, "t.created_at", lo, hi)
+                + self._count_post_likes(user_id, lo, hi, conn)
+            )
+        return {
+            "views": views,
+            "watchHours": round(watch / 3600, 1),
+            "subs": subs,
+            "subsGain": gain,
+            "likes": likes,
+            "shorts": shorts_n,
+            "delta": {
+                "views": _pct(views, views_prev),
+                "watchHours": _pct(watch, watch_prev),
+                "subs": _pct(gain, gain_prev),
+                "likes": _pct(likes, likes_prev),
+            },
+            "daily": daily,
+        }
+
+    def _count_post_likes(self, user_id: int, lo: int, hi: int, conn) -> int:
+        """Likes auf Posts + Post-Kommentare an den Posts des Users."""
+        row = conn.execute(
+            "SELECT (SELECT COUNT(*) FROM post_likes pl"
+            " JOIN posts p ON p.id = pl.post_id"
+            " WHERE p.user_id = ? AND pl.created_at >= ? AND pl.created_at < ?)"
+            " + (SELECT COUNT(*) FROM post_comment_likes pcl"
+            " JOIN post_comments pc ON pc.id = pcl.comment_id"
+            " JOIN posts p2 ON p2.id = pc.post_id"
+            " WHERE p2.user_id = ? AND pcl.created_at >= ? AND pcl.created_at < ?)",
+            (user_id, lo, hi, user_id, lo, hi),
+        ).fetchone()
+        return int(row[0] or 0)
 
     # ---------- Feed / Likes / Kommentare ----------
 
@@ -624,12 +763,28 @@ class Storage:
         return row[0] if row else 0
 
     def add_view(self, short_id: int) -> int:
-        """Zählt einen Aufruf, gibt die neue Summe zurück."""
+        """Zählt einen Aufruf (Zähler + Event für die Statistiken)."""
         conn = self._require()
         conn.execute("UPDATE shorts SET views = views + 1 WHERE id = ?", (short_id,))
+        conn.execute(
+            "INSERT INTO short_views (short_id, created_at) VALUES (?, ?)",
+            (short_id, int(time.time())),
+        )
         conn.commit()
         row = conn.execute("SELECT views FROM shorts WHERE id = ?", (short_id,)).fetchone()
         return row[0] if row else 0
+
+    def add_watch(self, short_id: int, seconds: float) -> None:
+        """Bucht echte Watch-Time (Sekunden, gedeckelt) für die Statistiken."""
+        secs = max(0.0, min(float(seconds or 0), 4 * 3600.0))
+        if secs < 1.0:
+            return
+        conn = self._require()
+        conn.execute(
+            "INSERT INTO short_watches (short_id, seconds, created_at) VALUES (?, ?, ?)",
+            (short_id, round(secs, 1), int(time.time())),
+        )
+        conn.commit()
 
     def list_comments(self, short_id: int, viewer_id: Optional[int] = None) -> list:
         """Kommentare zu einem Short, älteste zuerst, Replies (1 Stufe) eingenistet."""
