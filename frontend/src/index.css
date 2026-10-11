@@ -317,8 +317,14 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 .side-foot { padding-top: 8px; }
 .side-div { border: none; border-top: 1px solid var(--border); margin: 6px 4px 10px; }
-.app-main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
-.app-topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.app-main { flex: 1; min-width: 0; padding: 0 30px 60px; }
+.app-topbar {
+  position: sticky; top: 0; z-index: 15;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; margin-bottom: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
 .app-topbar .burger { margin-left: 0; }
 .app-search { flex: 1; max-width: 480px; margin: 0 auto; }
 .app-content { min-width: 0; max-width: 960px; }
@@ -504,7 +510,7 @@ main.app-wrap { max-width: none; padding: 0; }
 
 /* ---------- App-Responsive: Sidebar einklappbar ---------- */
 @media (max-width: 900px) {
-  .app-main { padding: 16px 16px 50px; }
+  .app-main { padding: 0 16px 50px; }
   .sidebar {
     position: fixed; top: 0; bottom: 0; left: 0; z-index: 40;
     width: 280px; border-radius: 0; border-left: none; border-top: none; border-bottom: none;
