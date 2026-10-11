@@ -558,7 +558,7 @@ export default function Shorts({ showToast }) {
               ? <img src={avatarSrc(s.author.avatarUrl)} alt="" />
               : <i className="fa-solid fa-circle-user" />}
           </Link>
-          <span className="short-author">@{s.author.username}</span>
+          <span className="short-author"><Link to={`/u/${s.author.username}`} className="cell-link">@{s.author.username}</Link></span>
         </div>
         <div className="short-title">{s.title}</div>
         {!!s.tags?.length && (
