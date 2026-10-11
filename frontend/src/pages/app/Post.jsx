@@ -229,9 +229,6 @@ export default function Post() {
               <i className={`${likedPost ? 'fa-solid' : 'fa-regular'} fa-heart`} />
               {(post.likes + (likedPost ? 1 : 0)).toLocaleString('de-DE')}
             </button>
-            <a href="#kommentare" className="toolbtn sm" title="Zu den Kommentaren">
-              <i className="fa-regular fa-comment" /> {totalCount}
-            </a>
             <button type="button" className="toolbtn sm" onClick={() => setShareOpen(true)}>
               <i className="fa-solid fa-share-nodes" /> Teilen
             </button>
@@ -255,8 +252,12 @@ export default function Post() {
           </form>
 
           {/* Sortieren + Suchen */}
-          <div className="comments-bar" id="kommentare">
-            <span className="sort-label">Sortieren nach:</span>
+          <div className="comments-head" id="kommentare">
+            <h3 className="comments-title">
+              Kommentare <span className="comments-count">{totalCount}</span>
+            </h3>
+          </div>
+          <div className="comments-bar">
             <div className="toolbar" role="tablist" aria-label="Kommentare sortieren">
               {COMMENT_SORTS.map((s) => (
                 <button
