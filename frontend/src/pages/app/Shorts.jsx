@@ -15,6 +15,9 @@ import ShareSheet from '../../components/ShareSheet.jsx'
 const fmtNum = (n) => Number(n || 0).toLocaleString('de-DE')
 const needLogin = (msg) => (/eingeloggt/i.test(msg || '') ? 'Bitte zuerst einloggen.' : (msg || 'Das hat nicht geklappt.'))
 const MUTE_KEY = 'tontoo_shorts_muted'
+const VIEW_KEY = 'tontoo_short_views'
+const VIEW_DELAY = 3000 // erst nach 3 s Schauen zählen (durchswipen zählt nicht)
+const VIEW_COOLDOWN = 5 * 60 * 1000 // pro Short max. 1 View alle 5 Minuten (kein Reload-Spam)
 // Ton-Wahl merken (Standard: an). Ein Reload ohne Klick davor blockt der
 // Browser trotzdem kurz – die erste Interaktion irgendwo entstummt dann sofort.
 const readMutedPref = () => {
@@ -70,7 +73,6 @@ export default function Shorts({ showToast }) {
   const timerRef = useRef(null)
   const snapTimer = useRef(null)
   const copyTimer = useRef(null)
-  const viewedRef = useRef(new Set())
 
   const short = feed[idx]
   const shareUrl = short ? `${window.location.origin}/shorts/${short.id}` : ''
@@ -79,6 +81,7 @@ export default function Shorts({ showToast }) {
     clearTimeout(timerRef.current)
     clearTimeout(snapTimer.current)
     clearTimeout(copyTimer.current)
+    clearTimeout(viewTimer.current)
   }, [])
 
   // Feed laden (öffentlich, neueste zuerst)
@@ -170,15 +173,39 @@ export default function Shorts({ showToast }) {
     }
   }, [muted, playing]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Aufruf zählen (einmal pro Short und Seitenaufruf)
+  // Aufruf zählen: nur was wirklich geschaut wird (3 s am Stück aktuell),
+  // pro Short max. 1× alle 5 Minuten (überlebt Reloads, kein Spam)
+  const viewTimer = useRef(null)
   useEffect(() => {
-    if (!shortId || !short || viewedRef.current.has(shortId)) return
-    viewedRef.current.add(shortId)
-    apiViewShort(shortId).then((d) => {
-      if (d && typeof d.views === 'number') {
-        setFeed((f) => f.map((x) => (x.id === shortId ? { ...x, views: d.views } : x)))
+    clearTimeout(viewTimer.current)
+    if (!shortId) return
+    viewTimer.current = setTimeout(() => {
+      let times = {}
+      try {
+        times = JSON.parse(localStorage.getItem(VIEW_KEY) || '{}')
+      } catch {
+        times = {}
       }
-    })
+      const now = Date.now()
+      if (now - (times[shortId] || 0) < VIEW_COOLDOWN) return
+      // alte Einträge gleich mit aufräumen, damit der Speicher nicht wächst
+      const fresh = {}
+      for (const [k, v] of Object.entries(times)) {
+        if (now - v < VIEW_COOLDOWN) fresh[k] = v
+      }
+      fresh[shortId] = now
+      try {
+        localStorage.setItem(VIEW_KEY, JSON.stringify(fresh))
+      } catch {
+        /* egal */
+      }
+      apiViewShort(shortId).then((d) => {
+        if (d && typeof d.views === 'number') {
+          setFeed((f) => f.map((x) => (x.id === shortId ? { ...x, views: d.views } : x)))
+        }
+      })
+    }, VIEW_DELAY)
+    return () => clearTimeout(viewTimer.current)
   }, [shortId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Erste Interaktion irgendwo (Klick/Taste) entstummt sofort, falls Ton
@@ -630,6 +657,22 @@ export default function Shorts({ showToast }) {
             {renderCard(current, true)}
           </div>
           )}
+          {/* Vorladen: 1 zurück + 3 voraus (stumm, unsichtbar, spielen nie) –
+              der Rest wird gar nicht angefasst */}
+          {current && feed.slice(Math.max(0, idx - 1), idx + 4).map((s) => (
+            s.id === current.id ? null : (
+              <video
+                key={`pre-${s.id}`}
+                className="short-preload"
+                src={mediaSrc(s.videoUrl)}
+                preload="auto"
+                muted
+                playsInline
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+            )
+          ))}
         </div>
         )}
 
