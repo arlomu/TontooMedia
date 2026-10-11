@@ -35,6 +35,9 @@ Endpunkte (alle unter /api/...):
    DELETE /api/communities/<slug> (Bearer + Admin) -> {ok: true}
    GET    /api/communities/<slug>/posts -> {posts: [...]} (öffentlich, neueste zuerst)
    GET    /api/communities/<slug>/posts/<id> -> {post, community} (404 wenn unbekannt)
+   GET    /api/posts/<id>/comments -> {comments: [...]} (öffentlich, älteste zuerst)
+   POST   /api/posts/<id>/comments (Bearer, {text, parent_id?}) -> {comment}
+   POST   /api/post-comments/<id>/like (Bearer) -> {liked, likes} (Toggle)
    POST   /api/communities/<slug>/posts (Bearer, multipart title+text+tags+image0+image1) -> {post}
    DELETE /api/communities/<slug>/posts/<id> (Bearer + Admin/Autor) -> {ok: true}
    GET    /api/me/posts (Bearer) -> {posts: [...]} (eigene Posts, fürs Studio)
@@ -69,6 +72,8 @@ try:
         create_post,
         delete_community,
         delete_post,
+        post_post_comment,
+        toggle_post_comment_like,
         update_post,
     )
     from .functions.shorts import (
@@ -105,6 +110,8 @@ except ImportError:  # direkter Start via `python backend/api.py`
         create_post,
         delete_community,
         delete_post,
+        post_post_comment,
+        toggle_post_comment_like,
         update_post,
     )
     from functions.shorts import (
@@ -282,6 +289,7 @@ def public_post(row: dict) -> dict:
         },
         "date": date_label(row.get("created_at") or 0),
         "canDelete": bool(row.get("can_delete")),
+        "comments": row.get("comments_n") or 0,
         "community": {
             "slug": row.get("community_slug") or "",
             "name": row.get("community_name") or "",
@@ -564,6 +572,15 @@ class _Handler(BaseHTTPRequestHandler):
                 "posts": [public_post(r) for r in post_rows],
                 "shorts": [public_feed_short(r) for r in rows],
             })
+        m = re.fullmatch(r"/api/posts/(\d+)/comments", self.path)
+        if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
+            with DB_LOCK:
+                post = _storage.get_post(int(m.group(1)))
+                if post is None:
+                    return self._fail(404, "Post nicht gefunden.")
+                rows = _storage.list_post_comments(int(m.group(1)), viewer_id)
+            return self._ok({"comments": [public_comment(c) for c in rows]})
         m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
@@ -781,6 +798,33 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 with DB_LOCK:
                     result = toggle_like(_storage, user_id, int(m.group(1)))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok(result)
+        m = re.fullmatch(r"/api/posts/(\d+)/comments", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            body = self._read_json()
+            try:
+                with DB_LOCK:
+                    comment = post_post_comment(
+                        _storage, user_id, int(m.group(1)),
+                        body.get("text", ""), body.get("parent_id"),
+                    )
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            return self._send(201, {"comment": public_comment(comment)})
+        m = re.fullmatch(r"/api/post-comments/(\d+)/like", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    result = toggle_post_comment_like(_storage, user_id, int(m.group(1)))
             except ValueError as e:
                 return self._fail(404, str(e))
             return self._ok(result)

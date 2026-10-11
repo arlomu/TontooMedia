@@ -106,6 +106,22 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community_id);
+CREATE TABLE IF NOT EXISTS post_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    parent_id INTEGER,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS post_comment_likes (
+    comment_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (comment_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pcomments_post ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_pcomment_likes ON post_comment_likes(comment_id);
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug);
@@ -679,6 +695,8 @@ class Storage:
         conn.execute("DELETE FROM short_comments WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM community_follows WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM community_visits WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM post_comment_likes WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM post_comments WHERE user_id = ?", (user_id,))
         conn.commit()
 
     # ---------- Communities ----------
@@ -880,7 +898,8 @@ class Storage:
         conn = self._require()
         cur = conn.execute(
             "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
-            " (SELECT c.creator_id FROM communities c WHERE c.id = p.community_id) AS creator_id"
+            " (SELECT c.creator_id FROM communities c WHERE c.id = p.community_id) AS creator_id,"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n"
             " FROM posts p JOIN users u ON u.id = p.user_id"
             " WHERE p.community_id = ? ORDER BY p.id DESC",
             (community_id,),
@@ -900,8 +919,20 @@ class Storage:
         if row is None:
             return None
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        self.delete_post_extras(post_id)
         conn.commit()
         return row
+
+    def delete_post_extras(self, post_id: int) -> None:
+        """Löscht Kommentare (+ deren Likes) zu einem Post."""
+        conn = self._require()
+        conn.execute(
+            "DELETE FROM post_comment_likes WHERE comment_id IN"
+            " (SELECT id FROM post_comments WHERE post_id = ?)",
+            (post_id,),
+        )
+        conn.execute("DELETE FROM post_comments WHERE post_id = ?", (post_id,))
+        conn.commit()
 
     def delete_community(self, community_id: int) -> dict:
         """Löscht Community + Posts + Follows + Visits.
@@ -925,6 +956,17 @@ class Storage:
                     post_images.extend(imgs)
             except ValueError:
                 pass
+        conn.execute(
+            "DELETE FROM post_comment_likes WHERE comment_id IN"
+            " (SELECT id FROM post_comments WHERE post_id IN"
+            "  (SELECT id FROM posts WHERE community_id = ?))",
+            (community_id,),
+        )
+        conn.execute(
+            "DELETE FROM post_comments WHERE post_id IN"
+            " (SELECT id FROM posts WHERE community_id = ?)",
+            (community_id,),
+        )
         conn.execute("DELETE FROM posts WHERE community_id = ?", (community_id,))
         conn.execute(
             "DELETE FROM community_follows WHERE community_id = ?", (community_id,)
@@ -941,7 +983,8 @@ class Storage:
         conn = self._require()
         cur = conn.execute(
             "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
-            " c.slug AS community_slug, c.name AS community_name"
+            " c.slug AS community_slug, c.name AS community_name,"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n"
             " FROM posts p JOIN users u ON u.id = p.user_id"
             " JOIN communities c ON c.id = p.community_id"
             " WHERE p.user_id = ? ORDER BY p.id DESC",
@@ -961,6 +1004,86 @@ class Storage:
             (title, text, tags_json, post_id),
         )
         conn.commit()
+
+    # ---------- Post-Kommentare (mit 1-stufigen Replies + Likes) ----------
+
+    def list_post_comments(self, post_id: int, viewer_id: Optional[int] = None) -> list:
+        """Kommentare zu einem Post, älteste zuerst, Replies (1 Stufe) eingenistet."""
+        conn = self._require()
+        vid = viewer_id or -1
+        cur = conn.execute(
+            "SELECT c.id, c.text, c.parent_id, c.created_at, u.username,"
+            " u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes,"
+            " EXISTS(SELECT 1 FROM post_comment_likes l2"
+            "  WHERE l2.comment_id = c.id AND l2.user_id = ?) AS liked"
+            " FROM post_comments c JOIN users u ON u.id = c.user_id"
+            " WHERE c.post_id = ? ORDER BY c.id ASC",
+            (vid, post_id),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        by_id = {r["id"]: {**r, "replies": []} for r in rows}
+        top = []
+        for r in rows:
+            node = by_id[r["id"]]
+            pid = r.get("parent_id")
+            if pid and pid in by_id:
+                by_id[pid]["replies"].append(node)
+            elif not pid:
+                top.append(node)
+        return top
+
+    def get_post_comment(self, comment_id: int) -> Optional[dict]:
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT id, post_id, user_id, parent_id FROM post_comments WHERE id = ?",
+            (comment_id,),
+        )
+        row = cur.fetchone()
+        return dict(zip([d[0] for d in cur.description], row)) if row else None
+
+    def add_post_comment(self, post_id: int, user_id: int, text: str,
+                         parent_id: Optional[int] = None) -> int:
+        """Legt einen Kommentar (oder Reply) an, gibt die neue ID zurück."""
+        conn = self._require()
+        cur = conn.execute(
+            "INSERT INTO post_comments (post_id, user_id, text, parent_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (post_id, user_id, text, parent_id, int(time.time())),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+    def toggle_post_comment_like(self, comment_id: int, user_id: int) -> bool:
+        """Post-Kommentar-Like umschalten. True = likt jetzt."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM post_comment_likes WHERE comment_id = ? AND user_id = ?",
+            (comment_id, user_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM post_comment_likes WHERE comment_id = ? AND user_id = ?",
+                (comment_id, user_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO post_comment_likes (comment_id, user_id, created_at)"
+            " VALUES (?, ?, ?)",
+            (comment_id, user_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def post_comment_like_count(self, comment_id: int) -> int:
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM post_comment_likes WHERE comment_id = ?",
+            (comment_id,),
+        ).fetchone()
+        return row[0] if row else 0
 
 
 if __name__ == "__main__":

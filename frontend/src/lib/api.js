@@ -180,6 +180,21 @@ export const apiGetPost = (slug, id) =>
     auth: true,
   }).then((d) => ({ post: d.post, community: d.community }))
 
+// ---- Echte Kommentare zu Posts (mit 1-stufigen Replies + Likes) ----
+
+export const apiPostComments = (id) =>
+  request(`/api/posts/${id}/comments`, { auth: true }).then((d) => d.comments || [])
+
+export const apiPostPostComment = (id, text, parentId = null) =>
+  request(`/api/posts/${id}/comments`, {
+    method: 'POST',
+    auth: true,
+    body: { text, parent_id: parentId },
+  }).then((d) => d.comment)
+
+export const apiLikePostComment = (commentId) =>
+  request(`/api/post-comments/${commentId}/like`, { method: 'POST', auth: true })
+
 // Post-Erstellung per XHR (Bilder als Dateien).
 export const apiCreatePost = ({ slug, title, text, tags, imageFiles }) =>
   new Promise((resolve, reject) => {

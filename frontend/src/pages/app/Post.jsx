@@ -6,6 +6,9 @@ import ShareSheet from '../../components/ShareSheet.jsx'
 import {
   apiDeleteCommunityPost,
   apiGetPost,
+  apiLikePostComment,
+  apiPostComments,
+  apiPostPostComment,
   apiToggleCommunityFollow,
   avatarSrc,
   mediaSrc,
@@ -13,11 +16,13 @@ import {
 
 // Einzelner Post im Reddit-Stil: /t/:name/post/:postId
 // Zurück-Pfeil, Titel, Body, Aktionen (Teilen + Löschen als Admin),
-// Community-Box rechts. Alles echt aus der DB – Kommentare kommen später.
+// echte Kommentare mit Replies + Likes, Composer unten, Community-Box rechts.
+// Alles echt aus der DB.
 export default function Post({ showToast }) {
   const { name, postId } = useParams()
   const navigate = useNavigate()
   const toast = (msg) => showToast?.(msg)
+  const needLogin = (msg) => (/eingeloggt/i.test(msg || '') ? 'Bitte zuerst einloggen.' : msg)
   const [post, setPost] = useState(null)
   const [comm, setComm] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -27,6 +32,15 @@ export default function Post({ showToast }) {
   const [copied, setCopied] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Echte Kommentare
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentSort, setCommentSort] = useState('beste')
+  const [query, setQuery] = useState('')
+  const [topDraft, setTopDraft] = useState('')
+  const [replyTo, setReplyTo] = useState(null)
+  const [replyDraft, setReplyDraft] = useState('')
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -35,12 +49,16 @@ export default function Post({ showToast }) {
     setError('')
     setPost(null)
     setComm(null)
+    setComments([])
+    setCommentsLoading(true)
     apiGetPost(name, postId)
       .then(({ post: p, community: c }) => {
-        if (alive) {
-          setPost(p)
-          setComm(c)
-        }
+        if (!alive) return
+        setPost(p)
+        setComm(c)
+        return apiPostComments(p.id).then((list) => {
+          if (alive) setComments(list)
+        })
       })
       .catch((e) => {
         if (!alive) return
@@ -48,7 +66,10 @@ export default function Post({ showToast }) {
         else setError(e.message || 'Laden fehlgeschlagen.')
       })
       .finally(() => {
-        if (alive) setLoading(false)
+        if (alive) {
+          setLoading(false)
+          setCommentsLoading(false)
+        }
       })
     return () => {
       alive = false
@@ -92,6 +113,128 @@ export default function Post({ showToast }) {
       setDeleting(false)
     }
   }
+
+  // ---- Echte Kommentare (mit Replies + Likes) ----
+
+  const updateComment = (id, fn) => {
+    const walk = (list) => list.map((c) => {
+      if (c.id === id) return fn(c)
+      if (c.replies?.length) return { ...c, replies: walk(c.replies) }
+      return c
+    })
+    setComments((list) => walk(list))
+  }
+
+  const toggleCommentLike = async (id) => {
+    try {
+      const r = await apiLikePostComment(id)
+      updateComment(id, (c) => ({ ...c, liked: !!r.liked, likes: r.likes }))
+    } catch (e) {
+      toast(needLogin(e.message) || 'Liken fehlgeschlagen.')
+    }
+  }
+
+  const submitTop = async (e) => {
+    e.preventDefault()
+    const text = topDraft.trim()
+    if (!text || sending) return
+    setSending(true)
+    try {
+      const created = await apiPostPostComment(post.id, text)
+      setComments((list) => [...list, created])
+      setTopDraft('')
+    } catch (err) {
+      toast(needLogin(err.message) || 'Kommentieren fehlgeschlagen.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const submitReply = async (e, commentId) => {
+    e.preventDefault()
+    const text = replyDraft.trim()
+    if (!text || sending) return
+    setSending(true)
+    try {
+      const created = await apiPostPostComment(post.id, text, commentId)
+      updateComment(commentId, (c) => ({ ...c, replies: [...(c.replies || []), created] }))
+      setReplyDraft('')
+      setReplyTo(null)
+    } catch (err) {
+      toast(needLogin(err.message) || 'Antworten fehlgeschlagen.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const score = (c) => (c.likes || 0) + (c.replies || []).length * 5
+  const sortedBase = [...comments].sort((a, b) =>
+    commentSort === 'beste' ? score(b) - score(a) : 0
+  )
+  const q = query.trim().toLowerCase()
+  const visible = q
+    ? sortedBase.filter(
+        (c) => c.text.toLowerCase().includes(q) || c.username.toLowerCase().includes(q)
+      )
+    : sortedBase
+  const totalCount = comments.reduce((n, c) => n + 1 + (c.replies || []).length, 0)
+
+  const renderComment = (c, depth = 0) => (
+    <div className="comment" key={c.id}>
+      <span className="comment-ava" aria-hidden="true">
+        {c.avatarUrl
+          ? <img src={avatarSrc(c.avatarUrl)} alt="" />
+          : <i className="fa-solid fa-circle-user" />}
+      </span>
+      <div className="comment-main">
+        <div className="comment-head">
+          u/{c.username}
+          {c.username === post.author.username && <span className="op-badge">OP</span>}
+          <small>{c.date}</small>
+        </div>
+        <p className="comment-text">{c.text}</p>
+        <div className="comment-actions">
+          <button
+            type="button"
+            className={`comment-btn${c.liked ? ' active' : ''}`}
+            aria-pressed={!!c.liked}
+            onClick={() => toggleCommentLike(c.id)}
+          >
+            <i className={`${c.liked ? 'fa-solid' : 'fa-regular'} fa-heart`} /> {c.likes || 0}
+          </button>
+          {depth === 0 && (
+            <button
+              type="button"
+              className="comment-btn"
+              onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyDraft('') }}
+            >
+              <i className="fa-solid fa-reply" /> Antworten
+            </button>
+          )}
+        </div>
+        {replyTo === c.id && (
+          <form className="reply-form" onSubmit={(e) => submitReply(e, c.id)}>
+            <input
+              value={replyDraft}
+              onChange={(e) => setReplyDraft(e.target.value)}
+              placeholder={`Antworten an u/${c.username} …`}
+              aria-label="Antwort schreiben"
+              maxLength={280}
+              autoFocus
+            />
+            <button type="submit" className="btn btn-brand btn-sm" disabled={!replyDraft.trim() || sending}>
+              <i className="fa-solid fa-paper-plane" />
+            </button>
+          </form>
+        )}
+        {(c.replies || []).length > 0 && (
+          <div className="replies">
+            {(c.replies || []).map((r) => renderComment(r, depth + 1))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -185,10 +328,68 @@ export default function Post({ showToast }) {
             )}
           </div>
 
-          {/* Kommentare kommen später */}
-          <div className="follow-empty">
-            <i className="fa-solid fa-comments big" aria-hidden="true" />
-            <p>Kommentare kommen bald.</p>
+          {/* Mitmachen (Eingabeleiste unten, wie im Chat) */}
+          <form className="composer" onSubmit={submitTop}>
+            <div className="composer-inner">
+              <span className="comment-ava" aria-hidden="true">
+                <i className="fa-solid fa-circle-user" />
+              </span>
+              <input
+                value={topDraft}
+                onChange={(e) => setTopDraft(e.target.value)}
+                placeholder="Beteilige dich an der Unterhaltung"
+                aria-label="Kommentar schreiben"
+                maxLength={280}
+              />
+              <button type="submit" className="btn btn-brand btn-sm" disabled={!topDraft.trim() || sending} aria-label="Absenden">
+                <i className="fa-solid fa-paper-plane" />
+              </button>
+            </div>
+          </form>
+
+          {/* Sortieren + Suchen */}
+          <div className="comments-head" id="kommentare">
+            <h3 className="comments-title">
+              Kommentare <span className="comments-count">{totalCount}</span>
+            </h3>
+          </div>
+          <div className="comments-bar">
+            <div className="toolbar" role="tablist" aria-label="Kommentare sortieren">
+              {COMMENT_SORTS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={commentSort === s.id}
+                  className={`toolbtn${commentSort === s.id ? ' active' : ''}`}
+                  onClick={() => setCommentSort(s.id)}
+                >
+                  <i className={`fa-solid ${s.icon}`} /> {s.label}
+                </button>
+              ))}
+            </div>
+            <label className="mini-search">
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Kommentare durchsuchen"
+                aria-label="Kommentare durchsuchen"
+              />
+            </label>
+          </div>
+
+          <div className="comments-list">
+            {commentsLoading ? (
+              <p className="feed-hint"><i className="fa-solid fa-circle-notch fa-spin" /> Kommentare werden geladen …</p>
+            ) : (
+              <>
+                {visible.map((c) => renderComment(c))}
+                {visible.length === 0 && (
+                  <p className="feed-hint">Keine Kommentare gefunden – schreib den ersten!</p>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -200,7 +401,7 @@ export default function Post({ showToast }) {
             onToggleFollow={toggleFollow}
             stats={[
               { value: Number(comm.members || 0).toLocaleString('de-DE'), label: 'Mitglieder' },
-              { value: '–', label: 'Beiträge' },
+              { value: totalCount, label: 'Kommentare' },
             ]}
             showOpenLink
           />

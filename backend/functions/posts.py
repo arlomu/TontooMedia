@@ -24,6 +24,7 @@ MAX_IMAGES = 2
 MAX_TAGS = 5
 MAX_TITLE_LEN = 140
 MAX_TEXT_LEN = 5000
+MAX_COMMENT_LEN = 280
 
 
 def _posts_dir(storage: Storage):
@@ -171,6 +172,55 @@ def update_post(
     storage.update_post(post_id, clean_title, clean_text, json.dumps(clean_tags))
     log.info("Post bearbeitet: id=%d", post_id)
     return storage.get_post(post_id)
+
+
+def post_post_comment(storage: Storage, user_id: int, post_id: int, text: str,
+                      parent_id: Optional[int] = None) -> dict:
+    """Kommentar/Reply zu einem Post anlegen (nur 1 Stufe).
+
+    Wirft ValueError mit deutscher Meldung bei ungültigen Daten.
+    """
+    import time as _time
+
+    row = storage.get_post(post_id)
+    if row is None:
+        raise ValueError("Post nicht gefunden.")
+    clean = (text or "").strip()
+    if not clean:
+        raise ValueError("Kommentar ist leer.")
+    if len(clean) > MAX_COMMENT_LEN:
+        raise ValueError(f"Kommentar ist zu lang (max. {MAX_COMMENT_LEN} Zeichen).")
+    if parent_id is not None:
+        parent = storage.get_post_comment(parent_id)
+        if parent is None or parent["post_id"] != post_id:
+            raise ValueError("Kommentar nicht gefunden.")
+        if parent.get("parent_id"):
+            raise ValueError("Antworten geht nur auf Kommentare, nicht auf Antworten.")
+    comment_id = storage.add_post_comment(post_id, user_id, clean, parent_id)
+    user = storage.get_user_by_id(user_id)
+    return {
+        "id": comment_id,
+        "text": clean,
+        "parent_id": parent_id,
+        "likes": 0,
+        "liked": False,
+        "replies": [],
+        "created_at": int(_time.time()),
+        "username": user["username"] if user else "?",
+        "author_name": (user["name"] if user else "?"),
+        "author_avatar": user.get("avatar") if user else None,
+    }
+
+
+def toggle_post_comment_like(storage: Storage, user_id: int, comment_id: int) -> dict:
+    """Post-Kommentar-Like umschalten. Gibt {liked, likes} zurück."""
+    comment = storage.get_post_comment(comment_id)
+    if comment is None:
+        raise ValueError("Kommentar nicht gefunden.")
+    if storage.get_post(comment["post_id"]) is None:
+        raise ValueError("Kommentar nicht gefunden.")
+    liked = storage.toggle_post_comment_like(comment_id, user_id)
+    return {"liked": liked, "likes": storage.post_comment_like_count(comment_id)}
 
 
 def delete_community(storage: Storage, user_id: int, slug: str) -> None:

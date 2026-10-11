@@ -393,6 +393,12 @@ export default function Community({ showToast }) {
                         {open ? 'Weniger' : `+${imgs.length - 1} mehr`}
                       </button>
                     )}
+
+                    <div className="post-toolbar">
+                      <Link to={`${detailUrl}#kommentare`} className="toolbtn sm" title="Kommentare öffnen">
+                        <i className="fa-regular fa-comment" /> {p.comments ?? 0}
+                      </Link>
+                    </div>
                   </article>
                 )
               })
