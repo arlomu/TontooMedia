@@ -627,20 +627,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .pill.draft { color: var(--text-sec); }
 .pill.private { color: var(--danger); border-color: rgba(224, 93, 93, 0.55); }
 
-/* Upload */
-.dropzone {
-  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  background: transparent; border: 2px dashed var(--border); border-radius: var(--radius);
-  padding: 32px 20px; margin-bottom: 16px;
-  color: var(--text); cursor: pointer; font-family: var(--font-body);
-  transition: border-color 0.15s, background 0.15s;
-}
-.dropzone:hover { border-color: var(--brand); background: var(--surface); }
-.dropzone.dragging { border-color: var(--brand); background: var(--surface2); }
-.dropic { font-size: 32px; }
-.dropzone strong { font-size: 15px; }
-.dropzone small { color: var(--text-3rd); font-size: 12.5px; }
-.file-hidden { display: none; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; padding: 0;
@@ -1169,5 +1155,4 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   .stat-grid { gap: 10px; }
   .stat-card { padding: 13px; }
   .stat-value { font-size: 20px; }
-  .dropzone { padding: 24px 14px; }
 }

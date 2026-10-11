@@ -43,7 +43,6 @@ export default function Studio({ showToast }) {
   const [shorts, setShorts] = useState(DEMO_STUDIO_SHORTS)
   const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
   const [planned, setPlanned] = useState(DEMO_PLANNED)
-  const [dragging, setDragging] = useState(false)
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
   const [ctx, setCtx] = useState(null) // { x, y, kind, id } Zeilen-Menü
   const [armDelete, setArmDelete] = useState(null)
@@ -62,7 +61,6 @@ export default function Studio({ showToast }) {
   const [npText, setNpText] = useState('')
   const [npWhen, setNpWhen] = useState('jetzt')
   const [npDate, setNpDate] = useState('')
-  const fileRef = useRef(null)
   const armTimer = useRef(null)
   const copyTimer = useRef(null)
 
@@ -105,31 +103,6 @@ export default function Studio({ showToast }) {
       x: Math.max(8, Math.min(r.right - 224, window.innerWidth - 240)),
       y: Math.min(r.bottom + 8, window.innerHeight - 260),
     })
-  }
-
-  // Dateien → neue Short-Entwürfe (Demo: nur Liste, kein Upload)
-  const addFiles = (files) => {
-    const list = [...files].filter((f) => f && f.name)
-    if (!list.length) return
-    const fresh = list.map((f, i) => ({
-      id: `up-${Date.now()}-${i}`,
-      author: 'du',
-      title: f.name.replace(/\.[^.]+$/, '') || 'Unbenannter Short',
-      likes: '0',
-      comments: '0',
-      remixes: '0',
-      icon: 'fa-clapperboard',
-      color: 'ic-teal',
-      dur: '–',
-      views: 0,
-      date: 'heute',
-      status: 'draft',
-      visibility: 'Privat',
-      desc: '',
-    }))
-    setShorts((s) => [...fresh, ...s])
-    setTab('shorts')
-    notify(`${fresh.length === 1 ? 'Datei' : `${fresh.length} Dateien`} hinzugefügt (Demo-Entwurf).`)
   }
 
   // Löschen mit 2-Klick-Bestätigung (kein Browser-Dialog)
@@ -368,29 +341,6 @@ export default function Studio({ showToast }) {
       {/* Shorts */}
       {tab === 'shorts' && (
         <>
-          <button
-            type="button"
-            className={`dropzone${dragging ? ' dragging' : ''}`}
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files) }}
-          >
-            <i className="fa-solid fa-cloud-arrow-up dropic ic-teal" />
-            <strong>Dateien hierher ziehen oder klicken</strong>
-            <small>MP4, MOV – landet als Entwurf in der Liste (Demo)</small>
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="video/*,image/*"
-            multiple
-            className="file-hidden"
-            aria-hidden="true"
-            tabIndex={-1}
-            onChange={(e) => { addFiles(e.target.files); e.target.value = '' }}
-          />
-
           <div className="table-scroll">
             <table className="studio-table">
               <thead>
