@@ -753,7 +753,7 @@ main.app-wrap { max-width: none; padding: 0; }
 .feed-hint { color: var(--text-3rd); font-size: 12.5px; margin: 14px 2px 0; }
 .start-page .empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 
-.start-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 66px; }
+.start-side { display: flex; flex-direction: column; gap: 14px; position: -webkit-sticky; position: sticky; top: 66px; }
 .side-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 16px;
@@ -813,10 +813,12 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 
 /* ---------- Startseite responsive: volle Breite + mobil ---------- */
-@media (max-width: 1100px) {
-  .start-side { position: static; }
-}
+/* Tablet (auch iPad hochkant): 2 Spalten bleiben, Seite schmaler – Trending folgt beim Scrollen */
 @media (max-width: 1020px) {
+  .start-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
+}
+/* Handy: 1 Spalte, Trending läuft im Fluss mit */
+@media (max-width: 760px) {
   .start-layout { grid-template-columns: 1fr; }
   .start-side { position: static; }
 }
