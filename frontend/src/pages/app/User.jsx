@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { apiGetUser, apiToggleFollow, avatarSrc, mediaSrc } from '../../lib/api.js'
+import { apiGetUser, avatarSrc, mediaSrc } from '../../lib/api.js'
 
 const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 
+const SORTS = [
+  { id: 'new', label: 'Neustes', icon: 'fa-clock' },
+  { id: 'old', label: 'Ältestes', icon: 'fa-clock-rotate-left' },
+  { id: 'top', label: 'Beliebteste', icon: 'fa-fire' },
+]
+
 // Profil: /u/:user – echt per API. 404 wenn es den User nicht gibt.
 // Follower + Folgen sind echt, Posts gibt es noch nicht (immer 0),
 // Shorts sind die echten öffentlichen Shorts des Users.
-export default function User({ showToast, me }) {
+export default function User() {
   const { user: username } = useParams()
   const [tab, setTab] = useState('posts')
+  const [sort, setSort] = useState('new')
   const [status, setStatus] = useState('loading') // loading | ready | missing | error
   const [profile, setProfile] = useState(null)
-  const [followBusy, setFollowBusy] = useState(false)
-  const toast = (msg) => showToast?.(msg)
 
   useEffect(() => {
     let alive = true
@@ -93,25 +98,12 @@ export default function User({ showToast, me }) {
 
   const u = profile.user
   const shorts = profile.shorts
-  const isOwn = me && me.id === u.id
 
-  const flipFollow = async () => {
-    if (!me) {
-      toast('Logge dich ein, um zu folgen.')
-      return
-    }
-    if (followBusy) return
-    setFollowBusy(true)
-    try {
-      const r = await apiToggleFollow(username)
-      setProfile((p) => ({ ...p, followed: r.followed, followers: r.followers }))
-      toast(r.followed ? `u/${username} gefolgt.` : `u/${username} entfolgt.`)
-    } catch (err) {
-      toast(err.message)
-    } finally {
-      setFollowBusy(false)
-    }
-  }
+  // Sortierung: Neustes (neueste zuerst), Ältestes, Beliebteste (Likes + Aufrufe)
+  const score = (s) => Number(s.likes || 0) + Number(s.views || 0)
+  const sortedShorts = [...shorts].sort((a, b) =>
+    sort === 'old' ? a.id - b.id : sort === 'top' ? score(b) - score(a) : b.id - a.id
+  )
 
   return (
     <div className="app-page narrow">
@@ -139,23 +131,10 @@ export default function User({ showToast, me }) {
             {profile.posts === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length}{' '}
             {shorts.length === 1 ? 'Short' : 'Shorts'}
           </p>
-          {!isOwn && (
-            <button
-              type="button"
-              className={`btn btn-sm ${profile.followed ? 'btn-ghost' : 'btn-brand'}`}
-              aria-pressed={profile.followed}
-              disabled={followBusy}
-              onClick={flipFollow}
-            >
-              {profile.followed ? (
-                <>
-                  <i className="fa-solid fa-check" /> Gefolgt
-                </>
-              ) : (
-                'Folgen'
-              )}
-            </button>
-          )}
+          {/* Folgen-Button (Deko, ohne Funktion) */}
+          <button type="button" className="btn btn-sm btn-brand">
+            Folgen
+          </button>
         </div>
       </div>
 
@@ -180,13 +159,28 @@ export default function User({ showToast, me }) {
         </button>
       </div>
 
+      <div className="toolbar profile-sort" role="tablist" aria-label="Sortieren">
+        {SORTS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={sort === s.id}
+            className={`toolbtn${sort === s.id ? ' active' : ''}`}
+            onClick={() => setSort(s.id)}
+          >
+            <i className={`fa-solid ${s.icon}`} /> {s.label}
+          </button>
+        ))}
+      </div>
+
       {tab === 'posts' ? (
         <p className="feed-hint">Noch keine Beiträge von u/{username}.</p>
-      ) : shorts.length === 0 ? (
+      ) : sortedShorts.length === 0 ? (
         <p className="feed-hint">Noch keine Shorts von u/{username}.</p>
       ) : (
         <div className="profile-shorts">
-          {shorts.map((s) => (
+          {sortedShorts.map((s) => (
             <Link
               key={s.id}
               to={`/shorts/${s.id}`}
@@ -205,14 +199,7 @@ export default function User({ showToast, me }) {
                 </span>
               </span>
               <span className="short-cardmeta">
-                <strong>
-                  {s.visibility !== 'Öffentlich' && (
-                    <>
-                      <i className="fa-solid fa-lock" aria-label="Privat" title="Privat" />{' '}
-                    </>
-                  )}
-                  {s.title}
-                </strong>
+                <strong>{s.title}</strong>
                 <small>
                   {fmt(s.views)} Aufrufe · {fmt(s.likes)} Likes
                 </small>

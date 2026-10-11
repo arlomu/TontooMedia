@@ -839,6 +839,7 @@ a.cell-title:hover { text-decoration: underline; }
 .profile-name { margin: 0; font-size: 22px; font-weight: 800; overflow-wrap: break-word; }
 .profile-sub { margin: 0; font-size: 13px; color: var(--text-sec); }
 .profile-tabs { margin-bottom: 16px; }
+.profile-sort { margin-bottom: 16px; }
 .profile-shorts {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
 }
