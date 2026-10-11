@@ -50,7 +50,7 @@ export default function Shorts({ showToast }) {
   }
 
   return (
-    <div className="app-page">
+    <div className="app-page shorts-page">
       <div className="shorts-head">
         <div>
           <h2 className="app-title">Shorts</h2>
@@ -61,6 +61,7 @@ export default function Shorts({ showToast }) {
         </span>
       </div>
 
+      <div className="shorts-center">
       <div className="shorts-stage">
         <div className="short-player" ref={playerRef}>
           {/* Platzhalter statt Video */}
@@ -168,6 +169,7 @@ export default function Shorts({ showToast }) {
             <i className="fa-solid fa-arrow-down" />
           </button>
         </div>
+      </div>
       </div>
     </div>
   )

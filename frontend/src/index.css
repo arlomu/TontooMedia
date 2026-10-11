@@ -359,6 +359,8 @@ main.app-wrap { max-width: none; padding: 0; }
 .postmeta span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Shorts-Viewer (YouTube-Stil, alles Beispiel) */
+.shorts-page { display: flex; flex-direction: column; min-height: calc(100vh - 130px); }
+.shorts-center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0 20px; }
 .shorts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .shorts-stage { display: flex; gap: 14px; align-items: center; justify-content: center; }
 .short-player {
