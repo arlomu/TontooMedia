@@ -11,16 +11,22 @@ export default function Shorts({ showToast }) {
   const [liked, setLiked] = useState({})
   const [followed, setFollowed] = useState({})
   const [slide, setSlide] = useState(null) // { from, to, dir } während der Wechsel-Animation
+  const [drag, setDrag] = useState(0) // Live-Finger-Offset beim Ziehen (mobil)
+  const [snapping, setSnapping] = useState(false) // true = weich zurückschnappen
   const stageRef = useRef(null)
-  const touchY = useRef(null)
+  const dragRef = useRef(null)
   const wheelCool = useRef(0)
   const busyRef = useRef(false)
   const timerRef = useRef(null)
+  const snapTimer = useRef(null)
 
   const short = DEMO_SHORTS[idx]
   const demo = (msg) => showToast(msg || 'Das ist nur ein Beispiel.')
 
-  useEffect(() => () => clearTimeout(timerRef.current), [])
+  useEffect(() => () => {
+    clearTimeout(timerRef.current)
+    clearTimeout(snapTimer.current)
+  }, [])
 
   // Wechseln mit Push-Animation: neue Karte kommt vom Screen-Boden,
   // alte geht oben hinter der Suche weg (wie auf YouTube)
@@ -78,18 +84,45 @@ export default function Shorts({ showToast }) {
     return () => el.removeEventListener('wheel', onWheel)
   }, [prev, next])
 
-  // Touch: hoch wischen = nächster Short, runter wischen = vorheriger
+  // Touch: Karte folgt live dem Finger (hoch/runter ziehen),
+  // loslassen ab 80px = Short wechseln, sonst zurückschnappen
   const onTouchStart = (e) => {
-    touchY.current = e.touches[0].clientY
+    if (!busyRef.current && !slide && e.touches.length === 1) {
+      dragRef.current = { startY: e.touches[0].clientY }
+    }
+  }
+  const onTouchMove = (e) => {
+    const d = dragRef.current
+    if (!d || e.touches.length !== 1) return
+    let dy = e.touches[0].clientY - d.startY
+    // Gummiband an Anfang/Ende der Liste
+    if ((idx === 0 && dy > 0) || (idx === DEMO_SHORTS.length - 1 && dy < 0)) dy *= 0.3
+    setSnapping(false)
+    setDrag(dy)
   }
   const onTouchEnd = (e) => {
-    if (touchY.current == null) return
-    const dy = e.changedTouches[0].clientY - touchY.current
-    touchY.current = null
-    if (Math.abs(dy) < 50) return
-    if (dy < 0) next()
-    else prev()
+    const d = dragRef.current
+    dragRef.current = null
+    if (!d) return
+    const dy = e.changedTouches[0].clientY - d.startY
+    if (dy <= -80) {
+      setDrag(0)
+      next()
+    } else if (dy >= 80) {
+      setDrag(0)
+      prev()
+    } else {
+      // zu kurz gezogen: weich zurückschnappen lassen
+      setSnapping(true)
+      setDrag(0)
+      clearTimeout(snapTimer.current)
+      snapTimer.current = setTimeout(() => setSnapping(false), 220)
+    }
   }
+
+  const dragStyle = !slide && (drag !== 0 || snapping)
+    ? { transform: drag !== 0 ? `translateY(${drag}px)` : undefined, transition: snapping ? 'transform 0.2s ease' : undefined }
+    : undefined
 
   // Kompletter Karten-Inhalt (slidet als Ganzes, Buttons inklusive)
   const renderCard = (s) => (
@@ -172,6 +205,7 @@ export default function Shorts({ showToast }) {
         className="shorts-stage"
         ref={stageRef}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         <div className="shorts-stack">
@@ -183,6 +217,7 @@ export default function Shorts({ showToast }) {
           <div
             key={slide ? `in-${slide.to}` : current.id}
             className={`short-player${slide ? ` slide-in-${slide.dir}` : ''}`}
+            style={dragStyle}
           >
             {renderCard(current)}
           </div>

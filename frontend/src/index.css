@@ -447,8 +447,7 @@ main.app-wrap { max-width: none; padding: 0; }
     width: 100%; height: auto; min-height: 0;
     max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px);
   }
-  .short-nav { position: static; transform: none; }
-  .short-nav .iconbtn { width: 44px; height: 44px; }
+  .short-nav { display: none; }
   .short-player.is-out { display: none; }
 }
 
