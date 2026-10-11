@@ -574,7 +574,6 @@ main.app-wrap { max-width: none; padding: 0; }
   border-radius: 999px; padding: 1px 8px; color: var(--text-sec);
 }
 .toolbtn.active .tab-count { background: rgba(0, 0, 0, 0.18); border-color: transparent; color: var(--brand-ink); }
-.posts-bar { margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* Studio-Tabellen (CSV-Stil) */
 .table-scroll {

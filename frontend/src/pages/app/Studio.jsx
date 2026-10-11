@@ -355,11 +355,6 @@ export default function Studio({ showToast }) {
       {/* Posts */}
       {tab === 'posts' && (
         <>
-          <div className="posts-bar">
-            <button type="button" className="btn btn-brand" onClick={() => { setNpOpen(true); setNpWhen('jetzt') }}>
-              <i className="fa-solid fa-plus" /> Neuer Post
-            </button>
-          </div>
           <div className="table-scroll">
             <table className="studio-table">
               <thead>
@@ -419,7 +414,7 @@ export default function Studio({ showToast }) {
             <button type="button" onClick={() => { setCreateAt(null); setUploadOpen(true) }}>
               <i className="fa-solid fa-clapperboard ic-yellow" /> Short hochladen
             </button>
-            <button type="button" onClick={() => setCreateAt(null)}>
+            <button type="button" onClick={() => { setCreateAt(null); setNpOpen(true) }}>
               <i className="fa-solid fa-pen-to-square ic-teal" /> Post erstellen
             </button>
           </div>
