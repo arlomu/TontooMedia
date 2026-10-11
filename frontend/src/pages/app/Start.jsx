@@ -227,7 +227,6 @@ export default function Start() {
               )
             })}
           </div>
-          <p className="feed-hint">Tipp: Rechtsklick auf einen Post öffnet das Beitrags-Menü.</p>
         </div>
 
         {/* Rechte Spalte: aufräumen statt endloser Feed */}
