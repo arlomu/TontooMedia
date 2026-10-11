@@ -97,17 +97,15 @@ export default function Einstellungen({ showToast }) {
 
         <label className="field">
           <span><i className="fa-solid fa-at" /> Username</span>
-          <span className="handle-wrap">
-            <span className="handle-at" aria-hidden="true">@</span>
-            <input
-              type="text"
-              placeholder="z. B. tontoo.fan"
-              value={username}
-              autoComplete="username"
-              onChange={(e) => { setUsername(e.target.value); touchSaved() }}
-              aria-invalid={!!userError}
-            />
-          </span>
+          <input
+            type="text"
+            placeholder="z. B. tontoo.fan"
+            value={username}
+            autoComplete="username"
+            maxLength={20}
+            onChange={(e) => { setUsername(e.target.value); touchSaved() }}
+            aria-invalid={!!userError}
+          />
         </label>
         {userError && (
           <p className="formerror" role="alert">

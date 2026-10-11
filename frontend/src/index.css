@@ -573,8 +573,6 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 .set-desc { margin: 0 0 16px; font-size: 13px; color: var(--text-3rd); }
 .set-section .field input, .set-section .field textarea { background: var(--surface2); }
-/* Username ist eine Zeile: @-Prefix + transparentes Feld (keine Doppel-Box) */
-.set-section .handle-wrap input { background: transparent; }
 .sheet .field input { background: var(--surface2); }
 .sheet-narrow { width: min(420px, 100%); }
 .konto-stack { display: flex; flex-direction: column; gap: 10px; }
@@ -594,19 +592,6 @@ main.app-wrap { max-width: none; padding: 0; }
 .profile-prev strong { font-size: 16px; color: var(--text); }
 .profile-prev small { font-size: 13px; color: var(--text-sec); font-weight: 600; }
 .profile-prev p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-3rd); }
-.handle-wrap {
-  display: flex; align-items: center;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding-left: 13px;
-  transition: border-color 0.15s;
-}
-.handle-wrap:focus-within { border-color: var(--brand); }
-.handle-at { color: var(--text-3rd); font-size: 16px; font-weight: 600; }
-.handle-wrap input {
-  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
-  color: var(--text); font-size: 16px; font-family: var(--font-body);
-  padding: 11px 13px 11px 4px;
-}
 .field textarea {
   width: 100%; background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 11px 13px; color: var(--text);
