@@ -331,7 +331,7 @@ main.app-wrap { max-width: none; padding: 0; }
 
 /* ---------- /app: Content-Pages (alle nur Beispiel) ---------- */
 .app-page { animation: slidein 0.2s ease; }
-.app-page.narrow { max-width: 660px; }
+.app-page.narrow { max-width: 660px; margin: 0 auto; }
 .app-title { font-size: 28px; font-weight: 800; margin: 0 0 6px; }
 .app-title.nomargin { margin: 0; }
 .app-sub { color: var(--text-sec); font-size: 14.5px; margin: 0 0 20px; }
@@ -726,7 +726,7 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 .shelf-scroll::-webkit-scrollbar { height: 8px; }
 .short-card {
-  flex: 1 0 160px; min-width: 150px; max-width: 240px; scroll-snap-align: start;
+  flex: 0 0 160px; width: 160px; scroll-snap-align: start;
   text-decoration: none; color: var(--text);
   transition: transform 0.13s ease;
 }
@@ -734,7 +734,7 @@ main.app-wrap { max-width: none; padding: 0; }
 .short-thumb {
   position: relative; aspect-ratio: 9 / 16; border-radius: var(--radius);
   background: var(--surface2); border: 1px solid var(--border);
-  display: grid; place-items: center; font-size: 44px; overflow: hidden;
+  display: grid; place-items: center; font-size: 36px; overflow: hidden;
   transition: border-color 0.15s;
 }
 .short-card:hover .short-thumb { border-color: var(--brand); }
@@ -797,8 +797,6 @@ main.app-wrap { max-width: none; padding: 0; }
 .trend-main strong { font-size: 13.5px; font-family: var(--font-body); }
 .trend-main small { font-size: 12px; color: var(--text-3rd); }
 .trend-go { font-size: 12px; color: var(--text-3rd); }
-.side-card.muted { background: color-mix(in srgb, var(--surface) 78%, transparent); }
-.sidecard-text { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--text-sec); }
 .ic-danger { color: var(--danger); }
 
 /* Eigenes Rechtsklick-Menü (statt Browser-Menü) */
@@ -846,7 +844,7 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 @media (max-width: 1020px) {
   .start-layout { grid-template-columns: 1fr; }
-  .start-side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .start-side { position: static; }
 }
 @media (max-width: 640px) {
   /* Topbar + Content: jeden Pixel nutzen, nichts quetscht */
@@ -867,7 +865,6 @@ main.app-wrap { max-width: none; padding: 0; }
   .post-toolbar { gap: 6px; }
   .toolbtn.sm { min-height: 38px; }
   .start-layout { gap: 14px; margin-top: 14px; }
-  .start-side { grid-template-columns: 1fr; }
   .ctx-menu { width: min(224px, calc(100vw - 32px)); }
 }
 /* Große Touch-Targets überall mit Touchscreen */
