@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DEMO_SHORTS } from './demoData.js'
 
@@ -8,10 +8,8 @@ export default function Shorts({ showToast }) {
   const [idx, setIdx] = useState(0) // man startet ganz oben
   const [playing, setPlaying] = useState(true)
   const [muted, setMuted] = useState(false)
-  const [cc, setCc] = useState(false)
   const [liked, setLiked] = useState({})
   const [followed, setFollowed] = useState({})
-  const playerRef = useRef(null)
 
   const short = DEMO_SHORTS[idx]
   const demo = (msg) => showToast(msg || 'Das ist nur ein Beispiel.')
@@ -37,23 +35,11 @@ export default function Shorts({ showToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [prev, next])
 
-  const toggleFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen()
-      } else {
-        await playerRef.current?.requestFullscreen()
-      }
-    } catch {
-      demo('Vollbild geht hier nicht (Beispiel).')
-    }
-  }
-
   return (
     <div className="app-page shorts-page">
       <div className="shorts-center">
       <div className="shorts-stage">
-        <div className="short-player" ref={playerRef}>
+        <div className="short-player">
           {/* Platzhalter statt Video */}
           <div className="short-screen">
             <i className={`fa-solid ${short.icon} ${short.color}`} />
@@ -82,17 +68,6 @@ export default function Shorts({ showToast }) {
                 <i className={`fa-solid ${muted ? 'fa-volume-xmark' : 'fa-volume-high'}`} />
               </button>
             </div>
-            <div className="short-topgroup">
-              <button type="button" className={`pillbtn${cc ? ' on' : ''}`} aria-label="Untertitel" aria-pressed={cc} onClick={() => setCc((v) => !v)}>
-                <i className="fa-solid fa-closed-captioning" />
-              </button>
-              <button type="button" className="pillbtn" aria-label="Mehr Optionen" onClick={() => demo('Mehr Optionen kommen später (Beispiel).')}>
-                <i className="fa-solid fa-ellipsis-vertical" />
-              </button>
-              <button type="button" className="pillbtn" aria-label="Vollbild" onClick={toggleFullscreen}>
-                <i className="fa-solid fa-expand" />
-              </button>
-            </div>
           </div>
 
           {/* Action-Rail rechts */}
@@ -115,10 +90,6 @@ export default function Shorts({ showToast }) {
               <i className="fa-solid fa-share" />
             </button>
             <span className="rail-count">Teilen</span>
-            <button type="button" className="rail-btn" aria-label="Remixen" onClick={() => demo('Remix kommt später (Beispiel).')}>
-              <i className="fa-solid fa-repeat" />
-            </button>
-            <span className="rail-count">{short.remixes}</span>
           </div>
 
           {/* Info unten links */}
