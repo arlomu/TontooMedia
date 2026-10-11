@@ -363,7 +363,13 @@ main.app-wrap { max-width: none; padding: 0; }
   aspect-ratio: 9 / 16; width: auto; max-width: 100%; min-height: 520px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden; flex-shrink: 1; min-width: 0;
+  touch-action: none;
 }
+.short-anim { position: absolute; inset: 0; }
+.short-anim.from-bottom { animation: shortInBottom 0.28s ease; }
+.short-anim.from-top { animation: shortInTop 0.28s ease; }
+@keyframes shortInBottom { from { opacity: 0.3; transform: translateY(48px); } }
+@keyframes shortInTop { from { opacity: 0.3; transform: translateY(-48px); } }
 .short-player:fullscreen { border-radius: 0; max-height: none; height: 100%; width: auto; aspect-ratio: 9 / 16; }
 .short-screen {
   position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -379,14 +385,10 @@ main.app-wrap { max-width: none; padding: 0; }
   transition: transform 0.12s, border-color 0.15s;
 }
 .short-bigplay:hover { transform: scale(1.06); border-color: var(--brand); }
-.short-progress { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 4px; padding: 8px 12px 0; }
-.short-progress span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); }
-.short-progress span.done { background: var(--text-sec); }
-.short-progress span.now { background: var(--brand); }
 .short-top {
   position: absolute; top: 0; left: 0; right: 0;
   display: flex; justify-content: flex-start; align-items: center;
-  padding: 16px 12px 0;
+  padding: 12px 12px 0;
 }
 .short-topgroup { display: flex; gap: 8px; }
 .pillbtn {

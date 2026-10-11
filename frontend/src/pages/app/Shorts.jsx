@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DEMO_SHORTS } from './demoData.js'
 
@@ -10,12 +10,22 @@ export default function Shorts({ showToast }) {
   const [muted, setMuted] = useState(false)
   const [liked, setLiked] = useState({})
   const [followed, setFollowed] = useState({})
+  const [dir, setDir] = useState('down') // Slide-Richtung beim Wechseln
+  const stageRef = useRef(null)
+  const touchY = useRef(null)
+  const wheelCool = useRef(0)
 
   const short = DEMO_SHORTS[idx]
   const demo = (msg) => showToast(msg || 'Das ist nur ein Beispiel.')
 
-  const prev = useCallback(() => setIdx((i) => Math.max(0, i - 1)), [])
-  const next = useCallback(() => setIdx((i) => Math.min(DEMO_SHORTS.length - 1, i + 1)), [])
+  const prev = useCallback(() => {
+    setDir('up')
+    setIdx((i) => Math.max(0, i - 1))
+  }, [])
+  const next = useCallback(() => {
+    setDir('down')
+    setIdx((i) => Math.min(DEMO_SHORTS.length - 1, i + 1))
+  }, [])
 
   // Hoch/Runter-Tasten wechseln den Short
   useEffect(() => {
@@ -35,11 +45,48 @@ export default function Shorts({ showToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [prev, next])
 
+  // Mausrad wie auf YouTube: scrollen = Short wechseln (mit Cooldown,
+  // damit eine Geste nicht mehrere Shorts überspringt)
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const onWheel = (e) => {
+      e.preventDefault()
+      const now = Date.now()
+      if (now - wheelCool.current < 800) return
+      if (Math.abs(e.deltaY) < 20) return
+      wheelCool.current = now
+      if (e.deltaY > 0) next()
+      else prev()
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [prev, next])
+
+  // Touch: hoch wischen = nächster Short, runter wischen = vorheriger
+  const onTouchStart = (e) => {
+    touchY.current = e.touches[0].clientY
+  }
+  const onTouchEnd = (e) => {
+    if (touchY.current == null) return
+    const dy = e.changedTouches[0].clientY - touchY.current
+    touchY.current = null
+    if (Math.abs(dy) < 50) return
+    if (dy < 0) next()
+    else prev()
+  }
+
   return (
     <div className="app-page shorts-page">
       <div className="shorts-center">
-      <div className="shorts-stage">
+      <div
+        className="shorts-stage"
+        ref={stageRef}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="short-player">
+          <div key={short.id} className={`short-anim${dir === 'down' ? ' from-bottom' : ' from-top'}`}>
           {/* Platzhalter statt Video */}
           <div className="short-screen">
             <i className={`fa-solid ${short.icon} ${short.color}`} />
@@ -50,13 +97,6 @@ export default function Shorts({ showToast }) {
               <i className="fa-solid fa-play" />
             </button>
           )}
-
-          {/* Fortschritt: 1 Segment pro Short */}
-          <div className="short-progress" aria-hidden="true">
-            {DEMO_SHORTS.map((s, i) => (
-              <span key={s.id} className={i < idx ? 'done' : i === idx ? 'now' : ''} />
-            ))}
-          </div>
 
           {/* Obere Overlay-Leiste */}
           <div className="short-top">
@@ -112,6 +152,7 @@ export default function Shorts({ showToast }) {
               </button>
             </div>
             <div className="short-title">{short.title}</div>
+          </div>
           </div>
         </div>
 
