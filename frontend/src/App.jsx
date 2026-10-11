@@ -11,6 +11,7 @@ import Followed from './pages/app/Followed.jsx'
 import Studio from './pages/app/Studio.jsx'
 import Einstellungen from './pages/app/Einstellungen.jsx'
 import Community from './pages/app/Community.jsx'
+import Post from './pages/app/Post.jsx'
 import User from './pages/app/User.jsx'
 
 // Routen mit der App-Sidebar (statt Landing-Navbar/Footer)
@@ -139,6 +140,7 @@ export default function App() {
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen showToast={showToast} />} />
             <Route path="/t/:name" element={<Community />} />
+            <Route path="/t/:name/post/:postId" element={<Post />} />
             <Route path="/u/:user" element={<User />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -11,6 +11,9 @@ const SORTS = [
 const commIdOf = (p) =>
   p.commId || COMMUNITIES.find((c) => c.name === p.community)?.id || 'allgemein'
 
+// Teilen-Link im Format t/name/post/id (wie angefordert)
+const postUrl = (p) => `${window.location.origin}/t/${commIdOf(p)}/post/${p.id}`
+
 // Aufgeräumte Startseite: oben Shorts als Hochkant-Shelf (9:16),
 // darunter Text-Posts aus den Sub-Tontoos (t/…) + rechte Info-Spalte.
 export default function Start() {
@@ -57,7 +60,7 @@ export default function Start() {
   }
 
   const copyLink = async (p) => {
-    const url = `${window.location.origin}/t/${commIdOf(p)}`
+    const url = postUrl(p)
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -268,7 +271,7 @@ export default function Start() {
             <div className="sheet-body">
               <p className="sheet-sub">t/{sharePost.community} · {sharePost.title || sharePost.text}</p>
               <div className="sheet-url">
-                <span className="sheet-urltext">{`${window.location.origin}/t/${commIdOf(sharePost)}`}</span>
+                <span className="sheet-urltext">{postUrl(sharePost)}</span>
                 <button type="button" className="btn btn-brand btn-sm" onClick={() => copyLink(sharePost)}>
                   <i className={`fa-solid ${copied === sharePost.id ? 'fa-check' : 'fa-copy'}`} />
                   {copied === sharePost.id ? 'Kopiert!' : 'Kopieren'}
