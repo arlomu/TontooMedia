@@ -585,6 +585,82 @@ main.app-wrap { max-width: none; padding: 0; }
 .liveprev { font-size: 13.5px; color: var(--text-sec); }
 .liveprev strong { color: var(--brand); }
 
+/* Einstellungen: Karten-Sektionen (Profil / Sicherheit / App / Konto) */
+.set-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  margin-top: 16px;
+}
+.set-h3 {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-body); font-size: 16px; font-weight: 800;
+  margin: 0 0 4px; color: var(--text);
+}
+.set-desc { margin: 0 0 16px; font-size: 13px; color: var(--text-3rd); }
+.set-list.notop { margin-top: 0; }
+.set-section .field input, .set-section .field textarea { background: var(--surface2); }
+.profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; margin-bottom: 16px;
+}
+.avatar-xl {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--brand); font-size: 30px;
+}
+.profile-prev { display: flex; flex-direction: column; min-width: 0; }
+.profile-prev strong { font-size: 16px; color: var(--text); }
+.profile-prev small { font-size: 13px; color: var(--text-sec); font-weight: 600; }
+.profile-prev p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-3rd); }
+.handle-wrap {
+  display: flex; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding-left: 13px;
+  transition: border-color 0.15s;
+}
+.handle-wrap:focus-within { border-color: var(--brand); }
+.handle-at { color: var(--text-3rd); font-size: 16px; font-weight: 600; }
+.handle-wrap input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 16px; font-family: var(--font-body);
+  padding: 11px 13px 11px 4px;
+}
+.field textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; color: var(--text);
+  font-size: 16px; font-family: var(--font-body); outline: none; resize: vertical;
+  min-height: 76px; transition: border-color 0.15s;
+}
+.field textarea:focus { border-color: var(--brand); }
+.field textarea::placeholder { color: var(--text-3rd); }
+.field.nomargin { margin-bottom: 0; }
+.char-row { display: flex; justify-content: flex-end; font-size: 12px; color: var(--text-3rd); margin-top: 6px; }
+.saved-hint {
+  display: flex; align-items: center; gap: 7px;
+  margin: 12px 0 0; font-size: 13px; font-weight: 600; color: var(--text-sec);
+  animation: fade 0.2s ease;
+}
+.btn-block { width: 100%; justify-content: center; }
+.btn-danger { background: rgba(224, 93, 93, 0.12); border-color: rgba(224, 93, 93, 0.55); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); color: #fff; box-shadow: 0 4px 18px rgba(224, 93, 93, 0.35); }
+.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.danger-box {
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.danger-title { display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--danger); }
+.danger-desc { margin: 6px 0 12px; font-size: 13px; color: var(--text-3rd); }
+.del-confirm {
+  display: flex; flex-direction: column; gap: 12px;
+  background: rgba(224, 93, 93, 0.07); border: 1px solid rgba(224, 93, 93, 0.4);
+  border-radius: 10px; padding: 14px;
+  animation: pop 0.2s ease;
+}
+.del-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.del-row .btn { flex: 1; justify-content: center; white-space: nowrap; }
+
 /* Community + User */
 .comm-hero, .user-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .comm-big, .user-big {
