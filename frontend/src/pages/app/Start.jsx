@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS } from './demoData.js'
+import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS, commIdOf, postUrlOf } from './demoData.js'
+import ShareSheet from '../../components/ShareSheet.jsx'
 
 const SORTS = [
   { id: 'neu', label: 'Neu', icon: 'fa-clock' },
   { id: 'top', label: 'Top', icon: 'fa-fire' },
   { id: 'diskutiert', label: 'Diskutiert', icon: 'fa-comments' },
 ]
-
-const commIdOf = (p) =>
-  p.commId || COMMUNITIES.find((c) => c.name === p.community)?.id || 'allgemein'
-
-// Teilen-Link im Format t/name/post/id (wie angefordert)
-const postUrl = (p) => `${window.location.origin}/t/${commIdOf(p)}/post/${p.id}`
 
 // Aufgeräumte Startseite: oben Shorts als Hochkant-Shelf (9:16),
 // darunter Text-Posts aus den Sub-Tontoos (t/…) + rechte Info-Spalte.
@@ -59,7 +54,7 @@ export default function Start() {
   }
 
   const copyLink = async (p) => {
-    const url = postUrl(p)
+    const url = postUrlOf(p)
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -255,27 +250,13 @@ export default function Start() {
 
       {/* Teilen-Menü wie bei Shorts (eigenes Modal statt Browser-Dialog) */}
       {sharePost && (
-        <div className="sheet-backdrop" onClick={() => setSharePost(null)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Teilen" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-head">
-              <strong className="sheet-title">Teilen</strong>
-            </div>
-            <div className="sheet-body">
-              <p className="sheet-sub">t/{sharePost.community} · {sharePost.title || sharePost.text}</p>
-              <div className="sheet-url">
-                <span className="sheet-urltext">{postUrl(sharePost)}</span>
-                <button type="button" className="btn btn-brand btn-sm" onClick={() => copyLink(sharePost)}>
-                  <i className={`fa-solid ${copied === sharePost.id ? 'fa-check' : 'fa-copy'}`} />
-                  {copied === sharePost.id ? 'Kopiert!' : 'Kopieren'}
-                </button>
-              </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setSharePost(null)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" onClick={() => setSharePost(null)}>Fertig</button>
-            </div>
-          </div>
-        </div>
+        <ShareSheet
+          sub={`t/${sharePost.community} · ${sharePost.title || sharePost.text}`}
+          url={postUrlOf(sharePost)}
+          copied={copied === sharePost.id}
+          onCopy={() => copyLink(sharePost)}
+          onClose={() => setSharePost(null)}
+        />
       )}
 
       {/* Eigenes Rechtsklick-Menü statt Browser-Menü */}

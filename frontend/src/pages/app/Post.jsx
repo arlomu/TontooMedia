@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POST_COMMENTS, DEMO_POSTS } from './demoData.js'
+import { COMMUNITIES, DEMO_POST_COMMENTS, DEMO_POSTS, commIdOf } from './demoData.js'
+import CommunityCard from '../../components/CommunityCard.jsx'
+import ShareSheet from '../../components/ShareSheet.jsx'
 
 const COMMENT_SORTS = [
   { id: 'beste', label: 'Beste', icon: 'fa-ranking-star' },
@@ -17,7 +19,6 @@ export default function Post() {
   const comm = COMMUNITIES.find((c) => c.id === name)
 
   const [likedPost, setLikedPost] = useState(false)
-  const [joined, setJoined] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [commentSort, setCommentSort] = useState('beste')
@@ -53,7 +54,7 @@ export default function Post() {
     )
   }
 
-  const cid = post.commId || COMMUNITIES.find((c) => c.name === post.community)?.id || 'allgemein'
+  const cid = commIdOf(post)
   const shownComm = comm || COMMUNITIES.find((c) => c.id === cid)
   const shareUrl = `${window.location.origin}/t/${cid}/post/${post.id}`
 
@@ -293,70 +294,30 @@ export default function Post() {
           </div>
         </div>
 
-        {/* Community-Box rechts */}
+        {/* Community-Box rechts (sticky, wie überall) */}
         <aside className="start-side" aria-label="Community">
           {shownComm && (
-            <div className="side-card">
-              <h4 className="sidecard-title">
-                <span className="comm-ic" aria-hidden="true">
-                  <i className={`fa-solid ${shownComm.icon} ${shownComm.color}`} />
-                </span>
-                t/{shownComm.name}
-              </h4>
-              <p className="sidecard-text">{shownComm.desc}</p>
-              <button
-                type="button"
-                className={`btn authbtn join-btn ${joined ? 'btn-ghost' : 'btn-brand'}`}
-                aria-pressed={joined}
-                onClick={() => setJoined((j) => !j)}
-              >
-                {joined ? (
-                  <><i className="fa-solid fa-check" /> Gefolgt</>
-                ) : (
-                  <><i className="fa-solid fa-plus" /> Folgen</>
-                )}
-              </button>
-              <div className="comm-stats">
-                <span><strong>{shownComm.members}</strong><small>Mitglieder</small></span>
-                <span><strong>{totalCount}</strong><small>Kommentare</small></span>
-              </div>
-              <h5 className="rules-head">Regeln</h5>
-              <ol className="rules-list">
-                <li>Bleib freundlich – kein Hate, kein Spam.</li>
-                <li>Nur eigene Inhalte oder mit Quelle.</li>
-                <li>Titel müssen zum Inhalt passen.</li>
-              </ol>
-              <Link to={`/t/${shownComm.id}`} className="shelf-link rules-link">
-                Community öffnen <i className="fa-solid fa-arrow-right" />
-              </Link>
-            </div>
+            <CommunityCard
+              comm={shownComm}
+              stats={[
+                { value: shownComm.members, label: 'Mitglieder' },
+                { value: totalCount, label: 'Kommentare' },
+              ]}
+              showOpenLink
+            />
           )}
         </aside>
       </div>
 
       {/* Teilen-Menü wie bei Shorts */}
       {shareOpen && (
-        <div className="sheet-backdrop" onClick={() => setShareOpen(false)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Teilen" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-head">
-              <strong className="sheet-title">Teilen</strong>
-            </div>
-            <div className="sheet-body">
-              <p className="sheet-sub">t/{post.community} · {post.title || post.text}</p>
-              <div className="sheet-url">
-                <span className="sheet-urltext">{shareUrl}</span>
-                <button type="button" className="btn btn-brand btn-sm" onClick={copyShareUrl}>
-                  <i className={`fa-solid ${copied ? 'fa-check' : 'fa-copy'}`} />
-                  {copied ? 'Kopiert!' : 'Kopieren'}
-                </button>
-              </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setShareOpen(false)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" onClick={() => setShareOpen(false)}>Fertig</button>
-            </div>
-          </div>
-        </div>
+        <ShareSheet
+          sub={`t/${post.community} · ${post.title || post.text}`}
+          url={shareUrl}
+          copied={copied}
+          onCopy={copyShareUrl}
+          onClose={() => setShareOpen(false)}
+        />
       )}
     </div>
   )

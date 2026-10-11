@@ -151,6 +151,14 @@ export const DEMO_COMMENTS = {
   ],
 }
 
+// Helfer für Links – hier zentral, damit Feed, Community und Post-Ansicht
+// dieselben URLs bauen (t/name/post/id).
+export const commIdOf = (p) =>
+  p.commId || COMMUNITIES.find((c) => c.name === p.community)?.id || 'allgemein'
+
+export const postUrlOf = (p) =>
+  `${window.location.origin}/t/${commIdOf(p)}/post/${p.id}`
+
 // Beispiel-Kommentare pro Text-Post (verschachtelt) – kein Backend, nur Demo.
 export const DEMO_POST_COMMENTS = {
   1: [
