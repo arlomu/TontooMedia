@@ -1,0 +1,1 @@
+do a git commit after evry 'Feature/Bug/Something Code change' but not pull
