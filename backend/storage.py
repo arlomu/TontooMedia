@@ -373,11 +373,7 @@ class Storage:
     # ---------- Folgen ----------
 
     def toggle_follow(self, follower_id: int, followed_id: int) -> bool:
-        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird.
-
-        Wirft ValueError bei Selbst-Follow."""
-        if follower_id == followed_id:
-            raise ValueError("Du kannst dir nicht selbst folgen.")
+        """Folgen umschalten (inkl. sich selbst). True = folgt jetzt."""
         conn = self._require()
         row = conn.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",

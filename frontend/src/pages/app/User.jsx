@@ -101,7 +101,6 @@ export default function User({ showToast, me }) {
   const u = profile.user
   const shorts = profile.shorts
   const posts = profile.posts || []
-  const isOwn = me && me.id === u.id
 
   const flipFollow = async () => {
     if (followBusy) return
@@ -153,13 +152,13 @@ export default function User({ showToast, me }) {
             {posts.length === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length}{' '}
             {shorts.length === 1 ? 'Short' : 'Shorts'}
           </p>
-          {/* Folgen: echt per API. Ausgeloggt → zum Login, eigenes Profil → kein Button. */}
-          {!isOwn && me !== undefined && !me && (
+          {/* Folgen: echt per API. Ausgeloggt → zum Login, auch am eigenen Profil. */}
+          {me !== undefined && !me && (
             <Link to="/login" className="btn btn-sm btn-brand">
               Folgen
             </Link>
           )}
-          {!isOwn && me && (
+          {me && (
             <button
               type="button"
               className={`btn btn-sm ${profile.followed ? 'btn-ghost' : 'btn-brand'}`}
