@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { COMMUNITIES, DEMO_POSTS, commIdOf, postUrlOf } from './demoData.js'
+import { getCustomTontoos } from './customTontoos.js'
 import CommunityCard from '../../components/CommunityCard.jsx'
 import ShareSheet from '../../components/ShareSheet.jsx'
 
@@ -15,7 +16,7 @@ const SORTS = [
 // Alles Demo, kein Backend.
 export default function Community() {
   const { name } = useParams()
-  const comm = COMMUNITIES.find((c) => c.id === name)
+  const comm = COMMUNITIES.find((c) => c.id === name) || getCustomTontoos().find((c) => c.id === name)
 
   const [sort, setSort] = useState('neu')
   const [liked, setLiked] = useState({})

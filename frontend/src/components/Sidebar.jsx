@@ -1,13 +1,70 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { COMMUNITIES } from '../pages/app/demoData.js'
+import { addCustomTontoo, getCustomTontoos } from '../pages/app/customTontoos.js'
 
 // Eigene Sidebar-Komponente – 1:1 identisch auf allen App-Routen
 // (/app, /shorts, /studio, /einstellungen, /t/:name, /u/:user).
+const ICON_PRESETS = [
+  'fa-camera', 'fa-gamepad', 'fa-music', 'fa-utensils',
+  'fa-microchip', 'fa-book-open', 'fa-film', 'fa-palette',
+]
+const COLOR_PRESETS = [
+  { id: 'ic-yellow', bg: 'var(--brand)' },
+  { id: 'ic-teal', bg: 'var(--accent)' },
+  { id: 'ic-violet', bg: '#8f81f7' },
+]
+
 export default function Sidebar({ open, onClose, showToast }) {
   const [commsOpen, setCommsOpen] = useState(true)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [customs, setCustoms] = useState(getCustomTontoos)
+  const [cName, setCName] = useState('')
+  const [cDesc, setCDesc] = useState('')
+  const [cIcon, setCIcon] = useState(ICON_PRESETS[0])
+  const [cColor, setCColor] = useState(COLOR_PRESETS[0].id)
+  const [cError, setCError] = useState(null)
+
+  const cId = cName.trim().toLowerCase().replace(/[^a-z0-9._]/g, '')
+
+  const closeCreate = () => {
+    setCreateOpen(false)
+    setCError(null)
+  }
+
+  useEffect(() => {
+    if (!createOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') closeCreate() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [createOpen])
+
+  const createTontoo = (e) => {
+    e.preventDefault()
+    if (!cName.trim()) return setCError('Bitte einen Namen eingeben.')
+    if (!cId) return setCError('Der Name muss a–z, 0–9, Punkt oder Unterstrich enthalten.')
+    const taken = [...COMMUNITIES, ...getCustomTontoos()].some((c) => c.id === cId)
+    if (taken) return setCError(`t/${cId} gibt es schon.`)
+    addCustomTontoo({
+      id: cId,
+      name: cName.trim(),
+      desc: cDesc.trim(),
+      icon: cIcon,
+      color: cColor,
+      members: '1 Mitglied',
+    })
+    setCustoms([...getCustomTontoos()])
+    setCName('')
+    setCDesc('')
+    setCIcon(ICON_PRESETS[0])
+    setCColor(COLOR_PRESETS[0].id)
+    setCreateOpen(false)
+    setCError(null)
+    showToast(`t/${cId} erstellt.`)
+  }
 
   return (
+    <>
     <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Seitenleiste">
       <Link to="/app" className="side-brand" onClick={onClose}>
         <img src="/assets/Tontoo_White.png" alt="Tontoo Oktopus" />
@@ -40,16 +97,16 @@ export default function Sidebar({ open, onClose, showToast }) {
           <button
             type="button"
             className="iconbtn sm comms-add"
-            aria-label="Community erstellen"
-            title="Community erstellen"
-            onClick={() => showToast('Communities erstellen kommt bald (Beispiel).')}
+            aria-label="Tontoo erstellen"
+            title="Tontoo erstellen"
+            onClick={() => setCreateOpen(true)}
           >
             <i className="fa-solid fa-plus" />
           </button>
         </div>
           <nav className={`comms-list${commsOpen ? '' : ' closed'}`} aria-label="Communities">
             <div className="comms-clip">
-              {COMMUNITIES.map((c) => (
+              {[...COMMUNITIES, ...customs].map((c) => (
                 <NavLink
                   key={c.id}
                   to={`/t/${c.id}`}
@@ -77,5 +134,84 @@ export default function Sidebar({ open, onClose, showToast }) {
         </NavLink>
       </div>
     </aside>
+
+    {/* Tontoo erstellen */}
+    {createOpen && (
+      <div className="sheet-backdrop" onClick={closeCreate}>
+        <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Tontoo erstellen" onClick={(e) => e.stopPropagation()}>
+          <form onSubmit={createTontoo} noValidate>
+            <div className="sheet-head">
+              <strong className="sheet-title">Tontoo erstellen</strong>
+              <button type="button" className="sheet-x" aria-label="Schließen" onClick={closeCreate}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="sheet-body">
+              <label className="field nomargin">
+                <span>Name</span>
+                <input
+                  type="text"
+                  placeholder="z. B. Fahrräder"
+                  value={cName}
+                  maxLength={24}
+                  autoComplete="off"
+                  onChange={(e) => setCName(e.target.value)}
+                />
+              </label>
+              {cId && <p className="create-prev">t/{cId}</p>}
+              <label className="field nomargin">
+                <span>Beschreibung</span>
+                <textarea
+                  placeholder="Worum geht es in deinem Tontoo?"
+                  value={cDesc}
+                  rows={3}
+                  maxLength={140}
+                  onChange={(e) => setCDesc(e.target.value)}
+                />
+              </label>
+              <div className="create-label">Symbol</div>
+              <div className="avatar-grid">
+                {ICON_PRESETS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    className={`avatar-opt${cIcon === icon ? ' selected' : ''}`}
+                    aria-pressed={cIcon === icon}
+                    aria-label={icon}
+                    onClick={() => setCIcon(icon)}
+                  >
+                    <i className={`fa-solid ${icon} ${cColor}`} />
+                  </button>
+                ))}
+              </div>
+              <div className="create-label">Farbe</div>
+              <div className="color-row">
+                {COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`color-dot${cColor === c.id ? ' selected' : ''}`}
+                    style={{ background: c.bg }}
+                    aria-pressed={cColor === c.id}
+                    aria-label={c.id}
+                    onClick={() => setCColor(c.id)}
+                  />
+                ))}
+              </div>
+              {cError && (
+                <p className="formerror nomargin" role="alert">
+                  <i className="fa-solid fa-circle-exclamation" /> {cError}
+                </p>
+              )}
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={closeCreate}>Abbrechen</button>
+              <button type="submit" className="btn btn-brand"><i className="fa-solid fa-plus" /> Erstellen</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
