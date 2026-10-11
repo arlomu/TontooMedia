@@ -1,17 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const MENU_ITEMS = [
-  { id: 'feed', label: 'Feed', desc: 'Neueste Beiträge', icon: 'fa-newspaper', color: 'ic-yellow' },
-  { id: 'communities', label: 'Communities', desc: 'Gruppen entdecken', icon: 'fa-users', color: 'ic-teal' },
-  { id: 'messages', label: 'Messages', desc: 'Chats & DMs', icon: 'fa-comments', color: 'ic-violet' },
-  { id: 'events', label: 'Events', desc: 'Treffen & Streams', icon: 'fa-calendar-days', color: 'ic-teal' },
-  { id: 'fotos', label: 'Fotos', desc: 'Bilder entdecken', icon: 'fa-images', color: 'ic-yellow' },
-  { id: 'musik', label: 'Musik', desc: 'Sounds & Playlists', icon: 'fa-music', color: 'ic-violet' },
-  { id: 'hilfe', label: 'Hilfe', desc: 'FAQ & Support', icon: 'fa-circle-question', color: 'ic-teal' },
-]
-
 export default function App() {
-  const [menuOpen, setMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [modal, setModal] = useState(null) // null | 'login' | 'register'
   const [wishName, setWishName] = useState('')
@@ -19,7 +8,6 @@ export default function App() {
   const [spinning, setSpinning] = useState(false)
   const toastTimer = useRef(null)
   const eggClicks = useRef([])
-  const menuRef = useRef(null)
 
   const showToast = (msg) => {
     setToast(msg)
@@ -30,22 +18,10 @@ export default function App() {
   // Modal: Escape schließt
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') {
-        setModal(null)
-        setMenuOpen(false)
-      }
+      if (e.key === 'Escape') setModal(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  // Klick außerhalb schließt Dropdown
-  useEffect(() => {
-    const onClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-    }
-    window.addEventListener('click', onClick)
-    return () => window.removeEventListener('click', onClick)
   }, [])
 
   // Reveal-Animation beim Scrollen
@@ -93,50 +69,11 @@ export default function App() {
             <span className="brand-badge">beta</span>
           </a>
 
-          <nav className="nav-links">
-            <a href="#was-ist">Was ist das?</a>
-            <div className="menuwrap" ref={menuRef}>
-              <button
-                type="button"
-                className={`btn btn-ghost btn-sm menubtn${menuOpen ? ' open' : ''}`}
-                onClick={() => setMenuOpen((o) => !o)}
-                aria-expanded={menuOpen}
-                aria-haspopup="menu"
-              >
-                <i className="fa-solid fa-compass ic-teal" /> Entdecken
-                <i className={`fa-solid fa-chevron-down caret${menuOpen ? ' flip' : ''}`} />
-              </button>
-              {menuOpen && (
-                <div className="dropdown" role="menu">
-                  {MENU_ITEMS.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="menuitem"
-                      className="dropitem"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        showToast(`${m.label} kommt bald in der Beta.`)
-                      }}
-                    >
-                      <i className={`fa-solid ${m.icon} ${m.color}`} />
-                      <span>
-                        <strong>{m.label}</strong>
-                        <small>{m.desc}</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </nav>
-
-          {/* Toolbar: Login / Registrieren */}
-          <div className="toolbar" role="toolbar" aria-label="Konto">
+          {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
+          <div className="nav-actions">
             <button type="button" className="btn btn-ghost" onClick={() => setModal('login')}>
               <i className="fa-solid fa-right-to-bracket" /> Login
             </button>
-            <span className="toolsep" aria-hidden="true" />
             <button type="button" className="btn btn-brand" onClick={() => setModal('register')}>
               <i className="fa-solid fa-user-plus" /> Registrieren
             </button>
@@ -155,7 +92,6 @@ export default function App() {
 
         {mobileOpen && (
           <nav className="mobilepanel">
-            <a href="#was-ist" onClick={() => setMobileOpen(false)}>Was ist das?</a>
             <div className="mobilerow">
               <button type="button" className="btn btn-ghost" onClick={() => { setMobileOpen(false); setModal('login') }}>
                 <i className="fa-solid fa-right-to-bracket" /> Login
