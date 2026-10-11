@@ -150,8 +150,7 @@ export default function App() {
           {/* Flache App-Routen, alle mit derselben Sidebar */}
           <Route element={<AppLayout showToast={showToast} onSearch={handleSearch} />}>
             <Route path="/app" element={<Start />} />
-            <Route path="/shorts" element={<Shorts showToast={showToast} />} />
-            <Route path="/shorts/:id" element={<Shorts showToast={showToast} />} />
+            <Route path="/shorts/:id?" element={<Shorts showToast={showToast} />} />
             <Route path="/followed" element={<Followed showToast={showToast} />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen showToast={showToast} user={user} onUser={setUser} />} />

@@ -40,6 +40,10 @@ export default function Shorts({ showToast }) {
   const [copiedShare, setCopiedShare] = useState(false)
   const stageRef = useRef(null)
   const videoRef = useRef(null)
+  const playingRef = useRef(true)
+  playingRef.current = playing
+  const mutedRef = useRef(false)
+  mutedRef.current = muted
   const dragRef = useRef(null)
   const wheelCool = useRef(0)
   const busyRef = useRef(false)
@@ -162,6 +166,15 @@ export default function Shorts({ showToast }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [commentsOpen, shareOpen])
+
+  // Daten da, aber Effect lief zu früh: sobald abspielbar, los (falls Pause gewollt ist, passiert nichts)
+  const onCanPlay = (e) => {
+    const v = e.currentTarget
+    if (playingRef.current && v.paused) {
+      v.muted = mutedRef.current
+      v.play().catch(() => {})
+    }
+  }
 
   const onTimeUpdate = (e) => {
     const v = e.currentTarget
@@ -377,6 +390,7 @@ export default function Shorts({ showToast }) {
           preload="auto"
           onClick={tapVideo}
           onTimeUpdate={onTimeUpdate}
+          onCanPlay={onCanPlay}
         />
       ) : (
         <div className="short-screen">
@@ -509,7 +523,7 @@ export default function Shorts({ showToast }) {
           )}
           {current && (
           <div
-            key={slide ? `in-${slide.to}` : current.id}
+            key={current.id}
             className={`short-player${slide ? ` slide-in-${slide.dir}` : ''}`}
             style={dragStyle}
           >
