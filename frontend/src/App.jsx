@@ -136,7 +136,7 @@ export default function App() {
             <Route path="/app" element={<Start />} />
             <Route path="/shorts" element={<Shorts showToast={showToast} />} />
             <Route path="/shorts/:id" element={<Shorts showToast={showToast} />} />
-            <Route path="/followed" element={<Followed />} />
+            <Route path="/followed" element={<Followed showToast={showToast} />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen showToast={showToast} />} />
             <Route path="/t/:name" element={<Community />} />

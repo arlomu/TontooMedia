@@ -656,15 +656,9 @@ main.app-wrap { max-width: none; padding: 0; }
 .comm-desc { color: var(--text-sec); font-size: 14.5px; line-height: 1.6; margin: 0 0 6px; }
 
 /* Followed */
-.follow-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-.follow-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 999px; padding: 8px 15px;
-  color: var(--text); text-decoration: none; font-size: 13.5px; font-weight: 600;
-  transition: border-color 0.15s, transform 0.1s;
-}
-.follow-chip:hover { border-color: var(--brand); transform: translateY(-1px); }
+.follow-line { display: flex; align-items: center; gap: 10px; }
+.follow-line .trend-row { flex: 1; min-width: 0; }
+.follow-line .btn { flex-shrink: 0; }
 
 /* ---------- Startseite: Shorts-Shelf + Text-Feed (t/…) ---------- */
 .start-page { padding-bottom: 10px; }
