@@ -24,6 +24,8 @@ Endpunkte (alle unter /api/...):
   GET    /api/shorts/<id>/comments -> {comments: [...]}
   POST   /api/shorts/<id>/comments (Bearer, {text, parent_id?}) -> {comment}
   POST   /api/comments/<id>/like (Bearer) -> {liked, likes}
+  POST   /api/users/<name>/follow (Bearer) -> {followed, followers}
+  GET    /api/followed (Bearer) -> {users: [...]}
   POST   /api/shorts/<id>/view -> {views}
   GET    /api/media/<datei>   Video/Thumbnail (mit Range-Support)
 
@@ -191,7 +193,19 @@ def public_feed_short(row: dict) -> dict:
             "username": row.get("username") or "?",
             "name": row.get("author_name") or row.get("username") or "?",
             "avatarUrl": avatar_url(row.get("author_avatar")),
+            "following": bool(row.get("following")),
         },
+    }
+
+
+def public_followed_user(row: dict) -> dict:
+    """Gefolgter User für /followed (mit Kennzahlen)."""
+    return {
+        "username": row["username"],
+        "name": row.get("name") or row["username"],
+        "avatarUrl": avatar_url(row.get("avatar")),
+        "shorts": row.get("shorts_n") or 0,
+        "followers": row.get("followers_n") or 0,
     }
 
 
@@ -355,6 +369,13 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_feed_shorts(viewer_id)
             return self._ok({"shorts": [public_feed_short(r) for r in rows]})
+        if self.path == "/api/followed":
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                rows = _storage.list_followed(user_id)
+            return self._ok({"users": [public_followed_user(r) for r in rows]})
         m = re.fullmatch(r"/api/users/([A-Za-z0-9._]{1,30})", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed

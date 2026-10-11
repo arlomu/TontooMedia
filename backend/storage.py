@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS follows (
     PRIMARY KEY (follower_id, followed_id)
 );
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
+CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_likes_short ON short_likes(short_id);
 CREATE INDEX IF NOT EXISTS idx_comments_short ON short_comments(short_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes ON short_comment_likes(comment_id);
@@ -292,11 +293,7 @@ class Storage:
     # ---------- Folgen ----------
 
     def toggle_follow(self, follower_id: int, followed_id: int) -> bool:
-        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird.
-
-        Wirft ValueError bei Selbst-Follow."""
-        if follower_id == followed_id:
-            raise ValueError("Du kannst dir nicht selbst folgen.")
+        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird."""
         conn = self._require()
         row = conn.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
@@ -447,11 +444,12 @@ class Storage:
             " u.username, u.name AS author_name, u.avatar AS author_avatar,"
             " (SELECT COUNT(*) FROM short_likes l WHERE l.short_id = s.id) AS likes,"
             " (SELECT COUNT(*) FROM short_comments c WHERE c.short_id = s.id) AS comments_n,"
-            " EXISTS(SELECT 1 FROM short_likes l2 WHERE l2.short_id = s.id AND l2.user_id = ?) AS liked"
+            " EXISTS(SELECT 1 FROM short_likes l2 WHERE l2.short_id = s.id AND l2.user_id = ?) AS liked,"
+            " EXISTS(SELECT 1 FROM follows f WHERE f.followed_id = s.user_id AND f.follower_id = ?) AS following"
             " FROM shorts s JOIN users u ON u.id = s.user_id"
             " WHERE s.visibility = 'Öffentlich'"
             " ORDER BY s.id DESC LIMIT ? OFFSET ?",
-            (vid, limit, offset),
+            (vid, vid, limit, offset),
         )
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -605,6 +603,32 @@ class Storage:
             (short_id,),
         )
         conn.execute("DELETE FROM short_comments WHERE short_id = ?", (short_id,))
+        conn.commit()
+
+    # ---------- Folgen (Liste + Konto-Cleanup) ----------
+
+    def list_followed(self, follower_id: int) -> list:
+        """Gefolgte User mit Kennzahlen (Shorts + Follower)."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT u.id, u.username, u.name, u.avatar,"
+            " (SELECT COUNT(*) FROM shorts s"
+            "   WHERE s.user_id = u.id AND s.visibility = 'Öffentlich') AS shorts_n,"
+            " (SELECT COUNT(*) FROM follows f WHERE f.followed_id = u.id) AS followers_n"
+            " FROM follows fo JOIN users u ON u.id = fo.followed_id"
+            " WHERE fo.follower_id = ? ORDER BY u.username ASC",
+            (follower_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def delete_user_extras(self, user_id: int) -> None:
+        """Räumt Follows/Likes/Kommentare eines gelöschten Kontos weg."""
+        conn = self._require()
+        conn.execute("DELETE FROM follows WHERE follower_id = ? OR followed_id = ?", (user_id, user_id))
+        conn.execute("DELETE FROM short_likes WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM short_comment_likes WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM short_comments WHERE user_id = ?", (user_id,))
         conn.commit()
 
 

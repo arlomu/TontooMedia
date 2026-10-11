@@ -1,22 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS } from './demoData.js'
+import { COMMUNITIES } from './demoData.js'
+import { apiFollowed, apiToggleFollow, avatarSrc } from '../../lib/api.js'
 
-// /followed: User und Tontoos, denen du folgst (Demo, alles lokal).
-const allUsers = () => {
-  const map = new Map()
-  for (const p of [...DEMO_POSTS, ...DEMO_SHORTS]) {
-    if (!map.has(p.author)) map.set(p.author, { author: p.author, icon: p.icon, color: p.color })
-  }
-  return [...map.values()]
-}
+const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 
-const infoOf = (author) => {
+// /followed: gefolgte User sind echt (Backend), Tontoos vorerst Demo (TontooOS fake).
+const infoOf = (u) => {
   const bits = []
-  const np = DEMO_POSTS.filter((p) => p.author === author).length
-  const ns = DEMO_SHORTS.filter((s) => s.author === author).length
-  if (np) bits.push(`${np} ${np === 1 ? 'Beitrag' : 'Beiträge'}`)
-  if (ns) bits.push(`${ns} ${ns === 1 ? 'Short' : 'Shorts'}`)
+  if (u.name && u.name !== u.username) bits.push(u.name)
+  bits.push(`${fmt(u.shorts)} ${u.shorts === 1 ? 'Short' : 'Shorts'}`)
+  bits.push(`${fmt(u.followers)} ${u.followers === 1 ? 'Follower' : 'Follower'}`)
   return bits.join(' · ')
 }
 
@@ -31,12 +25,37 @@ function FollowToggle({ label, onUnfollow }) {
 
 export default function Followed({ showToast }) {
   const toast = (msg) => showToast?.(msg)
-  const [users, setUsers] = useState(allUsers)
+  const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(true)
+  const [usersError, setUsersError] = useState('')
   const [tontoos, setTontoos] = useState(() => COMMUNITIES.map((c) => c.id))
 
-  const unfollowUser = (author) => {
-    setUsers((list) => list.filter((u) => u.author !== author))
-    toast(`u/${author} entfolgt.`)
+  const loadUsers = async () => {
+    setUsersLoading(true)
+    setUsersError('')
+    try {
+      setUsers(await apiFollowed())
+    } catch (e) {
+      setUsersError(e.message || 'Laden fehlgeschlagen.')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  const unfollowUser = async (username) => {
+    try {
+      const r = await apiToggleFollow(username)
+      if (!r.followed) {
+        setUsers((list) => list.filter((u) => u.username !== username))
+        toast(`@${username} entfolgt.`)
+      }
+    } catch (e) {
+      toast(e.message || 'Entfolgen fehlgeschlagen.')
+    }
   }
   const unfollowTontoo = (id) => {
     const c = COMMUNITIES.find((x) => x.id === id)
@@ -54,29 +73,49 @@ export default function Followed({ showToast }) {
           <strong>Gefolgte User</strong>
           <span className="pill">{users.length}</span>
         </div>
-        {users.length === 0 ? (
+        {usersLoading ? (
+          <div className="follow-empty">
+            <p><i className="fa-solid fa-circle-notch fa-spin" /> Wird geladen …</p>
+          </div>
+        ) : usersError ? (
+          <div className="follow-empty">
+            <i className="fa-solid fa-triangle-exclamation big" aria-hidden="true" />
+            <p>{/eingeloggt/i.test(usersError) ? 'Bitte zuerst einloggen.' : usersError}</p>
+            {/eingeloggt/i.test(usersError) ? (
+              <Link to="/login" className="btn btn-brand btn-sm">
+                <i className="fa-solid fa-right-to-bracket" /> Zum Login
+              </Link>
+            ) : (
+              <button type="button" className="btn btn-brand btn-sm" onClick={loadUsers}>
+                <i className="fa-solid fa-rotate-right" /> Erneut versuchen
+              </button>
+            )}
+          </div>
+        ) : users.length === 0 ? (
           <div className="follow-empty">
             <i className="fa-solid fa-user-plus big" aria-hidden="true" />
             <p>Du folgst noch niemandem.</p>
-            <Link to="/app" className="btn btn-brand btn-sm">
-              <i className="fa-solid fa-compass" /> Startseite entdecken
+            <Link to="/shorts" className="btn btn-brand btn-sm">
+              <i className="fa-solid fa-clapperboard" /> Shorts entdecken
             </Link>
           </div>
         ) : (
           <div className="follow-list">
             {users.map((u, i) => (
-              <div key={u.author} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
-                <Link to={`/u/${u.author}`} className="follow-link">
-                  <span className="comm-ic" aria-hidden="true">
-                    <i className={`fa-solid ${u.icon} ${u.color}`} />
+              <div key={u.username} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
+                <Link to={`/u/${u.username}`} className="follow-link">
+                  <span className="comm-ic follow-ava" aria-hidden="true">
+                    {u.avatarUrl
+                      ? <img src={avatarSrc(u.avatarUrl)} alt="" />
+                      : <i className="fa-solid fa-circle-user" />}
                   </span>
                   <span className="follow-main">
-                    <strong>u/{u.author}</strong>
-                    <small>{infoOf(u.author)}</small>
+                    <strong>u/{u.username}</strong>
+                    <small>{infoOf(u)}</small>
                   </span>
                   <i className="fa-solid fa-chevron-right follow-go" aria-hidden="true" />
                 </Link>
-                <FollowToggle label={`u/${u.author}`} onUnfollow={() => unfollowUser(u.author)} />
+                <FollowToggle label={`u/${u.username}`} onUnfollow={() => unfollowUser(u.username)} />
               </div>
             ))}
           </div>

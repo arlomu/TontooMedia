@@ -162,6 +162,9 @@ export const apiToggleFollow = (username) =>
     auth: true,
   })
 
+export const apiFollowed = () =>
+  request('/api/followed', { auth: true }).then((d) => d.users || [])
+
 // Multipart-Upload per XHR (damit es echten Fortschritt gibt).
 export const apiUploadShort = ({
   file,

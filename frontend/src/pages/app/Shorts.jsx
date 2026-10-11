@@ -6,6 +6,7 @@ import {
   apiLikeShortComment,
   apiPostShortComment,
   apiShortComments,
+  apiToggleFollow,
   apiViewShort,
   avatarSrc,
   mediaSrc,
@@ -282,6 +283,27 @@ export default function Shorts({ showToast }) {
     } catch (e) {
       setFeed((f) => f.map((x) => (x.id === s.id
         ? { ...x, liked: was, likes: Math.max(0, (x.likes || 0) + (was ? 1 : -1)) }
+        : x)))
+      showToast(needLogin(e.message))
+    }
+  }
+
+  // Folgen (nur hier folgen – entfolgt wird in /followed).
+  // Danach steht nur noch ein statisches "Gefolgt", kein Button.
+  const followAuthor = async (s) => {
+    if (s.author.following) return
+    setFeed((f) => f.map((x) => (x.id === s.id
+      ? { ...x, author: { ...x.author, following: true } }
+      : x)))
+    try {
+      const r = await apiToggleFollow(s.author.username)
+      setFeed((f) => f.map((x) => (x.id === s.id
+        ? { ...x, author: { ...x.author, following: !!r.followed } }
+        : x)))
+      if (r.followed) showToast(`@${s.author.username} gefolgt.`)
+    } catch (e) {
+      setFeed((f) => f.map((x) => (x.id === s.id
+        ? { ...x, author: { ...x.author, following: false } }
         : x)))
       showToast(needLogin(e.message))
     }
@@ -586,6 +608,19 @@ export default function Shorts({ showToast }) {
               : <i className="fa-solid fa-circle-user" />}
           </Link>
           <span className="short-author"><Link to={`/u/${s.author.username}`} className="cell-link">@{s.author.username}</Link></span>
+          {s.author.following ? (
+            <span className="followed-static" aria-label="Gefolgt">
+              <i className="fa-solid fa-check" /> Gefolgt
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-brand btn-sm follow-btn"
+              onClick={() => followAuthor(s)}
+            >
+              Follow
+            </button>
+          )}
         </div>
         <div className="short-title">{s.title}</div>
         {!!s.tags?.length && (

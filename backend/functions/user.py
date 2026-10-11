@@ -219,5 +219,6 @@ def delete_account(storage: Storage, user_id: int, confirm_username: str) -> Non
             (AVATAR_DIR / user["avatar"]).unlink(missing_ok=True)
         except OSError:
             pass
+    storage.delete_user_extras(user_id)
     storage.delete_user(user_id)
     log.info("Konto gelöscht: %s (id=%d)", user["username"], user_id)
