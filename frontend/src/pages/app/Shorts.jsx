@@ -51,16 +51,6 @@ export default function Shorts({ showToast }) {
 
   return (
     <div className="app-page shorts-page">
-      <div className="shorts-head">
-        <div>
-          <h2 className="app-title">Shorts</h2>
-          <p className="app-sub nomargin">Beispiel-Player – keine echten Videos.</p>
-        </div>
-        <span className="pill">
-          {idx + 1} / {DEMO_SHORTS.length} · Beispiel
-        </span>
-      </div>
-
       <div className="shorts-center">
       <div className="shorts-stage">
         <div className="short-player" ref={playerRef}>
