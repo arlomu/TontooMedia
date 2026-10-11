@@ -19,7 +19,6 @@ const postUrl = (p) => `${window.location.origin}/t/${commIdOf(p)}/post/${p.id}`
 export default function Start() {
   const [sort, setSort] = useState('neu')
   const [liked, setLiked] = useState({})
-  const [saved, setSaved] = useState({})
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null) // Post im Teilen-Menü (wie bei Shorts)
   const [ctx, setCtx] = useState(null) // { x, y, post } – eigenes Rechtsklick-Menü
@@ -159,7 +158,6 @@ export default function Start() {
             {filtered.map((p, i) => {
               const cid = commIdOf(p)
               const isLiked = !!liked[p.id]
-              const isSaved = !!saved[p.id]
               return (
                 <article
                   key={p.id}
@@ -217,17 +215,6 @@ export default function Start() {
                       onClick={() => setSharePost(p)}
                     >
                       <i className="fa-solid fa-share-nodes" /> Teilen
-                    </button>
-                    <span className="tool-spacer" />
-                    <button
-                      type="button"
-                      className={`iconbtn sm${isSaved ? ' saved' : ''}`}
-                      aria-pressed={isSaved}
-                      aria-label={isSaved ? 'Gespeichert' : 'Speichern'}
-                      title={isSaved ? 'Gespeichert' : 'Speichern'}
-                      onClick={() => setSaved((m) => ({ ...m, [p.id]: !m[p.id] }))}
-                    >
-                      <i className={`${isSaved ? 'fa-solid' : 'fa-regular'} fa-bookmark`} />
                     </button>
                   </div>
                 </article>
