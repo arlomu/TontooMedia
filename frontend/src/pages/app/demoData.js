@@ -274,8 +274,8 @@ const SHORT_STATS = {
   1: { views: 2104500, date: '08.10.2026', status: 'live', visibility: 'Öffentlich', desc: '1v3-Clutch, ungeschnitten.' },
   2: { views: 740200, date: '09.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Golden Hour, 50mm, kein Filter.' },
   3: { views: 198400, date: '10.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Beat aus dem Homestudio.' },
-  4: { views: 96300, date: '10.10.2026', status: 'live', visibility: 'Ungelisted', desc: 'Mitternachtspasta zum Nachkochen.' },
-  5: { views: 141800, date: '11.10.2026', status: 'draft', visibility: 'Privat', desc: 'Setup-Tour, Schnitt fast fertig.' },
+  4: { views: 96300, date: '10.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Mitternachtspasta zum Nachkochen.' },
+  5: { views: 141800, date: '11.10.2026', status: 'live', visibility: 'Privat', desc: 'Setup-Tour, Schnitt fast fertig.' },
 }
 
 export const DEMO_STUDIO_SHORTS = DEMO_SHORTS.map((s) => ({ ...s, ...SHORT_STATS[s.id] }))

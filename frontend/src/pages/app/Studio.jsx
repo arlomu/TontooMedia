@@ -20,19 +20,16 @@ const PERIODS = [
   { id: 28, label: '28 Tage' },
   { id: 90, label: '90 Tage' },
 ]
-const VISIBILITIES = ['Öffentlich', 'Ungelisted', 'Privat']
+const VISIBILITIES = ['Öffentlich', 'Privat']
 
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 const fmtDelta = (d) => `+${String(d).replace('.', ',')} %`
 const shortUrl = (id) => `${window.location.origin}/shorts/${id}`
 
-// Sichtbarkeits-Pille: Entwurf schlägt Sichtbarkeit
-const visPill = (s) => {
-  if (s.status === 'draft') return { label: 'Entwurf', cls: 'draft' }
-  if (s.visibility === 'Öffentlich') return { label: 'Öffentlich', cls: 'live' }
-  if (s.visibility === 'Ungelisted') return { label: 'Ungelisted', cls: 'plan' }
-  return { label: 'Privat', cls: 'private' }
-}
+// Sichtbarkeits-Pille: nur Öffentlich oder Privat
+const visPill = (s) => s.visibility === 'Privat'
+  ? { label: 'Privat', cls: 'private' }
+  : { label: 'Öffentlich', cls: 'live' }
 
 // Creator-Studio (Demo): Kennzahlen, Shorts/Post-Verwaltung mit Bearbeiten,
 // Hochladen, Planen und Löschen. Alles Beispiel, kein Backend.
@@ -269,10 +266,6 @@ export default function Studio({ showToast }) {
   return (
     <div className="app-page studio-page">
       <div className="studio-head">
-        <div>
-          <h2 className="app-title">Studio</h2>
-          <p className="app-sub">Verwalten, bearbeiten, hochladen und planen – alles Demo.</p>
-        </div>
         <div className="studio-head-actions">
           <div className="toolbar" role="tablist" aria-label="Zeitraum">
             {PERIODS.map((p) => (
