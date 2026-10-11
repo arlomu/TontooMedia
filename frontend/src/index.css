@@ -468,7 +468,17 @@ main.app-wrap { max-width: none; padding: 0; }
   border-radius: var(--radius); overflow: hidden;
   animation: pop 0.2s ease;
 }
-.sheet-head { padding: 18px 20px 12px; }
+.sheet-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 16px 12px 20px;
+}
+.sheet-x {
+  display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0;
+  background: transparent; border: none; border-radius: 50%; cursor: pointer;
+  color: var(--text-sec); font-size: 15px;
+  transition: background 0.12s, color 0.12s;
+}
+.sheet-x:hover { background: var(--surface2); color: var(--text); }
 .sheet-title { font-size: 19px; font-weight: 800; color: var(--text); }
 .sheet-count { font-size: 13px; font-weight: 600; color: var(--text-3rd); margin-left: 6px; }
 .sheet-body {

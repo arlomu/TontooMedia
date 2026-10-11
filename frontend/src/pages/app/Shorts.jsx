@@ -347,6 +347,9 @@ export default function Shorts({ showToast }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Kommentare" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head">
               <strong className="sheet-title">Kommentare <span className="sheet-count">{short.comments}</span></strong>
+              <button type="button" className="sheet-x" aria-label="Schließen" onClick={closeComments}>
+                <i className="fa-solid fa-xmark" />
+              </button>
             </div>
             <div className="sheet-body">
               {allComments.map((c) => (
@@ -419,10 +422,6 @@ export default function Shorts({ showToast }) {
                 <i className="fa-solid fa-paper-plane" />
               </button>
             </form>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={closeComments}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" onClick={closeComments}>Fertig</button>
-            </div>
           </div>
         </div>
       )}
@@ -433,6 +432,9 @@ export default function Shorts({ showToast }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Teilen" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head">
               <strong className="sheet-title">Teilen</strong>
+              <button type="button" className="sheet-x" aria-label="Schließen" onClick={() => setShareOpen(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
             </div>
             <div className="sheet-body">
               <p className="sheet-sub">@{short.author} · {short.title}</p>
@@ -442,10 +444,6 @@ export default function Shorts({ showToast }) {
                   <i className="fa-solid fa-copy" /> Kopieren
                 </button>
               </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setShareOpen(false)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" onClick={() => setShareOpen(false)}>Fertig</button>
             </div>
           </div>
         </div>
