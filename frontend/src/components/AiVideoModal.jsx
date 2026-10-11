@@ -76,11 +76,19 @@ export default function AiVideoModal({ notify, onDone, onClose }) {
     }, 3000)
   }
 
-  const addTag = () => {
+  const commitTag = () => {
     const t = cleanTag(tagDraft)
-    if (!t || tags.length >= 5 || tags.includes(t)) return
-    setTags((l) => [...l, t])
+    if (t && !tags.includes(t) && tags.length < 5) setTags((l) => [...l, t])
     setTagDraft('')
+  }
+
+  const onTagKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
+      e.preventDefault()
+      commitTag()
+    } else if (e.key === 'Backspace' && !tagDraft && tags.length) {
+      setTags((l) => l.slice(0, -1))
+    }
   }
 
   const pickThumb = (e) => {
@@ -197,41 +205,28 @@ export default function AiVideoModal({ notify, onDone, onClose }) {
           />
         </label>
         <div className="field nomargin">
-          <span>Hashtags (max. 5)</span>
-          <div className="tag-edit">
-            <div className="tagrow-show">
-              {tags.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className="tag-pill"
-                  title="Entfernen"
-                  onClick={() => setTags((l) => l.filter((x) => x !== t))}
-                >
-                  #{t} <i className="fa-solid fa-xmark" />
+          <span>Hashtags</span>
+          <div className="tagrow">
+            <i className="fa-solid fa-hashtag tag-ic" aria-hidden="true" />
+            {tags.map((t) => (
+              <span className="tag-pill edit" key={t}>
+                #{t}
+                <button type="button" aria-label={`Tag ${t} entfernen`} onClick={() => setTags((l) => l.filter((x) => x !== t))}>
+                  <i className="fa-solid fa-xmark" />
                 </button>
-              ))}
-            </div>
+              </span>
+            ))}
             {tags.length < 5 && (
-              <div className="tag-add">
-                <input
-                  type="text"
-                  value={tagDraft}
-                  maxLength={20}
-                  placeholder="#tag"
-                  aria-label="Hashtag hinzufügen"
-                  onChange={(e) => setTagDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ',') {
-                      e.preventDefault()
-                      addTag()
-                    }
-                  }}
-                />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={addTag}>
-                  <i className="fa-solid fa-plus" />
-                </button>
-              </div>
+              <input
+                className="tag-input"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={onTagKey}
+                onBlur={commitTag}
+                placeholder={tags.length ? '' : '#gaming #clip …'}
+                aria-label="Hashtag hinzufügen"
+                maxLength={22}
+              />
             )}
           </div>
         </div>
