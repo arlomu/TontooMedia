@@ -407,6 +407,18 @@ class _Handler(BaseHTTPRequestHandler):
 
     # ---------- Helfer ----------
 
+    def _write(self, data: bytes) -> bool:
+        """Body schreiben. False, wenn der Client schon weg ist (kein Fehler).
+
+        Passiert ständig (StrictMode-Doppelcalls, Weiternavigieren, Polling) –
+        soll keinen Traceback produzieren.
+        """
+        try:
+            self.wfile.write(data)
+            return True
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return False
+
     def _send(self, status: int, payload: dict) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
@@ -416,7 +428,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
         self.end_headers()
-        self.wfile.write(body)
+        self._write(body)
 
     def _ok(self, payload: dict) -> None:
         self._send(200, payload)
@@ -1188,7 +1200,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        self.wfile.write(data)
+        self._write(data)
 
     def _serve_media(self, name: str) -> None:
         """ Liefert Videos/Thumbnails/Community-Bilder aus db/media (mit Range-Support fürs Seeken)."""
@@ -1249,7 +1261,8 @@ class _Handler(BaseHTTPRequestHandler):
                 chunk = f.read(min(1024 * 1024, remaining))
                 if not chunk:
                     break
-                self.wfile.write(chunk)
+                if not self._write(chunk):
+                    break
                 remaining -= len(chunk)
 
     def log_message(self, fmt: str, *args) -> None:  # noqa: N802
