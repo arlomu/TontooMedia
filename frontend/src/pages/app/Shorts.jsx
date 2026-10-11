@@ -109,9 +109,27 @@ export default function Shorts({ showToast }) {
     setReplyTo(null)
   }, [idx])
 
-  // Aktives Video steuern: läuft mit Ton los; blockt der Browser den Ton,
-  // startet es stumm + Hinweis-Pille ("Ton an") erscheint
+  // Aktives Video steuern: läuft mit Ton los; blockt der Browser den Ton
+  // wirklich (NotAllowedError), startet es stumm + Hinweis-Pille ("Ton an").
+  // Andere Fehler (z. B. abgebrochener Play-Versuch) stummen NICHT – onCanPlay
+  // versucht es dann erneut, sobald Daten da sind.
   const shortId = short?.id
+  const tryPlay = (v) => {
+    v.muted = mutedRef.current
+    const p = v.play()
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        // Ton läuft -> Hinweis weg (auch wenn ein früherer Short blockt war)
+        if (!v.muted) setSndBlocked(false)
+      }).catch((err) => {
+        if (err && err.name === 'NotAllowedError' && !v.muted) {
+          v.muted = true
+          setSndBlocked(true)
+          v.play().catch(() => {})
+        }
+      })
+    }
+  }
   useEffect(() => {
     const v = videoRef.current
     if (!v || !shortId) return
@@ -120,20 +138,7 @@ export default function Shorts({ showToast }) {
       v.pause()
       return
     }
-    v.muted = muted
-    const p = v.play()
-    if (p && typeof p.then === 'function') {
-      p.then(() => {
-        // Ton läuft -> Hinweis weg (auch wenn ein früherer Short blockt war)
-        if (!v.muted) setSndBlocked(false)
-      }).catch(() => {
-        if (!v.muted) {
-          v.muted = true
-          setSndBlocked(true)
-          v.play().catch(() => {})
-        }
-      })
-    }
+    tryPlay(v)
   }, [idx, shortId, playing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stumm-Schalter (User-Geste -> Ton darf wieder an)
@@ -143,9 +148,9 @@ export default function Shorts({ showToast }) {
     v.muted = muted
     if (!muted) {
       setSndBlocked(false)
-      if (playing) v.play().catch(() => {})
+      if (playing) tryPlay(v)
     }
-  }, [muted, playing])
+  }, [muted, playing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Aufruf zählen (einmal pro Short und Seitenaufruf)
   useEffect(() => {
@@ -179,10 +184,7 @@ export default function Shorts({ showToast }) {
   // Daten da, aber Effect lief zu früh: sobald abspielbar, los (falls Pause gewollt ist, passiert nichts)
   const onCanPlay = (e) => {
     const v = e.currentTarget
-    if (playingRef.current && v.paused) {
-      v.muted = mutedRef.current
-      v.play().catch(() => {})
-    }
+    if (playingRef.current && v.paused) tryPlay(v)
   }
 
   const onTimeUpdate = (e) => {
@@ -477,8 +479,8 @@ export default function Shorts({ showToast }) {
         </div>
       </div>
 
-      {/* Ton-Hinweis, falls der Browser Ton-Autoplay blockt */}
-      {active && sndBlocked && (
+      {/* Ton-Hinweis, falls der Browser Ton-Autoplay wirklich blockt */}
+      {active && sndBlocked && !muted && (
         <button type="button" className="snd-hint" onClick={() => setMuted(false)}>
           <i className="fa-solid fa-volume-xmark" /> Ton an
         </button>
