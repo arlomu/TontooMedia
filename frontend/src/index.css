@@ -366,10 +366,10 @@ main.app-wrap { max-width: none; padding: 0; }
   touch-action: none;
 }
 .short-anim { position: absolute; inset: 0; }
-.short-anim.from-bottom { animation: shortInBottom 0.28s ease; }
-.short-anim.from-top { animation: shortInTop 0.28s ease; }
-@keyframes shortInBottom { from { opacity: 0.3; transform: translateY(48px); } }
-@keyframes shortInTop { from { opacity: 0.3; transform: translateY(-48px); } }
+.short-anim.from-bottom { animation: shortInBottom 0.35s ease-out; }
+.short-anim.from-top { animation: shortInTop 0.35s ease-out; }
+@keyframes shortInBottom { from { transform: translateY(100%); } }
+@keyframes shortInTop { from { transform: translateY(-100%); } }
 .short-player:fullscreen { border-radius: 0; max-height: none; height: 100%; width: auto; aspect-ratio: 9 / 16; }
 .short-screen {
   position: absolute; inset: 0; display: flex; flex-direction: column;
