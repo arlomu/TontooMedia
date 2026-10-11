@@ -351,16 +351,17 @@ main.app-wrap { max-width: none; padding: 0; }
 .postmeta span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Shorts-Viewer (YouTube-Stil, alles Beispiel) */
-.shorts-page { display: flex; flex-direction: column; min-height: calc(100vh - 130px); }
-.shorts-center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0 20px; }
+.shorts-page { display: flex; flex-direction: column; min-height: calc(100vh - 80px); min-height: calc(100dvh - 80px); }
+.shorts-center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 6px 0 10px; min-height: calc(100vh - 80px); min-height: calc(100dvh - 80px); }
 .shorts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .shorts-stage { display: flex; gap: 14px; align-items: center; justify-content: center; width: 100%; }
 .short-player {
-  position: relative; width: min(400px, 100%, 42.75vh); aspect-ratio: 9 / 16;
+  position: relative; height: min(calc(100vh - 120px), 860px); height: min(calc(100dvh - 120px), 860px);
+  aspect-ratio: 9 / 16; width: auto; max-width: 100%; min-height: 520px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden; flex-shrink: 1; min-width: 0;
 }
-.short-player:fullscreen { border-radius: 0; max-height: none; width: 100%; }
+.short-player:fullscreen { border-radius: 0; max-height: none; height: 100%; width: auto; aspect-ratio: 9 / 16; }
 .short-screen {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px;
@@ -421,6 +422,10 @@ main.app-wrap { max-width: none; padding: 0; }
 @media (max-width: 560px) {
   .shorts-stage { gap: 8px; }
   .short-info { right: 66px; }
+  .short-player {
+    width: 100%; height: auto; min-height: 0;
+    max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px);
+  }
 }
 
 /* Studio */
