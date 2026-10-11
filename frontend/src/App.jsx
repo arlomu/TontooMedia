@@ -27,6 +27,7 @@ export default function App() {
   const eggClicks = useRef([])
   const location = useLocation()
   const isApp = isAppRoute(location.pathname)
+  const isLanding = location.pathname === '/'
 
   const showToast = (msg) => {
     setToast(msg)
@@ -92,10 +93,12 @@ export default function App() {
               <span className="brand-badge">beta</span>
             </a>
 
-            {/* Suche oben in der Mitte (Demo) */}
-            <div className="nav-search">
-              <SearchBar onSearch={handleSearch} placeholder="Suchen …" />
-            </div>
+            {/* Suche oben in der Mitte (Demo) – nicht auf der Landingpage (/) */}
+            {!isLanding && (
+              <div className="nav-search">
+                <SearchBar onSearch={handleSearch} placeholder="Suchen …" />
+              </div>
+            )}
 
             {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
             <div className="nav-actions">
@@ -120,7 +123,9 @@ export default function App() {
 
           {mobileOpen && (
             <nav className="mobilepanel">
-              <SearchBar onSearch={(q) => { setMobileOpen(false); handleSearch(q) }} placeholder="Suchen …" />
+              {!isLanding && (
+                <SearchBar onSearch={(q) => { setMobileOpen(false); handleSearch(q) }} placeholder="Suchen …" />
+              )}
               <div className="mobilerow">
                 <Link to="/login" className="btn btn-ghost">
                   <i className="fa-solid fa-right-to-bracket" /> Login
