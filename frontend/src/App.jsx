@@ -114,7 +114,7 @@ export default function App() {
         </header>
       )}
 
-      <main>
+      <main className={isApp ? 'app-wrap' : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />

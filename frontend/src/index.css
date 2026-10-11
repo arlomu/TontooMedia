@@ -236,12 +236,13 @@ main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; paddin
 }
 
 /* ---------- /app: Layout + Sidebar (eigene Komponente) ---------- */
-.app-layout { display: flex; gap: 20px; align-items: flex-start; padding: 24px 0 40px; }
+main.app-wrap { max-width: none; padding: 0; }
+.app-layout { display: flex; gap: 0; align-items: stretch; min-height: 100vh; }
 .sidebar {
-  width: 266px; flex-shrink: 0;
-  position: sticky; top: 84px; max-height: calc(100vh - 104px); overflow-y: auto;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px;
+  width: 280px; flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 18px 14px;
   display: flex; flex-direction: column; gap: 4px;
 }
 .side-brand {
@@ -285,11 +286,11 @@ main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; paddin
   background: var(--surface2); border: 1px solid var(--border); font-size: 14px;
 }
 .side-foot { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
-.app-main { flex: 1; min-width: 0; }
+.app-main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
 .app-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
 .app-topbrand { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
 .app-topbrand small { color: var(--text-3rd); font-family: var(--font-body); font-size: 13px; font-weight: 600; }
-.app-content { min-width: 0; }
+.app-content { min-width: 0; max-width: 960px; }
 .side-overlay { display: none; }
 
 /* ---------- /app: Content-Pages (alle nur Beispiel) ---------- */
@@ -401,7 +402,7 @@ main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; paddin
 
 /* ---------- App-Responsive: Sidebar einklappbar ---------- */
 @media (max-width: 900px) {
-  .app-layout { padding-top: 16px; }
+  .app-main { padding: 16px 16px 50px; }
   .sidebar {
     position: fixed; top: 0; bottom: 0; left: 0; z-index: 40;
     width: 280px; border-radius: 0; border-left: none; border-top: none; border-bottom: none;
