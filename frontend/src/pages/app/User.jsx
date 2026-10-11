@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiGetUser, apiToggleFollow, avatarSrc, mediaSrc } from '../../lib/api.js'
-import PostBody from '../../components/PostBody.jsx'
 
 const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
@@ -22,7 +21,6 @@ export default function User({ showToast, me }) {
   const [status, setStatus] = useState('loading') // loading | ready | missing | error
   const [profile, setProfile] = useState(null)
   const [followBusy, setFollowBusy] = useState(false)
-  const [expanded, setExpanded] = useState({})
   const toast = (msg) => showToast?.(msg)
 
   useEffect(() => {
@@ -221,63 +219,29 @@ export default function User({ showToast, me }) {
         sortedPosts.length === 0 ? (
           <p className="feed-hint">Noch keine Beiträge von u/{username}.</p>
         ) : (
-          <div className="app-feed">
-            {sortedPosts.map((p, i) => {
-              const imgs = (p.images || []).map(mediaSrc)
-              const open = !!expanded[p.id]
-              const shown = open ? imgs : imgs.slice(0, 1)
-              const detailUrl = `/t/${p.community.slug}/post/${p.id}`
-              return (
-                <article
-                  key={p.id}
-                  className="post start-post"
-                  style={{ animationDelay: `${Math.min(i, 5) * 40}ms` }}
-                >
-                  <div className="posthead">
-                    <Link
-                      to={`/u/${p.author.username}`}
-                      className="avatar"
-                      aria-label={`Profil von ${p.author.username}`}
-                    >
-                      {p.author.avatarUrl ? (
-                        <img src={avatarSrc(p.author.avatarUrl)} alt="" />
-                      ) : (
-                        <i className="fa-solid fa-circle-user" />
-                      )}
-                    </Link>
-                    <div className="postheada">
-                      <div className="postline">
-                        <Link to={`/t/${p.community.slug}`} className="comm-link">
-                          t/{p.community.name}
-                        </Link>
-                        <span className="dot" aria-hidden="true">
-                          ·
-                        </span>
-                        <span className="posttime">
-                          <i className="fa-regular fa-clock" /> {p.date}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link to={detailUrl} className="post-titlelink">
-                    <h4 className="post-title">{p.title}</h4>
-                  </Link>
-                  <PostBody post={{ ...p, images: shown }} detailUrl={detailUrl} />
-
-                  {imgs.length > 1 && (
-                    <button
-                      type="button"
-                      className="toolbtn sm more-imgs"
-                      onClick={() => setExpanded((m) => ({ ...m, [p.id]: !m[p.id] }))}
-                    >
-                      <i className={`fa-solid ${open ? 'fa-chevron-up' : 'fa-images'}`} />
-                      {open ? 'Weniger' : `+${imgs.length - 1} mehr`}
-                    </button>
-                  )}
-                </article>
-              )
-            })}
+          <div className="profile-posts">
+            {sortedPosts.map((p) => (
+              <Link
+                key={p.id}
+                to={`/t/${p.community.slug}/post/${p.id}`}
+                className="profile-postcard"
+                aria-label={`Post ${p.title}`}
+              >
+                <strong>{p.title}</strong>
+                {!!p.tags?.length && (
+                  <span className="tagrow-show">
+                    {p.tags.map((t) => (
+                      <span key={t} className="tag-pill">
+                        #{t}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                <small>
+                  t/{p.community.name} · {p.date}
+                </small>
+              </Link>
+            ))}
           </div>
         )
       ) : sortedShorts.length === 0 ? (

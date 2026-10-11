@@ -870,6 +870,28 @@ a.cell-title:hover { text-decoration: underline; }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
 }
 .profile-shorts .short-card { width: auto; }
+/* Profil-Posts: kompakte Karten ohne Bilder, max. 2 nebeneinander */
+.profile-posts {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+}
+.profile-postcard {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  text-decoration: none; color: var(--text);
+  transition: transform 0.13s ease, border-color 0.15s;
+}
+.profile-postcard:hover { transform: translateY(-3px); border-color: var(--brand); }
+.profile-postcard strong {
+  font-size: 14.5px; line-height: 1.4; font-family: var(--font-body);
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
+}
+.profile-postcard .tagrow-show { margin-top: 0; }
+.profile-postcard small { font-size: 12.5px; color: var(--text-3rd); font-family: var(--font-body); }
+@media (max-width: 560px) {
+  .profile-posts { grid-template-columns: 1fr; }
+}
 /* Community-Hero als Karte */
 .comm-hero-card {
   display: flex; align-items: center; gap: 16px;
