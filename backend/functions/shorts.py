@@ -254,8 +254,50 @@ def delete_short(storage: Storage, user_id: int, short_id: int) -> None:
         raise ValueError("Short nicht gefunden.")
     _remove_file(VIDEO_DIR / (short.get("filename") or ""))
     _remove_file(THUMB_DIR / (short.get("thumb") or ""))
+    storage.delete_short_extras(short_id)
     storage.delete_short(short_id)
     log.info("Short gelöscht: id=%d (user=%d)", short_id, user_id)
+
+
+def toggle_like(storage: Storage, user_id: int, short_id: int) -> dict:
+    """Like umschalten (nur öffentliche Shorts). Gibt {liked, likes} zurück."""
+    short = storage.get_short(short_id)
+    if short is None or short["visibility"] != "Öffentlich":
+        raise ValueError("Short nicht gefunden.")
+    liked = storage.toggle_like(short_id, user_id)
+    return {"liked": liked, "likes": storage.like_count(short_id)}
+
+
+def add_view(storage: Storage, short_id: int) -> int:
+    """Zählt einen Aufruf (nur öffentliche Shorts)."""
+    short = storage.get_short(short_id)
+    if short is None or short["visibility"] != "Öffentlich":
+        raise ValueError("Short nicht gefunden.")
+    return storage.add_view(short_id)
+
+
+def post_comment(storage: Storage, user_id: int, short_id: int, text: str) -> dict:
+    """Kommentar anlegen (nur öffentlich + Kommentare an)."""
+    short = storage.get_short(short_id)
+    if short is None or short["visibility"] != "Öffentlich":
+        raise ValueError("Short nicht gefunden.")
+    if short.get("comments_off"):
+        raise ValueError("Kommentare sind deaktiviert.")
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("Kommentar ist leer.")
+    if len(text) > 280:
+        raise ValueError("Kommentar ist zu lang (max. 280 Zeichen).")
+    comment_id = storage.add_comment(short_id, user_id, text)
+    user = storage.get_user_by_id(user_id)
+    return {
+        "id": comment_id,
+        "text": text,
+        "created_at": int(time.time()),
+        "username": user["username"] if user else "?",
+        "author_name": (user["name"] if user else "?"),
+        "author_avatar": user.get("avatar") if user else None,
+    }
 
 
 def _remove_file(path: Path) -> None:

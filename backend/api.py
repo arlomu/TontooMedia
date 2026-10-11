@@ -17,6 +17,11 @@ Endpunkte (alle unter /api/...):
   POST   /api/shorts/<id>/thumb {data: dataURL} -> {short}
   DELETE /api/shorts/<id>   -> {ok: true}
   GET    /api/studio/overview (Bearer) -> Kennzahlen
+  GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
+  POST   /api/shorts/<id>/like (Bearer) -> {liked, likes}
+  GET    /api/shorts/<id>/comments -> {comments: [...]}
+  POST   /api/shorts/<id>/comments (Bearer, {text}) -> {comment}
+  POST   /api/shorts/<id>/view -> {views}
   GET    /api/media/<datei>   Video/Thumbnail (mit Range-Support)
 
 Auth per `Authorization: Bearer <token>`. Alles Demo, kein HTTPS.
@@ -35,8 +40,11 @@ try:
     from .functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
+        add_view,
         create_short,
         delete_short,
+        post_comment,
+        toggle_like,
         update_short,
     )
     from .functions.user import (
@@ -54,8 +62,11 @@ except ImportError:  # direkter Start via `python backend/api.py`
     from functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
+        add_view,
         create_short,
         delete_short,
+        post_comment,
+        toggle_like,
         update_short,
     )
     from functions.user import (
@@ -136,6 +147,57 @@ def public_short(row: dict) -> dict:
         "comments": "–" if row.get("comments_off") else 0,
         "thumbUrl": f"/api/media/{row['thumb']}" if row.get("thumb") else None,
         "videoUrl": f"/api/media/{row['filename']}" if row.get("filename") else None,
+    }
+
+
+def date_label(created: int) -> str:
+    """'heute HH:MM' oder 'TT.MM.JJJJ HH:MM'."""
+    if not created:
+        return "–"
+    dt = datetime.fromtimestamp(created)
+    day = "heute" if dt.date() == datetime.now().date() else dt.strftime("%d.%m.%Y")
+    return f"{day} {dt.strftime('%H:%M')}"
+
+
+def public_feed_short(row: dict) -> dict:
+    """Öffentlicher Short für den /shorts-Viewer (mit Autor + Zählern)."""
+    import json as _json
+
+    try:
+        tags = _json.loads(row.get("tags") or "[]")
+    except ValueError:
+        tags = []
+    comments_off = bool(row.get("comments_off"))
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "tags": tags,
+        "dur": fmt_dur(row.get("duration") or 0),
+        "seconds": round(float(row.get("duration") or 0), 1),
+        "views": row.get("views") or 0,
+        "likes": row.get("likes") or 0,
+        "liked": bool(row.get("liked")),
+        "comments": "–" if comments_off else (row.get("comments_n") or 0),
+        "commentsOff": comments_off,
+        "date": date_label(row.get("created_at") or 0),
+        "thumbUrl": f"/api/media/{row['thumb']}" if row.get("thumb") else None,
+        "videoUrl": f"/api/media/{row['filename']}" if row.get("filename") else None,
+        "author": {
+            "username": row.get("username") or "?",
+            "name": row.get("author_name") or row.get("username") or "?",
+            "avatarUrl": avatar_url(row.get("author_avatar")),
+        },
+    }
+
+
+def public_comment(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "text": row["text"],
+        "date": date_label(row.get("created_at") or 0),
+        "username": row.get("username") or "?",
+        "name": row.get("author_name") or row.get("username") or "?",
+        "avatarUrl": avatar_url(row.get("author_avatar")),
     }
 
 
@@ -279,6 +341,19 @@ class _Handler(BaseHTTPRequestHandler):
                 "delta": {"views": 0, "watchHours": 0, "subs": 0, "likes": 0},
                 "daily": {"views": zero_daily, "watch": zero_daily, "subs": zero_daily, "likes": zero_daily},
             }})
+        if self.path == "/api/feed/shorts":
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
+            with DB_LOCK:
+                rows = _storage.list_feed_shorts(viewer_id)
+            return self._ok({"shorts": [public_feed_short(r) for r in rows]})
+        m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)
+        if m:
+            with DB_LOCK:
+                short = _storage.get_short(int(m.group(1)))
+                if short is None or short["visibility"] != "Öffentlich":
+                    return self._fail(404, "Short nicht gefunden.")
+                rows = _storage.list_comments(int(m.group(1)))
+            return self._ok({"comments": [public_comment(c) for c in rows]})
         if self.path.startswith("/api/avatar/"):
             return self._serve_avatar(self.path[len("/api/avatar/"):])
         if self.path.startswith("/api/media/"):
@@ -386,6 +461,42 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400 if "gefunden" not in str(e) else 404, str(e))
             return self._ok({"short": public_short(fresh)})
+        m = re.fullmatch(r"/api/shorts/(\d+)/like", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    result = toggle_like(_storage, user_id, int(m.group(1)))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok(result)
+        m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    comment = post_comment(
+                        _storage, user_id, int(m.group(1)),
+                        self._read_json().get("text", ""),
+                    )
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            comment["avatarUrl"] = avatar_url(comment.pop("author_avatar"))
+            comment["date"] = date_label(comment.pop("created_at"))
+            return self._send(201, {"comment": comment})
+        m = re.fullmatch(r"/api/shorts/(\d+)/view", self.path)
+        if m:
+            try:
+                with DB_LOCK:
+                    views = add_view(_storage, int(m.group(1)))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok({"views": views})
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_PATCH(self) -> None:  # noqa: N802

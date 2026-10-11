@@ -47,6 +47,21 @@ CREATE TABLE IF NOT EXISTS shorts (
     views INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS short_likes (
+    short_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (short_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS short_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    short_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_likes_short ON short_likes(short_id);
+CREATE INDEX IF NOT EXISTS idx_comments_short ON short_comments(short_id);
 """
 
 _SESSION_SCHEMA = """
@@ -349,6 +364,94 @@ class Storage:
             "SELECT COALESCE(SUM(views), 0) FROM shorts WHERE user_id = ?", (user_id,)
         ).fetchone()
         return row[0] if row else 0
+
+    # ---------- Feed / Likes / Kommentare ----------
+
+    def list_feed_shorts(self, viewer_id: Optional[int], limit: int = 50, offset: int = 0) -> list:
+        """Öffentliche Shorts aller User, neueste zuerst (mit Autor + Zählern)."""
+        conn = self._require()
+        vid = viewer_id or -1
+        cur = conn.execute(
+            "SELECT s.id, s.user_id, s.title, s.tags, s.visibility, s.comments_off,"
+            " s.filename, s.thumb, s.duration, s.width, s.height, s.views, s.created_at,"
+            " u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT COUNT(*) FROM short_likes l WHERE l.short_id = s.id) AS likes,"
+            " (SELECT COUNT(*) FROM short_comments c WHERE c.short_id = s.id) AS comments_n,"
+            " EXISTS(SELECT 1 FROM short_likes l2 WHERE l2.short_id = s.id AND l2.user_id = ?) AS liked"
+            " FROM shorts s JOIN users u ON u.id = s.user_id"
+            " WHERE s.visibility = 'Öffentlich'"
+            " ORDER BY s.id DESC LIMIT ? OFFSET ?",
+            (vid, limit, offset),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def toggle_like(self, short_id: int, user_id: int) -> bool:
+        """Like umschalten. Gibt True zurück, wenn jetzt gelikt ist."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM short_likes WHERE short_id = ? AND user_id = ?",
+            (short_id, user_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM short_likes WHERE short_id = ? AND user_id = ?",
+                (short_id, user_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO short_likes (short_id, user_id, created_at) VALUES (?, ?, ?)",
+            (short_id, user_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def like_count(self, short_id: int) -> int:
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM short_likes WHERE short_id = ?", (short_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+    def add_view(self, short_id: int) -> int:
+        """Zählt einen Aufruf, gibt die neue Summe zurück."""
+        conn = self._require()
+        conn.execute("UPDATE shorts SET views = views + 1 WHERE id = ?", (short_id,))
+        conn.commit()
+        row = conn.execute("SELECT views FROM shorts WHERE id = ?", (short_id,)).fetchone()
+        return row[0] if row else 0
+
+    def list_comments(self, short_id: int) -> list:
+        """Kommentare zu einem Short, älteste zuerst (mit Autor)."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT c.id, c.text, c.created_at, u.username, u.name AS author_name,"
+            " u.avatar AS author_avatar"
+            " FROM short_comments c JOIN users u ON u.id = c.user_id"
+            " WHERE c.short_id = ? ORDER BY c.id ASC",
+            (short_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def add_comment(self, short_id: int, user_id: int, text: str) -> int:
+        """Legt einen Kommentar an, gibt die neue ID zurück."""
+        conn = self._require()
+        cur = conn.execute(
+            "INSERT INTO short_comments (short_id, user_id, text, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            (short_id, user_id, text, int(time.time())),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+    def delete_short_extras(self, short_id: int) -> None:
+        """Löscht Likes + Kommentare zu einem Short (bei Short-Löschung)."""
+        conn = self._require()
+        conn.execute("DELETE FROM short_likes WHERE short_id = ?", (short_id,))
+        conn.execute("DELETE FROM short_comments WHERE short_id = ?", (short_id,))
+        conn.commit()
 
 
 if __name__ == "__main__":

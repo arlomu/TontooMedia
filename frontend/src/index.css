@@ -443,12 +443,51 @@ main.app-wrap { max-width: none; padding: 0; }
 .rail-btn .liked { color: var(--brand); }
 .rail-count { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
 .rail-count:last-child { margin-bottom: 0; }
-.short-info { position: absolute; left: 12px; right: 76px; bottom: 14px; }
+.short-info { position: absolute; left: 12px; right: 76px; bottom: 18px; }
 .short-userrow { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
-.short-avatar { color: #fff; font-size: 30px; line-height: 1; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.short-avatar {
+  width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  display: grid; place-items: center;
+  color: #fff; font-size: 30px; line-height: 1; text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+}
+.short-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .short-author { color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
 .follow-btn { padding: 7px 14px; font-size: 13px; }
 .short-title { color: #fff; font-weight: 600; font-size: 15px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.short-tags { color: #fff; opacity: 0.85; font-size: 12.5px; margin-top: 3px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.short-meta { color: #fff; opacity: 0.8; font-size: 12px; margin-top: 3px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+/* Echtes Video füllt die Karte (Hochkant, Cover) */
+.short-video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; background: #000; cursor: pointer;
+}
+/* Roter Fortschritt unten (Klick = springen) */
+.short-progress {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 12px;
+  display: flex; align-items: flex-end; cursor: pointer; z-index: 5;
+}
+.short-progress span {
+  display: block; height: 4px; background: var(--danger);
+  transition: height 0.12s; pointer-events: none;
+}
+.short-progress:hover span, .short-progress:focus-visible span { height: 7px; }
+/* Ton-Hinweis, falls der Browser Ton-Autoplay blockt */
+.snd-hint {
+  position: absolute; left: 12px; bottom: 108px; z-index: 6;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(0, 0, 0, 0.6); color: #fff;
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 9px 15px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  font-family: var(--font-body);
+}
+.snd-hint:hover { border-color: var(--brand); }
+/* Lade-/Fehler-/Leer-Zustand in der Bühne */
+.shorts-status {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  color: var(--text-sec); font-size: 15px; padding: 40px 20px; text-align: center;
+}
+.shorts-status p { margin: 0; }
 .short-nav {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;
@@ -513,10 +552,11 @@ main.app-wrap { max-width: none; padding: 0; }
 .comment { display: flex; gap: 10px; }
 .comment-ava {
   width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  display: grid; place-items: center;
+  display: grid; place-items: center; overflow: hidden;
   background: var(--surface2); border: 1px solid var(--border);
   color: var(--text-sec); font-size: 15px;
 }
+.comment-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .comment-main { flex: 1; min-width: 0; }
 .comment-head { font-size: 13px; font-weight: 700; color: var(--text); }
 .comment-head small { font-weight: 600; color: var(--text-3rd); margin-left: 6px; }

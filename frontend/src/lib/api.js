@@ -121,6 +121,27 @@ export const apiUploadShortThumb = (id, dataUrl) =>
 export const apiDeleteShort = (id) =>
   request(`/api/shorts/${id}`, { method: 'DELETE', auth: true })
 
+// ---- /shorts-Viewer (Feed öffentlich, Liken/Kommentieren mit Login) ----
+
+export const apiFeedShorts = () =>
+  request('/api/feed/shorts', { auth: true }).then((d) => d.shorts || [])
+
+export const apiLikeShort = (id) =>
+  request(`/api/shorts/${id}/like`, { method: 'POST', auth: true })
+
+export const apiShortComments = (id) =>
+  request(`/api/shorts/${id}/comments`).then((d) => d.comments || [])
+
+export const apiPostShortComment = (id, text) =>
+  request(`/api/shorts/${id}/comments`, {
+    method: 'POST',
+    auth: true,
+    body: { text },
+  }).then((d) => d.comment)
+
+export const apiViewShort = (id) =>
+  request(`/api/shorts/${id}/view`, { method: 'POST' }).catch(() => null)
+
 // Multipart-Upload per XHR (damit es echten Fortschritt gibt).
 export const apiUploadShort = ({
   file,
