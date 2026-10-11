@@ -119,7 +119,6 @@ export default function Einstellungen({ showToast }) {
       {/* Profil */}
       <section className="set-section">
         <h3 className="set-h3"><i className="fa-solid fa-circle-user ic-yellow" /> Profil</h3>
-        <p className="set-desc">Wird automatisch übernommen – kein Speichern nötig.</p>
 
         <div className="profile-hero">
           <button type="button" className="avatar-btn" onClick={() => setAvatarOpen(true)} aria-label="Profilbild ändern">
@@ -191,7 +190,6 @@ export default function Einstellungen({ showToast }) {
       {/* Konto */}
       <section className="set-section">
         <h3 className="set-h3"><i className="fa-solid fa-right-from-bracket ic-teal" /> Konto</h3>
-        <p className="set-desc">Passwort, Abmeldung und Löschung an einem Ort.</p>
 
         <div className="konto-stack">
           <button type="button" className="btn btn-ghost btn-block" onClick={() => setPwOpen(true)}>
@@ -204,7 +202,7 @@ export default function Einstellungen({ showToast }) {
 
         <div className="danger-box">
           <strong className="danger-title"><i className="fa-solid fa-triangle-exclamation" /> Konto löschen</strong>
-          <p className="danger-desc">Löscht Profil, Shorts und Kommentare unwiderruflich (Beispiel).</p>
+          <p className="danger-desc">Löscht Profil, Shorts und Kommentare unwiderruflich.</p>
           {delStep === 0 ? (
             <button type="button" className="btn btn-danger btn-block" onClick={() => setDelStep(1)}>
               <i className="fa-solid fa-trash-can" /> Konto löschen …

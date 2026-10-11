@@ -569,9 +569,8 @@ main.app-wrap { max-width: none; padding: 0; }
 .set-h3 {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--font-body); font-size: 16px; font-weight: 800;
-  margin: 0 0 4px; color: var(--text);
+  margin: 0 0 14px; color: var(--text);
 }
-.set-desc { margin: 0 0 16px; font-size: 13px; color: var(--text-3rd); }
 .set-section .field input, .set-section .field textarea { background: var(--surface2); }
 .sheet .field input { background: var(--surface2); }
 .sheet-narrow { width: min(420px, 100%); }
