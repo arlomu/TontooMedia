@@ -16,7 +16,7 @@ import User from './pages/app/User.jsx'
 // Routen mit der App-Sidebar (statt Landing-Navbar/Footer)
 const APP_ROUTES = ['/app', '/shorts', '/followed', '/studio', '/einstellungen']
 const isAppRoute = (path) =>
-  APP_ROUTES.includes(path) || path.startsWith('/t/') || path.startsWith('/u/')
+  APP_ROUTES.includes(path) || path.startsWith('/shorts/') || path.startsWith('/t/') || path.startsWith('/u/')
 
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -133,7 +133,8 @@ export default function App() {
           {/* Flache App-Routen, alle mit derselben Sidebar */}
           <Route element={<AppLayout showToast={showToast} onSearch={handleSearch} />}>
             <Route path="/app" element={<Start />} />
-            <Route path="/shorts" element={<Shorts />} />
+            <Route path="/shorts" element={<Shorts showToast={showToast} />} />
+            <Route path="/shorts/:id" element={<Shorts showToast={showToast} />} />
             <Route path="/followed" element={<Followed />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
             <Route path="/einstellungen" element={<Einstellungen />} />

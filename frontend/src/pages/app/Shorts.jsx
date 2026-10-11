@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_SHORTS } from './demoData.js'
+
+// Jeder Short hat seine eigene URL: /shorts/:id (zieht beim Scrollen mit).
+const indexFromId = (id) => {
+  const j = DEMO_SHORTS.findIndex((s) => String(s.id) === String(id))
+  return j === -1 ? 0 : j
+}
 
 // Shorts-Viewer wie auf YouTube: Hochkant-Player, Overlays, Action-Rail,
 // Follow-Button, Up/Down-Navigation. Alles Beispiel, kein echtes Video.
 export default function Shorts({ showToast }) {
-  const [idx, setIdx] = useState(0) // man startet ganz oben
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const [idx, setIdx] = useState(() => indexFromId(id)) // man startet ganz oben
   const [playing, setPlaying] = useState(true)
   const [muted, setMuted] = useState(false)
   const [liked, setLiked] = useState({})
@@ -28,6 +36,16 @@ export default function Shorts({ showToast }) {
     clearTimeout(snapTimer.current)
   }, [])
 
+  // URL <-> Short synchron halten: /shorts ohne/unbekannte id -> erster Short,
+  // externe URL-Wechsel (Direktlink, Zurück/Vor) springen ohne Animation hin
+  useEffect(() => {
+    if (!id || DEMO_SHORTS.findIndex((s) => String(s.id) === String(id)) === -1) {
+      navigate(`/shorts/${DEMO_SHORTS[0].id}`, { replace: true })
+      return
+    }
+    setIdx(indexFromId(id))
+  }, [id, navigate])
+
   // Wechseln mit Push-Animation: neue Karte kommt vom Screen-Boden,
   // alte geht oben hinter der Suche weg (wie auf YouTube)
   const goTo = useCallback((d) => {
@@ -39,12 +57,13 @@ export default function Shorts({ showToast }) {
     busyRef.current = true
     setSlide({ from: idx, to: j, dir: d })
     setIdx(j)
+    navigate(`/shorts/${DEMO_SHORTS[j].id}`, { replace: true })
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       busyRef.current = false
       setSlide(null)
     }, 400)
-  }, [idx])
+  }, [idx, navigate])
   const prev = useCallback(() => goTo('up'), [goTo])
   const next = useCallback(() => goTo('down'), [goTo])
 
