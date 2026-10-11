@@ -128,7 +128,6 @@ export default function Shorts({ showToast }) {
               <i className="fa-solid fa-repeat" />
             </button>
             <span className="rail-count">{short.remixes}</span>
-            <img className="rail-thumb" src="/icon.png" alt="" />
           </div>
 
           {/* Info unten links */}
@@ -151,10 +150,6 @@ export default function Shorts({ showToast }) {
               </button>
             </div>
             <div className="short-title">{short.title}</div>
-            <div className="sound-pill">
-              <i className="fa-solid fa-music" />
-              <span>{short.sound}</span>
-            </div>
           </div>
         </div>
 
