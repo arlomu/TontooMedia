@@ -20,6 +20,15 @@ const infoOf = (author) => {
   return bits.join(' · ')
 }
 
+function FollowToggle({ label, onUnfollow }) {
+  return (
+    <button type="button" className="follow-toggle" aria-label={`${label} entfolgen`} onClick={onUnfollow}>
+      <span className="ft-on"><i className="fa-solid fa-check" /> Gefolgt</span>
+      <span className="ft-off"><i className="fa-solid fa-user-minus" /> Entfolgen</span>
+    </button>
+  )
+}
+
 export default function Followed({ showToast }) {
   const toast = (msg) => showToast?.(msg)
   const [users, setUsers] = useState(allUsers)
@@ -40,57 +49,79 @@ export default function Followed({ showToast }) {
       <h2 className="app-title">Followed</h2>
       <p className="app-sub">Leute und Tontoos, denen du folgst.</p>
 
-      <h3 className="app-h3">
-        <i className="fa-solid fa-circle-user ic-yellow" /> Gefolgte User <span className="pill">{users.length}</span>
-      </h3>
-      {users.length === 0 ? (
-        <p className="feed-hint">Du folgst noch niemandem – stöbere auf der <Link to="/app">Startseite</Link>.</p>
-      ) : (
-        <div className="trend-list">
-          {users.map((u) => (
-            <div key={u.author} className="follow-line">
-              <Link to={`/u/${u.author}`} className="trend-row">
-                <span className="comm-ic" aria-hidden="true">
-                  <i className={`fa-solid ${u.icon} ${u.color}`} />
-                </span>
-                <span className="trend-main">
-                  <strong>u/{u.author}</strong>
-                  <small>{infoOf(u.author)}</small>
-                </span>
-              </Link>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => unfollowUser(u.author)}>
-                Entfolgen
-              </button>
-            </div>
-          ))}
+      <section className="follow-card" aria-label="Gefolgte User">
+        <div className="follow-cardhead">
+          <span className="comm-ic" aria-hidden="true">
+            <i className="fa-solid fa-circle-user ic-yellow" />
+          </span>
+          <strong>Gefolgte User</strong>
+          <span className="pill">{users.length}</span>
         </div>
-      )}
+        {users.length === 0 ? (
+          <div className="follow-empty">
+            <i className="fa-solid fa-user-plus big" aria-hidden="true" />
+            <p>Du folgst noch niemandem.</p>
+            <Link to="/app" className="btn btn-brand btn-sm">
+              <i className="fa-solid fa-compass" /> Startseite entdecken
+            </Link>
+          </div>
+        ) : (
+          <div className="follow-list">
+            {users.map((u, i) => (
+              <div key={u.author} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
+                <Link to={`/u/${u.author}`} className="follow-link">
+                  <span className="comm-ic" aria-hidden="true">
+                    <i className={`fa-solid ${u.icon} ${u.color}`} />
+                  </span>
+                  <span className="follow-main">
+                    <strong>u/{u.author}</strong>
+                    <small>{infoOf(u.author)}</small>
+                  </span>
+                  <i className="fa-solid fa-chevron-right follow-go" aria-hidden="true" />
+                </Link>
+                <FollowToggle label={`u/${u.author}`} onUnfollow={() => unfollowUser(u.author)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <h3 className="app-h3">
-        <i className="fa-solid fa-users ic-teal" /> Gefolgte Tontoos <span className="pill">{tontoos.length}</span>
-      </h3>
-      {tontoos.length === 0 ? (
-        <p className="feed-hint">Du folgst noch keinem Tontoo – entdecke sie auf der <Link to="/app">Startseite</Link>.</p>
-      ) : (
-        <div className="trend-list">
-          {COMMUNITIES.filter((c) => tontoos.includes(c.id)).map((c) => (
-            <div key={c.id} className="follow-line">
-              <Link to={`/t/${c.id}`} className="trend-row">
-                <span className="comm-ic" aria-hidden="true">
-                  <i className={`fa-solid ${c.icon} ${c.color}`} />
-                </span>
-                <span className="trend-main">
-                  <strong>t/{c.name}</strong>
-                  <small>{c.members} Mitglieder</small>
-                </span>
-              </Link>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => unfollowTontoo(c.id)}>
-                Entfolgen
-              </button>
-            </div>
-          ))}
+      <section className="follow-card" aria-label="Gefolgte Tontoos">
+        <div className="follow-cardhead">
+          <span className="comm-ic" aria-hidden="true">
+            <i className="fa-solid fa-users ic-teal" />
+          </span>
+          <strong>Gefolgte Tontoos</strong>
+          <span className="pill">{tontoos.length}</span>
         </div>
-      )}
+        {tontoos.length === 0 ? (
+          <div className="follow-empty">
+            <i className="fa-solid fa-users-slash big" aria-hidden="true" />
+            <p>Du folgst noch keinem Tontoo.</p>
+            <Link to="/app" className="btn btn-brand btn-sm">
+              <i className="fa-solid fa-compass" /> Tontoos entdecken
+            </Link>
+          </div>
+        ) : (
+          <div className="follow-list">
+            {COMMUNITIES.filter((c) => tontoos.includes(c.id)).map((c, i) => (
+              <div key={c.id} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
+                <Link to={`/t/${c.id}`} className="follow-link">
+                  <span className="comm-ic" aria-hidden="true">
+                    <i className={`fa-solid ${c.icon} ${c.color}`} />
+                  </span>
+                  <span className="follow-main">
+                    <strong>t/{c.name}</strong>
+                    <small>{c.members} Mitglieder</small>
+                  </span>
+                  <i className="fa-solid fa-chevron-right follow-go" aria-hidden="true" />
+                </Link>
+                <FollowToggle label={`t/${c.name}`} onUnfollow={() => unfollowTontoo(c.id)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

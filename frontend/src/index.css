@@ -656,9 +656,59 @@ main.app-wrap { max-width: none; padding: 0; }
 .comm-desc { color: var(--text-sec); font-size: 14.5px; line-height: 1.6; margin: 0 0 6px; }
 
 /* Followed */
-.follow-line { display: flex; align-items: center; gap: 10px; }
-.follow-line .trend-row { flex: 1; min-width: 0; }
-.follow-line .btn { flex-shrink: 0; }
+.follow-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  margin-bottom: 18px;
+}
+.follow-cardhead {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface2) 55%, transparent);
+}
+.follow-cardhead .comm-ic { width: 38px; height: 38px; font-size: 16px; }
+.follow-cardhead strong { font-size: 15.5px; color: var(--text); }
+.follow-cardhead .pill { margin-left: auto; }
+.follow-list { display: flex; flex-direction: column; }
+.follow-line {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px 11px 14px;
+  animation: slidein 0.25s ease backwards;
+  transition: background 0.12s;
+}
+.follow-line + .follow-line { border-top: 1px solid var(--border); }
+.follow-line:hover { background: var(--surface2); }
+.follow-link {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  text-decoration: none; color: var(--text);
+}
+.follow-link .comm-ic { width: 40px; height: 40px; font-size: 17px; transition: transform 0.12s, border-color 0.15s; }
+.follow-line:hover .comm-ic { transform: scale(1.06); border-color: var(--brand); }
+.follow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.follow-main strong { font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.follow-main small { font-size: 12.5px; color: var(--text-3rd); }
+.follow-go { font-size: 13px; color: var(--text-3rd); transition: transform 0.12s, color 0.12s; }
+.follow-line:hover .follow-go { transform: translateX(3px); color: var(--brand); }
+.follow-toggle {
+  flex-shrink: 0; min-width: 124px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 700; font-family: var(--font-body);
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-sec);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.follow-toggle .ft-off { display: none; }
+.follow-toggle:hover { background: rgba(224, 93, 93, 0.12); border-color: rgba(224, 93, 93, 0.55); color: var(--danger); }
+.follow-toggle:hover .ft-on { display: none; }
+.follow-toggle:hover .ft-off { display: inline-flex; align-items: center; gap: 7px; }
+.follow-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 30px 20px;
+  color: var(--text-sec); font-size: 14px;
+}
+.follow-empty .big { font-size: 30px; color: var(--text-3rd); }
+.follow-empty p { margin: 0; }
 
 /* ---------- Startseite: Shorts-Shelf + Text-Feed (t/…) ---------- */
 .start-page { padding-bottom: 10px; }
