@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { COMMUNITIES } from '../pages/app/demoData.js'
 import { addCustomTontoo, getCustomTontoos } from '../pages/app/customTontoos.js'
@@ -9,11 +9,6 @@ const ICON_PRESETS = [
   'fa-camera', 'fa-gamepad', 'fa-music', 'fa-utensils',
   'fa-microchip', 'fa-book-open', 'fa-film', 'fa-palette',
 ]
-const COLOR_PRESETS = [
-  { id: 'ic-yellow', bg: 'var(--brand)' },
-  { id: 'ic-teal', bg: 'var(--accent)' },
-  { id: 'ic-violet', bg: '#8f81f7' },
-]
 
 export default function Sidebar({ open, onClose, showToast }) {
   const [commsOpen, setCommsOpen] = useState(true)
@@ -22,14 +17,19 @@ export default function Sidebar({ open, onClose, showToast }) {
   const [cName, setCName] = useState('')
   const [cDesc, setCDesc] = useState('')
   const [cIcon, setCIcon] = useState(ICON_PRESETS[0])
-  const [cColor, setCColor] = useState(COLOR_PRESETS[0].id)
+  const [cPic, setCPic] = useState(null)
   const [cError, setCError] = useState(null)
+  const fileRef = useRef(null)
 
   const cId = cName.trim().toLowerCase().replace(/[^a-z0-9._]/g, '')
+
+  const revokePic = (src) => { if (src?.startsWith('blob:')) URL.revokeObjectURL(src) }
 
   const closeCreate = () => {
     setCreateOpen(false)
     setCError(null)
+    revokePic(cPic)
+    setCPic(null)
   }
 
   useEffect(() => {
@@ -50,17 +50,31 @@ export default function Sidebar({ open, onClose, showToast }) {
       name: cName.trim(),
       desc: cDesc.trim(),
       icon: cIcon,
-      color: cColor,
+      color: '',
+      pic: cPic,
       members: '1 Mitglied',
     })
     setCustoms([...getCustomTontoos()])
     setCName('')
     setCDesc('')
     setCIcon(ICON_PRESETS[0])
-    setCColor(COLOR_PRESETS[0].id)
+    setCPic(null)
     setCreateOpen(false)
     setCError(null)
     showToast(`t/${cId} erstellt.`)
+  }
+
+  const uploadPic = (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    revokePic(cPic)
+    setCPic(URL.createObjectURL(f))
+  }
+
+  const removePic = () => {
+    revokePic(cPic)
+    setCPic(null)
   }
 
   return (
@@ -115,7 +129,11 @@ export default function Sidebar({ open, onClose, showToast }) {
                   tabIndex={commsOpen ? 0 : -1}
                 >
                   <span className="comm-ic">
-                    <i className={`fa-solid ${c.icon} ${c.color}`} />
+                    {c.pic ? (
+                      <img className="comm-pic" src={c.pic} alt="" />
+                    ) : (
+                      <i className={`fa-solid ${c.icon} ${c.color}`} />
+                    )}
                   </span>
                   {c.name}
                 </NavLink>
@@ -138,7 +156,7 @@ export default function Sidebar({ open, onClose, showToast }) {
     {/* Tontoo erstellen */}
     {createOpen && (
       <div className="sheet-backdrop" onClick={closeCreate}>
-        <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Tontoo erstellen" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet sheet-wide" role="dialog" aria-modal="true" aria-label="Tontoo erstellen" onClick={(e) => e.stopPropagation()}>
           <form onSubmit={createTontoo} noValidate>
             <div className="sheet-head">
               <strong className="sheet-title">Tontoo erstellen</strong>
@@ -169,35 +187,45 @@ export default function Sidebar({ open, onClose, showToast }) {
                   onChange={(e) => setCDesc(e.target.value)}
                 />
               </label>
-              <div className="create-label">Symbol</div>
-              <div className="avatar-grid">
-                {ICON_PRESETS.map((icon) => (
-                  <button
-                    key={icon}
-                    type="button"
-                    className={`avatar-opt${cIcon === icon ? ' selected' : ''}`}
-                    aria-pressed={cIcon === icon}
-                    aria-label={icon}
-                    onClick={() => setCIcon(icon)}
-                  >
-                    <i className={`fa-solid ${icon} ${cColor}`} />
+              <div className="create-label">Symbol oder eigenes Bild</div>
+              {cPic ? (
+                <div className="pic-prev">
+                  <img src={cPic} alt="Ausgewähltes Tontoo-Bild" />
+                  <span>Bild gewählt – ersetzt das Symbol.</span>
+                  <button type="button" className="comment-btn" onClick={removePic} aria-label="Bild entfernen">
+                    <i className="fa-solid fa-xmark" />
                   </button>
-                ))}
-              </div>
-              <div className="create-label">Farbe</div>
-              <div className="color-row">
-                {COLOR_PRESETS.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`color-dot${cColor === c.id ? ' selected' : ''}`}
-                    style={{ background: c.bg }}
-                    aria-pressed={cColor === c.id}
-                    aria-label={c.id}
-                    onClick={() => setCColor(c.id)}
+                </div>
+              ) : (
+                <>
+                  <div className="avatar-grid">
+                    {ICON_PRESETS.map((icon) => (
+                      <button
+                        key={icon}
+                        type="button"
+                        className={`avatar-opt${cIcon === icon ? ' selected' : ''}`}
+                        aria-pressed={cIcon === icon}
+                        aria-label={icon}
+                        onClick={() => setCIcon(icon)}
+                      >
+                        <i className={`fa-solid ${icon}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onChange={uploadPic}
                   />
-                ))}
-              </div>
+                  <button type="button" className="btn btn-ghost btn-block" onClick={() => fileRef.current?.click()}>
+                    <i className="fa-solid fa-upload" /> Eigenes Bild hochladen
+                  </button>
+                </>
+              )}
               {cError && (
                 <p className="formerror nomargin" role="alert">
                   <i className="fa-solid fa-circle-exclamation" /> {cError}

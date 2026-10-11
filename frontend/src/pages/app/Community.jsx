@@ -74,7 +74,11 @@ export default function Community() {
       {/* Hero */}
       <div className="comm-hero-card">
         <span className="comm-big" aria-hidden="true">
-          <i className={`fa-solid ${comm.icon} ${comm.color}`} />
+          {comm.pic ? (
+            <img src={comm.pic} alt="" />
+          ) : (
+            <i className={`fa-solid ${comm.icon} ${comm.color}`} />
+          )}
         </span>
         <div className="comm-hero-main">
           <h2 className="comm-hero-name">t/{comm.name}</h2>

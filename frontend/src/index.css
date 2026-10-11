@@ -624,7 +624,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 }
 .pill.live { color: var(--accent); border-color: rgba(79, 176, 168, 0.55); }
 .pill.plan { color: var(--brand); border-color: rgba(245, 179, 1, 0.55); }
-.pill.draft { color: var(--text-sec); }
 .pill.private { color: var(--danger); border-color: rgba(224, 93, 93, 0.55); }
 
 .sr-only {
@@ -671,14 +670,16 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .sheet-narrow { width: min(420px, 100%); }
 .create-prev { margin: 8px 0 0; font-size: 13px; font-weight: 700; color: var(--accent); }
 .create-label { font-size: 12.5px; font-weight: 600; color: var(--text-3rd); margin-top: 2px; }
-.color-row { display: flex; gap: 10px; }
-.color-dot {
-  width: 34px; height: 34px; border-radius: 50%; cursor: pointer; padding: 0;
-  border: 2px solid transparent;
-  transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+.sheet-wide { width: min(640px, 100%); }
+.comm-pic { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.comm-big img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.pic-prev {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
 }
-.color-dot:hover { transform: scale(1.08); }
-.color-dot.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--brand); }
+.pic-prev img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.pic-prev span { flex: 1; min-width: 0; font-size: 13px; color: var(--text-sec); }
 .konto-stack { display: flex; flex-direction: column; gap: 10px; }
 .formerror.nomargin { margin: 0; }
 .profile-hero {
