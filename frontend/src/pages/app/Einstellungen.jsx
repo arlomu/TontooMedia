@@ -296,7 +296,7 @@ export default function Einstellungen({ showToast, user, onUser }) {
 
         <div className="danger-box">
           <strong className="danger-title"><i className="fa-solid fa-triangle-exclamation" /> Konto löschen</strong>
-          <p className="danger-desc">Löscht Profil, Shorts und Kommentare unwiderruflich.</p>
+          <p className="danger-desc">Löscht dein Konto mit Profil und Avatar unwiderruflich.</p>
           {delStep === 0 ? (
             <button type="button" className="btn btn-danger btn-block" onClick={() => setDelStep(1)}>
               <i className="fa-solid fa-trash-can" /> Konto löschen …
