@@ -18,7 +18,7 @@ Endpunkte (alle unter /api/...):
   DELETE /api/shorts/<id>   -> {ok: true}
   GET    /api/studio/overview (Bearer) -> Kennzahlen
    GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
-   GET    /api/users/<name>  -> {user, followers, followed, posts, shorts} (404 wenn unbekannt)
+   GET    /api/users/<name>  -> {user, followers, followed, posts[], shorts[]} (404 wenn unbekannt)
    POST   /api/users/<name>/follow (Bearer) -> {followed, followers} (Toggle)
   POST   /api/shorts/<id>/like (Bearer) -> {liked, likes}
   GET    /api/shorts/<id>/comments -> {comments: [...]}
@@ -554,11 +554,14 @@ class _Handler(BaseHTTPRequestHandler):
                 rows = _storage.list_user_shorts(
                     target_id, viewer_id, include_private=(viewer_id == target_id)
                 )
+                post_rows = _storage.list_user_posts(target_id)
+                for r in post_rows:
+                    r["can_delete"] = viewer_id == target_id
             return self._ok({
                 "user": public_user(target),
                 "followers": followers,
                 "followed": followed,
-                "posts": 0,  # Posts gibt es noch nicht
+                "posts": [public_post(r) for r in post_rows],
                 "shorts": [public_feed_short(r) for r in rows],
             })
         m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)

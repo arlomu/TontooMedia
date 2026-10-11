@@ -152,7 +152,7 @@ export const apiGetUser = (username) =>
     user: d.user,
     followers: d.followers || 0,
     followed: !!d.followed,
-    posts: d.posts || 0,
+    posts: d.posts || [],
     shorts: d.shorts || [],
   }))
 
