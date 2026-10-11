@@ -268,7 +268,7 @@ main.app-wrap { max-width: none; padding: 0; }
 .side-item.active { background: var(--surface2); color: var(--text); font-weight: 600; }
 .side-item.active > i { color: var(--brand); }
 .side-spacer { height: 18px; }
-.side-comms { padding-top: 2px; }
+.side-comms { margin-top: auto; padding-top: 2px; }
 .comms-head { display: flex; align-items: center; justify-content: space-between; }
 .comms-toggle {
   display: flex; align-items: center; gap: 8px;
@@ -286,7 +286,7 @@ main.app-wrap { max-width: none; padding: 0; }
   display: grid; place-items: center;
   background: var(--surface2); border: 1px solid var(--border); font-size: 14px;
 }
-.side-foot { margin-top: auto; padding-top: 8px; }
+.side-foot { padding-top: 8px; }
 .side-div { border: none; border-top: 1px solid var(--border); margin: 6px 4px 10px; }
 .app-main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
 .app-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
