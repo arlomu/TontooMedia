@@ -5,18 +5,12 @@ import { addCustomTontoo, getCustomTontoos } from '../pages/app/customTontoos.js
 
 // Eigene Sidebar-Komponente – 1:1 identisch auf allen App-Routen
 // (/app, /shorts, /studio, /einstellungen, /t/:name, /u/:user).
-const ICON_PRESETS = [
-  'fa-camera', 'fa-gamepad', 'fa-music', 'fa-utensils',
-  'fa-microchip', 'fa-book-open', 'fa-film', 'fa-palette',
-]
-
 export default function Sidebar({ open, onClose, showToast }) {
   const [commsOpen, setCommsOpen] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [customs, setCustoms] = useState(getCustomTontoos)
   const [cName, setCName] = useState('')
   const [cDesc, setCDesc] = useState('')
-  const [cIcon, setCIcon] = useState(ICON_PRESETS[0])
   const [cPic, setCPic] = useState(null)
   const [cError, setCError] = useState(null)
   const fileRef = useRef(null)
@@ -43,13 +37,14 @@ export default function Sidebar({ open, onClose, showToast }) {
     e.preventDefault()
     if (!cName.trim()) return setCError('Bitte einen Namen eingeben.')
     if (!cId) return setCError('Der Name muss a–z, 0–9, Punkt oder Unterstrich enthalten.')
+    if (!cPic) return setCError('Bitte lade ein Bild für deinen Tontoo hoch.')
     const taken = [...COMMUNITIES, ...getCustomTontoos()].some((c) => c.id === cId)
     if (taken) return setCError(`t/${cId} gibt es schon.`)
     addCustomTontoo({
       id: cId,
       name: cName.trim(),
       desc: cDesc.trim(),
-      icon: cIcon,
+      icon: 'fa-circle-user',
       color: '',
       pic: cPic,
       members: '1 Mitglied',
@@ -57,7 +52,6 @@ export default function Sidebar({ open, onClose, showToast }) {
     setCustoms([...getCustomTontoos()])
     setCName('')
     setCDesc('')
-    setCIcon(ICON_PRESETS[0])
     setCPic(null)
     setCreateOpen(false)
     setCError(null)
@@ -187,44 +181,28 @@ export default function Sidebar({ open, onClose, showToast }) {
                   onChange={(e) => setCDesc(e.target.value)}
                 />
               </label>
-              <div className="create-label">Symbol oder eigenes Bild</div>
+              <div className="create-label">Bild</div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={uploadPic}
+              />
               {cPic ? (
                 <div className="pic-prev">
                   <img src={cPic} alt="Ausgewähltes Tontoo-Bild" />
-                  <span>Bild gewählt – ersetzt das Symbol.</span>
+                  <span>Bild gewählt.</span>
                   <button type="button" className="comment-btn" onClick={removePic} aria-label="Bild entfernen">
                     <i className="fa-solid fa-xmark" />
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="avatar-grid">
-                    {ICON_PRESETS.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        className={`avatar-opt${cIcon === icon ? ' selected' : ''}`}
-                        aria-pressed={cIcon === icon}
-                        aria-label={icon}
-                        onClick={() => setCIcon(icon)}
-                      >
-                        <i className={`fa-solid ${icon}`} />
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    onChange={uploadPic}
-                  />
-                  <button type="button" className="btn btn-ghost btn-block" onClick={() => fileRef.current?.click()}>
-                    <i className="fa-solid fa-upload" /> Eigenes Bild hochladen
-                  </button>
-                </>
+                <button type="button" className="btn btn-ghost btn-block" onClick={() => fileRef.current?.click()}>
+                  <i className="fa-solid fa-upload" /> Bild hochladen
+                </button>
               )}
               {cError && (
                 <p className="formerror nomargin" role="alert">
