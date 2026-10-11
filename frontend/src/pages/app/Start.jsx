@@ -70,8 +70,8 @@ export default function Start() {
     e.preventDefault()
     e.stopPropagation()
     setCtx({
-      x: Math.min(e.clientX, window.innerWidth - 240),
-      y: Math.min(e.clientY, window.innerHeight - 240),
+      x: Math.max(8, Math.min(e.clientX, window.innerWidth - 240)),
+      y: Math.max(8, Math.min(e.clientY, window.innerHeight - 240)),
       post,
     })
   }
@@ -80,8 +80,8 @@ export default function Start() {
     e.stopPropagation()
     const r = e.currentTarget.getBoundingClientRect()
     setCtx({
-      x: Math.min(r.left - 190, window.innerWidth - 240),
-      y: Math.min(r.bottom + 8, window.innerHeight - 240),
+      x: Math.max(8, Math.min(r.left - 190, window.innerWidth - 240)),
+      y: Math.max(8, Math.min(r.bottom + 8, window.innerHeight - 240)),
       post,
     })
   }

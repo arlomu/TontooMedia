@@ -323,6 +323,8 @@ main.app-wrap { max-width: none; padding: 0; }
 .app-search { flex: 1; max-width: 480px; margin: 0 auto; }
 .app-content { min-width: 0; max-width: 960px; }
 .app-content:has(.shorts-page) { max-width: none; }
+/* Startseite: volle Bildschirmbreite nutzen (kein 960px-Deckel) */
+.app-content:has(.start-page) { max-width: none; width: 100%; }
 /* Shorts: Seiten-Scroll locken – nur der Short-Wechsel scrollt, kein Scrollbalken */
 .app-main:has(.shorts-page) { height: 100vh; height: 100dvh; overflow: hidden; padding-bottom: 0; }
 .side-overlay { display: none; }
@@ -643,10 +645,11 @@ main.app-wrap { max-width: none; padding: 0; }
 .shelf-scroll {
   display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px;
   scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 .shelf-scroll::-webkit-scrollbar { height: 8px; }
 .short-card {
-  flex: 0 0 168px; width: 168px; scroll-snap-align: start;
+  flex: 1 0 160px; min-width: 150px; max-width: 240px; scroll-snap-align: start;
   text-decoration: none; color: var(--text);
   transition: transform 0.13s ease;
 }
@@ -676,10 +679,11 @@ main.app-wrap { max-width: none; padding: 0; }
 .short-cardmeta small { font-size: 12px; color: var(--text-3rd); font-family: var(--font-body); }
 
 .start-layout {
-  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 18px; align-items: start; margin-top: 18px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 20px; align-items: start; margin-top: 18px; width: 100%;
 }
-.chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.feed-col { min-width: 0; }
+.chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
 .chipbtn {
   display: inline-flex; align-items: center; gap: 7px;
   background: var(--surface); border: 1px solid var(--border); cursor: pointer;
@@ -694,12 +698,13 @@ main.app-wrap { max-width: none; padding: 0; }
 .start-post { animation: rise 0.3s ease both; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 .postheada { flex: 1; min-width: 0; }
-.postline { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.postline { display: flex; align-items: center; flex-wrap: wrap; row-gap: 2px; gap: 6px; font-size: 12.5px; }
 .comm-link { color: var(--accent); font-weight: 700; text-decoration: none; font-family: var(--font-body); }
 .comm-link:hover { text-decoration: underline; }
 .dot { color: var(--text-3rd); }
 .post-dots { margin-left: auto; flex-shrink: 0; }
-.post-title { font-family: var(--font-body); font-size: 16px; font-weight: 700; margin: 12px 0 0; color: var(--text); line-height: 1.4; }
+.post-title { font-family: var(--font-body); font-size: 16px; font-weight: 700; margin: 12px 0 0; color: var(--text); line-height: 1.4; overflow-wrap: break-word; }
+.start-page .posttext { overflow-wrap: break-word; }
 .post-toolbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
@@ -769,17 +774,46 @@ main.app-wrap { max-width: none; padding: 0; }
   .app-topbar { display: flex; }
 }
 
-/* ---------- Startseite responsive ---------- */
+/* ---------- Startseite responsive: volle Breite + mobil ---------- */
+@media (max-width: 1100px) {
+  .start-side { position: static; }
+}
 @media (max-width: 1020px) {
   .start-layout { grid-template-columns: 1fr; }
-  .start-side { position: static; display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .start-side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
 }
 @media (max-width: 640px) {
-  .start-head { align-items: stretch; flex-direction: column; }
-  .toolbar { overflow-x: auto; max-width: 100%; }
-  .short-card { flex-basis: 138px; width: 138px; }
+  /* Topbar + Content: jeden Pixel nutzen, nichts quetscht */
+  .app-topbar { gap: 8px; padding: 8px 0; }
+  .app-search { max-width: none; }
+  .start-head { align-items: stretch; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .app-title { font-size: 24px; }
+  .toolbar { overflow-x: auto; max-width: 100%; align-self: stretch; }
+  .toolbar .toolbtn { flex-shrink: 0; min-height: 40px; }
+  /* Chips: eine scrollbare Reihe statt Wand aus Pillen */
+  .chiprow {
+    flex-wrap: nowrap; overflow-x: auto;
+    margin: 0 -16px 12px; padding: 0 16px 6px;
+    scroll-snap-type: x proximity;
+  }
+  .chipbtn { flex-shrink: 0; scroll-snap-align: start; min-height: 40px; }
+  /* Shelf: volle Bildschirmbreite (edge-to-edge), Karten mit Peek */
+  .shelf { margin: 0 -16px; border-radius: 0; border-left: none; border-right: none; padding: 14px 0 12px; }
+  .shelf-head { padding: 0 16px; }
+  .shelf-actions .iconbtn { display: none; } /* mobil: wischen statt Pfeile */
+  .shelf-scroll { padding: 2px 16px 8px; }
+  .short-card { flex: 0 0 clamp(132px, 42vw, 168px); min-width: 0; max-width: none; }
   .short-thumb { font-size: 34px; }
+  .short-cardmeta strong { font-size: 12.5px; }
+  /* Posts: kompakter, große Touch-Targets, kein Überlauf */
+  .start-page .post { padding: 14px; }
+  .post-toolbar { gap: 6px; }
+  .toolbtn.sm { min-height: 38px; }
+  .start-layout { gap: 14px; margin-top: 14px; }
   .start-side { grid-template-columns: 1fr; }
-  .shelf { padding: 14px 12px 12px; }
-  .shelf-link { display: none; }
+  .ctx-menu { width: min(224px, calc(100vw - 32px)); }
+}
+/* Große Touch-Targets überall mit Touchscreen */
+@media (pointer: coarse) {
+  .chipbtn, .toolbtn.sm { min-height: 40px; }
 }
