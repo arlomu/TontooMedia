@@ -253,29 +253,29 @@ export const DEMO_POST_COMMENTS = {
 
 // ---------- Studio (Demo-Kennzahlen, alles Beispiel) ----------
 
-// Übersicht fürs Dashboard (28-Tage-Basis, wird pro Zeitraum skaliert)
+// Übersicht fürs Dashboard (28-Tage-Basis, wird pro Zeitraum skaliert) – startet bei 0
 export const DEMO_STUDIO_OVERVIEW = {
-  views: 1284500,
-  watchHours: 8420,
-  subs: 12480,
-  subsGain: 312,
-  likes: 96300,
-  delta: { views: 12.4, watchHours: 8.1, subs: 2.6, likes: 18.9 },
+  views: 0,
+  watchHours: 0,
+  subs: 0,
+  subsGain: 0,
+  likes: 0,
+  delta: { views: 0, watchHours: 0, subs: 0, likes: 0 },
   daily: {
-    views: [42, 58, 51, 70, 66, 88, 95],
-    watch: [30, 44, 40, 55, 60, 72, 80],
-    subs: [5, 8, 6, 12, 9, 15, 18],
-    likes: [35, 50, 46, 62, 58, 77, 84],
+    views: [0, 0, 0, 0, 0, 0, 0],
+    watch: [0, 0, 0, 0, 0, 0, 0],
+    subs: [0, 0, 0, 0, 0, 0, 0],
+    likes: [0, 0, 0, 0, 0, 0, 0],
   },
 }
 
-// Kennzahlen pro Short (wird auf DEMO_SHORTS gemappt)
+// Kennzahlen pro Short (wird auf DEMO_SHORTS gemappt) – alles 0, echter Stand
 const SHORT_STATS = {
-  1: { views: 2104500, date: '08.10.2026', status: 'live', visibility: 'Öffentlich', desc: '1v3-Clutch, ungeschnitten.' },
-  2: { views: 740200, date: '09.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Golden Hour, 50mm, kein Filter.' },
-  3: { views: 198400, date: '10.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Beat aus dem Homestudio.' },
-  4: { views: 96300, date: '10.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Mitternachtspasta zum Nachkochen.' },
-  5: { views: 141800, date: '11.10.2026', status: 'live', visibility: 'Privat', desc: 'Setup-Tour, Schnitt fast fertig.' },
+  1: { views: 0, likes: '0', comments: '0', date: '08.10.2026', status: 'live', visibility: 'Öffentlich' },
+  2: { views: 0, likes: '0', comments: '0', date: '09.10.2026', status: 'live', visibility: 'Öffentlich' },
+  3: { views: 0, likes: '0', comments: '0', date: '10.10.2026', status: 'live', visibility: 'Öffentlich' },
+  4: { views: 0, likes: '0', comments: '0', date: '10.10.2026', status: 'live', visibility: 'Öffentlich' },
+  5: { views: 0, likes: '0', comments: '0', date: '11.10.2026', status: 'live', visibility: 'Privat' },
 }
 
 export const DEMO_STUDIO_SHORTS = DEMO_SHORTS.map((s) => ({ ...s, ...SHORT_STATS[s.id] }))

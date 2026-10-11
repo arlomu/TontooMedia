@@ -1,18 +1,84 @@
 import { useEffect, useRef, useState } from 'react'
 
 const MAX_TAGS = 8
+const MAX_DUR = 90 // 1:30 – länger geht nicht
 
 const cleanTag = (s) => s.replace(/^#+/, '').trim().slice(0, 20)
 const fmtSize = (b) => (b / 1048576 >= 1 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
+const fmtDur = (s) => {
+  if (!isFinite(s) || s < 0) return '–'
+  const m = Math.floor(s / 60)
+  const rest = Math.floor(s % 60)
+  return `${m}:${String(rest).padStart(2, '0')}`
+}
+
+// Metadaten aus der Videodatei lesen (Dauer, Auflösung)
+const probeVideo = (url) => new Promise((resolve) => {
+  try {
+    const v = document.createElement('video')
+    v.muted = true
+    v.playsInline = true
+    v.preload = 'metadata'
+    v.src = url
+    const timer = setTimeout(() => resolve(null), 8000)
+    v.addEventListener('loadedmetadata', () => {
+      clearTimeout(timer)
+      resolve({ dur: v.duration, w: v.videoWidth, h: v.videoHeight })
+    })
+    v.addEventListener('error', () => { clearTimeout(timer); resolve(null) })
+  } catch {
+    resolve(null)
+  }
+})
+
+// Mittleren Frame als Thumbnail fischen (Demo, läuft lokal im Browser)
+const captureMiddleFrame = (url, duration) => new Promise((resolve) => {
+  try {
+    const v = document.createElement('video')
+    v.muted = true
+    v.playsInline = true
+    v.preload = 'auto'
+    v.src = url
+    const timer = setTimeout(() => { cleanup(); resolve('') }, 9000)
+    const cleanup = () => { v.removeAttribute('src'); v.load() }
+    v.addEventListener('loadedmetadata', () => {
+      const at = Math.min(Math.max(((duration || v.duration) || 1) / 2, 0.1), Math.max((v.duration || 1) - 0.1, 0.1))
+      try { v.currentTime = at } catch { clearTimeout(timer); cleanup(); resolve('') }
+    })
+    v.addEventListener('seeked', () => {
+      try {
+        const scale = Math.min(1, 480 / (v.videoWidth || 480))
+        const c = document.createElement('canvas')
+        c.width = Math.max(2, Math.round((v.videoWidth || 480) * scale))
+        c.height = Math.max(2, Math.round((v.videoHeight || 848) * scale))
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height)
+        clearTimeout(timer)
+        cleanup()
+        resolve(c.toDataURL('image/jpeg', 0.72))
+      } catch {
+        clearTimeout(timer)
+        cleanup()
+        resolve('')
+      }
+    })
+    v.addEventListener('error', () => { clearTimeout(timer); cleanup(); resolve('') })
+  } catch {
+    resolve('')
+  }
+})
 
 // Short-Upload als Wizard (Demo, kein Backend):
-// Schritt 1 fragt nur nach dem Video – erst danach kommt Schritt 2
-// (Titel, #Tags, Öffentlich/Privat, Kommentare an/aus, optionales Thumbnail).
+// Schritt 1 fragt nur nach dem Video (max. 1:30, 9:16-Vorschau wie bei YT Shorts) –
+// erst danach kommt Schritt 2 (Titel, #Tags, Öffentlich/Privat, Kommentare
+// an/aus, Thumbnail: custom oder automatisch mittlerer Frame).
 // onDone bekommt die Daten für die Studio-Liste.
 export default function ShortUpload({ onDone, onCancel }) {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
   const [fileUrl, setFileUrl] = useState('')
+  const [meta, setMeta] = useState(null) // { dur, w, h }
+  const [fileError, setFileError] = useState('')
+  const [autoThumb, setAutoThumb] = useState('')
   const [dragging, setDragging] = useState(false)
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState([])
@@ -29,15 +95,38 @@ export default function ShortUpload({ onDone, onCancel }) {
     }
   }, [fileUrl])
 
-  const takeFile = (files) => {
-    const f = [...(files || [])].find((x) => x.type.startsWith('video/'))
-    if (!f) return
+  const clearFile = () => {
     if (fileUrl.startsWith('blob:')) {
       try { URL.revokeObjectURL(fileUrl) } catch { /* egal */ }
     }
+    setFile(null)
+    setFileUrl('')
+    setMeta(null)
+    setAutoThumb('')
+    setFileError('')
+  }
+
+  const takeFile = async (files) => {
+    const f = [...(files || [])].find((x) => x.type.startsWith('video/'))
+    if (!f) return
+    clearFile()
+    const url = URL.createObjectURL(f)
     setFile(f)
-    setFileUrl(URL.createObjectURL(f))
+    setFileUrl(url)
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
+    const info = await probeVideo(url)
+    if (!info || !isFinite(info.dur)) {
+      setFileError('Video konnte nicht gelesen werden – andere Datei wählen.')
+      return
+    }
+    if (info.dur > MAX_DUR) {
+      clearFile()
+      setFileError(`Zu lang (${fmtDur(info.dur)}) – Shorts dürfen höchstens 1:30 sein.`)
+      return
+    }
+    setMeta(info)
+    setFileError('')
+    captureMiddleFrame(url, info.dur).then((u) => u && setAutoThumb(u))
   }
 
   const commitTag = () => {
@@ -64,6 +153,8 @@ export default function ShortUpload({ onDone, onCancel }) {
     setThumb(URL.createObjectURL(f))
   }
 
+  const shownThumb = thumb || autoThumb
+
   const upload = () => {
     if (!file || !title.trim()) return
     onDone?.({
@@ -71,8 +162,11 @@ export default function ShortUpload({ onDone, onCancel }) {
       tags,
       visibility,
       commentsOff: !commentsOn,
-      thumb,
-      dur: '–',
+      thumb: shownThumb,
+      dur: meta ? fmtDur(meta.dur) : '–',
+      width: meta?.w || 0,
+      height: meta?.h || 0,
+      format: '9:16',
     })
   }
 
@@ -101,7 +195,7 @@ export default function ShortUpload({ onDone, onCancel }) {
             >
               <i className="fa-solid fa-cloud-arrow-up dropic ic-teal" />
               <strong>Video hierher ziehen oder klicken</strong>
-              <small>MP4, MOV – nur Demo, nichts wird hochgeladen</small>
+              <small>MP4, MOV, max. 1:30 – nur Demo, nichts wird hochgeladen</small>
             </button>
             <input
               ref={fileRef}
@@ -112,25 +206,36 @@ export default function ShortUpload({ onDone, onCancel }) {
               tabIndex={-1}
               onChange={(e) => { takeFile(e.target.files); e.target.value = '' }}
             />
+            {fileError && (
+              <p className="formerror" role="alert">
+                <i className="fa-solid fa-circle-exclamation" /> {fileError}
+              </p>
+            )}
             {file && (
               <div className="file-row">
                 <i className="fa-solid fa-file-video ic-violet" aria-hidden="true" />
                 <span className="file-meta">
                   <strong>{file.name}</strong>
-                  <small>{fmtSize(file.size)}</small>
+                  <small>{fmtSize(file.size)}{meta ? ` · ${fmtDur(meta.dur)} · ${meta.w}×${meta.h}` : ''}</small>
                 </span>
                 <button
                   type="button"
                   className="iconbtn sm"
                   aria-label="Video entfernen"
-                  onClick={() => { setFile(null); setFileUrl('') }}
+                  onClick={clearFile}
                 >
                   <i className="fa-solid fa-xmark" />
                 </button>
               </div>
             )}
             {fileUrl && (
-              <video className="wiz-video" src={fileUrl} controls playsInline preload="metadata" />
+              <div className="wiz-center">
+                {/* 9:16-Vorschau wie bei YT Shorts */}
+                <video className="wiz-video" src={fileUrl} controls playsInline preload="metadata" />
+                <p className="spec-row">
+                  <i className="fa-solid fa-mobile-screen" /> 9:16 Short-Format · Ziel: HD / 60fps (automatisch)
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -202,13 +307,19 @@ export default function ShortUpload({ onDone, onCancel }) {
             <div className="field"><span>Thumbnail (optional)</span>
               <div className="thumb-pick">
                 <span className="thumb-frame" aria-hidden="true">
-                  {thumb ? <img src={thumb} alt="" /> : <i className="fa-regular fa-image" />}
+                  {shownThumb ? <img src={shownThumb} alt="" /> : <i className="fa-regular fa-image" />}
                 </span>
                 <span className="thumb-meta">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => thumbRef.current?.click()}>
                     <i className="fa-solid fa-upload" /> {thumb ? 'Anderes wählen' : 'Bild wählen'}
                   </button>
-                  <small>Leer lassen = automatisch (später, wenn Logik da)</small>
+                  {thumb ? (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setThumb('')}>
+                      <i className="fa-solid fa-rotate-left" /> Auto (mittlerer Frame)
+                    </button>
+                  ) : (
+                    <small>Leer lassen = mittlerer Frame automatisch</small>
+                  )}
                 </span>
                 <input
                   ref={thumbRef}
@@ -228,7 +339,7 @@ export default function ShortUpload({ onDone, onCancel }) {
         {step === 1 ? (
           <>
             <button type="button" className="btn btn-ghost" onClick={onCancel}>Abbrechen</button>
-            <button type="button" className="btn btn-brand" disabled={!file} onClick={() => setStep(2)}>
+            <button type="button" className="btn btn-brand" disabled={!file || !meta} onClick={() => setStep(2)}>
               Weiter <i className="fa-solid fa-arrow-right" />
             </button>
           </>

@@ -48,8 +48,9 @@ export default function Studio({ showToast }) {
   // Short bearbeiten
   const [esId, setEsId] = useState(null)
   const [esTitle, setEsTitle] = useState('')
-  const [esDesc, setEsDesc] = useState('')
+  const [esThumb, setEsThumb] = useState('')
   const [esVis, setEsVis] = useState('Öffentlich')
+  const esThumbRef = useRef(null)
   // Post bearbeiten / erstellen
   const [epId, setEpId] = useState(null)
   const [npOpen, setNpOpen] = useState(false)
@@ -82,11 +83,11 @@ export default function Studio({ showToast }) {
   // Short-Upload abschließen → oben in die Liste (Demo)
   const finishUpload = (data) => {
     setShorts((s) => [{
-      id: `up-${Date.now()}`, author: 'du', title: data.title,
+      id: `up-${Date.now()}`, title: data.title,
       likes: '0', comments: data.commentsOff ? '–' : '0', remixes: '0',
       icon: 'fa-clapperboard', color: 'ic-teal', dur: data.dur || '–',
       views: 0, date: 'heute', status: 'live', visibility: data.visibility,
-      desc: '', tags: data.tags, thumb: data.thumb, commentsOff: data.commentsOff,
+      tags: data.tags, thumb: data.thumb, commentsOff: data.commentsOff,
     }, ...s])
     setUploadOpen(false)
     setTab('shorts')
@@ -141,19 +142,19 @@ export default function Studio({ showToast }) {
     copyTimer.current = setTimeout(() => setCopiedShare(false), 1600)
   }
 
-  // Short-Edit öffnen / speichern
+  // Short-Edit öffnen / speichern (Titel, Sichtbarkeit, Thumbnail)
   const openEditShort = (s) => {
     setCtx(null)
     setEsId(s.id)
     setEsTitle(s.title)
-    setEsDesc(s.desc || '')
+    setEsThumb(s.thumb || '')
     setEsVis(s.visibility || 'Öffentlich')
   }
   const saveShort = () => {
     if (!esTitle.trim()) return
     setShorts((list) => list.map((x) =>
       String(x.id) === String(esId)
-        ? { ...x, title: esTitle.trim(), desc: esDesc.trim(), visibility: esVis }
+        ? { ...x, title: esTitle.trim(), thumb: esThumb, visibility: esVis }
         : x
     ))
     setEsId(null)
@@ -236,7 +237,7 @@ export default function Studio({ showToast }) {
       {/* Kennzahlen */}
       <div className="stat-grid">
         {stats.map((s) => {
-          const max = Math.max(...s.bars)
+          const max = Math.max(...s.bars, 1)
           return (
             <div className="stat-card" key={s.label}>
               <span className="stat-label">
@@ -310,10 +311,9 @@ export default function Studio({ showToast }) {
                           </span>
                           <span className="cell-text">
                             <strong className="cell-title">{s.title}</strong>
-                            <small className="cell-sub">
-                              @{s.author}
-                              {!!s.tags?.length && ` · ${s.tags.map((t) => `#${t}`).join(' ')}`}
-                            </small>
+                            {!!s.tags?.length && (
+                              <small className="cell-sub">{s.tags.map((t) => `#${t}`).join(' ')}</small>
+                            )}
                           </span>
                         </span>
                       </td>
@@ -447,9 +447,38 @@ export default function Studio({ showToast }) {
                 <label className="field"><span>Titel</span>
                   <input value={esTitle} onChange={(e) => setEsTitle(e.target.value)} maxLength={120} aria-label="Titel" />
                 </label>
-                <label className="field"><span>Beschreibung</span>
-                  <textarea value={esDesc} onChange={(e) => setEsDesc(e.target.value)} rows={3} maxLength={500} aria-label="Beschreibung" />
-                </label>
+                <div className="field"><span>Thumbnail</span>
+                  <div className="thumb-pick">
+                    <span className="thumb-frame" aria-hidden="true">
+                      {esThumb ? <img src={esThumb} alt="" /> : <i className="fa-regular fa-image" />}
+                    </span>
+                    <span className="thumb-meta">
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => esThumbRef.current?.click()}>
+                        <i className="fa-solid fa-upload" /> {esThumb ? 'Anderes wählen' : 'Bild wählen'}
+                      </button>
+                      {esThumb ? (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEsThumb('')}>
+                          <i className="fa-solid fa-rotate-left" /> Entfernen
+                        </button>
+                      ) : (
+                        <small>Leer = Icon (Auto nur beim Upload)</small>
+                      )}
+                    </span>
+                    <input
+                      ref={esThumbRef}
+                      type="file"
+                      accept="image/*"
+                      className="file-hidden"
+                      aria-hidden="true"
+                      tabIndex={-1}
+                      onChange={(e) => {
+                        const f = [...(e.target.files || [])].find((x) => x.type.startsWith('image/'))
+                        e.target.value = ''
+                        if (f) setEsThumb(URL.createObjectURL(f))
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="field"><span>Sichtbarkeit</span>
                   <div className="toolbar" role="radiogroup" aria-label="Sichtbarkeit">
                     {VISIBILITIES.map((v) => (
