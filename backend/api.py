@@ -25,7 +25,14 @@ Endpunkte (alle unter /api/...):
   POST   /api/shorts/<id>/comments (Bearer, {text, parent_id?}) -> {comment}
   POST   /api/comments/<id>/like (Bearer) -> {liked, likes}
   POST   /api/users/<name>/follow (Bearer) -> {followed, followers}
-  GET    /api/followed (Bearer) -> {users: [...]}
+   GET    /api/followed (Bearer) -> {users: [...], communities: [...]}
+
+   GET    /api/communities -> {communities: [...]} (öffentlich, neueste zuerst)
+   POST   /api/communities (Bearer, multipart name+description+image) -> {community}
+   GET    /api/communities/recent (Bearer) -> {communities: [...]} (letzte 5 Besuche)
+   GET    /api/communities/<slug> -> {community} (404 wenn unbekannt)
+   POST   /api/communities/<slug>/follow (Bearer) -> {followed, followers} (Toggle)
+   POST   /api/communities/<slug>/visit (Bearer) -> {ok: true} (Besuch merken)
   POST   /api/shorts/<id>/view -> {views}
   GET    /api/media/<datei>   Video/Thumbnail (mit Range-Support)
 
@@ -42,6 +49,11 @@ from pathlib import Path
 from typing import Optional
 
 try:
+    from .functions.community import (
+        create_community,
+        toggle_community_follow,
+        visit_community,
+    )
     from .functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
@@ -65,6 +77,11 @@ try:
     from .logger import get_logger
     from .storage import Storage
 except ImportError:  # direkter Start via `python backend/api.py`
+    from functions.community import (
+        create_community,
+        toggle_community_follow,
+        visit_community,
+    )
     from functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
@@ -94,6 +111,7 @@ API_PORT = 3001
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_AVATAR = BASE_DIR / "frontend" / "public" / "assets" / "Tontoo_Black.png"
 AVATAR_DIR = BASE_DIR / "db" / "avatars"
+COMM_DIR = BASE_DIR / "db" / "media" / "communities"
 
 # Serialisiert alle Storage-Zugriffe (SQLite-Verbindung ist geteilt).
 DB_LOCK = threading.Lock()
@@ -195,6 +213,31 @@ def public_feed_short(row: dict) -> dict:
             "avatarUrl": avatar_url(row.get("author_avatar")),
             "following": bool(row.get("following")),
         },
+    }
+
+
+def public_community(row: dict) -> dict:
+    """Community für Listen/Detail (mit Mitgliederzahl + followed-Flag)."""
+    img = row.get("image")
+    return {
+        "slug": row["slug"],
+        "name": row.get("name") or row["slug"],
+        "desc": row.get("description") or "",
+        "imageUrl": f"/api/media/{img}" if img else None,
+        "members": row.get("members_n") or 0,
+        "followed": bool(row.get("followed")),
+    }
+
+
+def public_followed_community(row: dict) -> dict:
+    """Gefolgte Community für /followed (mit Mitgliederzahl)."""
+    img = row.get("image")
+    return {
+        "slug": row["slug"],
+        "name": row.get("name") or row["slug"],
+        "desc": row.get("description") or "",
+        "imageUrl": f"/api/media/{img}" if img else None,
+        "members": row.get("members_n") or 0,
     }
 
 
@@ -375,7 +418,32 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._fail(401, "Nicht eingeloggt.")
             with DB_LOCK:
                 rows = _storage.list_followed(user_id)
-            return self._ok({"users": [public_followed_user(r) for r in rows]})
+                comms = _storage.list_followed_communities(user_id)
+            return self._ok({
+                "users": [public_followed_user(r) for r in rows],
+                "communities": [public_followed_community(c) for c in comms],
+            })
+        if self.path == "/api/communities":
+            _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed
+            with DB_LOCK:
+                rows = _storage.list_communities(viewer_id)
+            return self._ok({"communities": [public_community(r) for r in rows]})
+        if self.path == "/api/communities/recent":
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                rows = _storage.list_recent_communities(user_id)
+            return self._ok({"communities": [public_community(r) for r in rows]})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})", self.path)
+        if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed
+            with DB_LOCK:
+                comm = _storage.get_community(m.group(1))
+                if comm is None:
+                    return self._fail(404, "Community nicht gefunden.")
+                full = _storage.community_with_stats(comm["id"], viewer_id)
+            return self._ok({"community": public_community(full)})
         m = re.fullmatch(r"/api/users/([A-Za-z0-9._]{1,30})", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed
@@ -531,6 +599,51 @@ class _Handler(BaseHTTPRequestHandler):
                     return self._fail(400, str(e))
                 followers = _storage.follower_count(target["id"])
             return self._ok({"followed": followed, "followers": followers})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/follow", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    result = toggle_community_follow(_storage, user_id, m.group(1))
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            return self._ok(result)
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/visit", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    visit_community(_storage, user_id, m.group(1))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok({"ok": True})
+        if self.path == "/api/communities":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            raw = self._read_bytes(5 * 1024 * 1024)
+            if raw is None:
+                return self._fail(413, "Upload ist leer oder größer als 5 MB.")
+            fields, files = parse_multipart(raw, self.headers.get("Content-Type"))
+            image = files.get("image")
+            try:
+                with DB_LOCK:
+                    comm = create_community(
+                        _storage, user_id,
+                        fields.get("name", ""), fields.get("description", ""),
+                        image["data"] if image and image["data"] else None,
+                    )
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(409 if "gibt es schon" in msg else 400, msg)
+            with DB_LOCK:
+                full = _storage.community_with_stats(comm["id"], user_id)
+            return self._send(201, {"community": public_community(full)})
         m = re.fullmatch(r"/api/shorts/(\d+)/like", self.path)
         if m:
             _, user_id = self._auth_user()
@@ -680,13 +793,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _serve_media(self, name: str) -> None:
-        """ Liefert Videos/Thumbnails aus db/media (mit Range-Support fürs Seeken)."""
+        """ Liefert Videos/Thumbnails/Community-Bilder aus db/media (mit Range-Support fürs Seeken)."""
         safe = Path(name).name
         if not safe or safe != name:
             return self._fail(404, "Nicht gefunden.")
         target = VIDEO_DIR / safe
         if not target.is_file():
             target = THUMB_DIR / safe
+        if not target.is_file():
+            target = COMM_DIR / safe
         if not target.is_file():
             return self._fail(404, "Nicht gefunden.")
         ctype = {

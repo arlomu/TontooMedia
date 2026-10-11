@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { COMMUNITIES } from './demoData.js'
-import { apiFollowed, apiToggleFollow, avatarSrc } from '../../lib/api.js'
+import {
+  apiFollowed,
+  apiToggleCommunityFollow,
+  apiToggleFollow,
+  avatarSrc,
+  mediaSrc,
+} from '../../lib/api.js'
 
 const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 
-// /followed: gefolgte User sind echt (Backend), Tontoos vorerst Demo (TontooOS fake).
+// /followed: gefolgte User + gefolgte Tontoos – beides echt aus der DB.
 const infoOf = (u) => {
   const bits = []
   if (u.name && u.name !== u.username) bits.push(u.name)
@@ -26,15 +31,17 @@ function FollowToggle({ label, onUnfollow }) {
 export default function Followed({ showToast }) {
   const toast = (msg) => showToast?.(msg)
   const [users, setUsers] = useState([])
+  const [comms, setComms] = useState([])
   const [usersLoading, setUsersLoading] = useState(true)
   const [usersError, setUsersError] = useState('')
-  const [tontoos, setTontoos] = useState(() => COMMUNITIES.map((c) => c.id))
 
   const loadUsers = async () => {
     setUsersLoading(true)
     setUsersError('')
     try {
-      setUsers(await apiFollowed())
+      const d = await apiFollowed()
+      setUsers(d.users)
+      setComms(d.communities)
     } catch (e) {
       setUsersError(e.message || 'Laden fehlgeschlagen.')
     } finally {
@@ -57,10 +64,16 @@ export default function Followed({ showToast }) {
       toast(e.message || 'Entfolgen fehlgeschlagen.')
     }
   }
-  const unfollowTontoo = (id) => {
-    const c = COMMUNITIES.find((x) => x.id === id)
-    setTontoos((list) => list.filter((t) => t !== id))
-    toast(`t/${c ? c.name : id} entfolgt.`)
+  const unfollowTontoo = async (slug) => {
+    try {
+      const r = await apiToggleCommunityFollow(slug)
+      if (!r.followed) {
+        setComms((list) => list.filter((c) => c.slug !== slug))
+        toast(`t/${slug} entfolgt.`)
+      }
+    } catch (e) {
+      toast(e.message || 'Entfolgen fehlgeschlagen.')
+    }
   }
 
   return (
@@ -128,31 +141,31 @@ export default function Followed({ showToast }) {
             <i className="fa-solid fa-users ic-teal" />
           </span>
           <strong>Gefolgte Tontoos</strong>
-          <span className="pill">{tontoos.length}</span>
+          <span className="pill">{comms.length}</span>
         </div>
-        {tontoos.length === 0 ? (
+        {usersLoading || usersError ? null : comms.length === 0 ? (
           <div className="follow-empty">
             <i className="fa-solid fa-users-slash big" aria-hidden="true" />
             <p>Du folgst noch keinem Tontoo.</p>
-            <Link to="/app" className="btn btn-brand btn-sm">
-              <i className="fa-solid fa-compass" /> Tontoos entdecken
-            </Link>
+            <p className="app-sub">Öffne eine Community und tippe auf Folgen.</p>
           </div>
         ) : (
           <div className="follow-list">
-            {COMMUNITIES.filter((c) => tontoos.includes(c.id)).map((c, i) => (
-              <div key={c.id} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
-                <Link to={`/t/${c.id}`} className="follow-link">
+            {comms.map((c, i) => (
+              <div key={c.slug} className="follow-line" style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}>
+                <Link to={`/t/${c.slug}`} className="follow-link">
                   <span className="comm-ic" aria-hidden="true">
-                    <i className={`fa-solid ${c.icon} ${c.color}`} />
+                    {c.imageUrl
+                      ? <img src={mediaSrc(c.imageUrl)} alt="" />
+                      : <i className="fa-solid fa-users" />}
                   </span>
                   <span className="follow-main">
                     <strong>t/{c.name}</strong>
-                    <small>{c.members} Mitglieder</small>
+                    <small>{fmt(c.members)} {c.members === 1 ? 'Mitglied' : 'Mitglieder'}</small>
                   </span>
                   <i className="fa-solid fa-chevron-right follow-go" aria-hidden="true" />
                 </Link>
-                <FollowToggle label={`t/${c.name}`} onUnfollow={() => unfollowTontoo(c.id)} />
+                <FollowToggle label={`t/${c.name}`} onUnfollow={() => unfollowTontoo(c.slug)} />
               </div>
             ))}
           </div>

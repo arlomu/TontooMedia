@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mediaSrc } from '../lib/api.js'
 
 const MAX_IMAGES = 2
 const MAX_TAGS = 5
@@ -22,8 +23,10 @@ export default function PostEditor({
   onSubmit,
   onCancel,
 }) {
+  // Demo-Communities haben id, echte aus der DB slug.
+  const cidOf = (c) => c?.slug || c?.id
   const [commId, setCommId] = useState(
-    () => communityId || fixedCommunity?.id || communities[0]?.id
+    () => communityId || cidOf(fixedCommunity) || cidOf(communities[0])
   )
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -36,7 +39,7 @@ export default function PostEditor({
   const imgRef = useRef(null)
 
   const comm = fixedCommunity
-    || communities.find((c) => c.id === commId)
+    || communities.find((c) => cidOf(c) === commId)
     || communities[0]
 
   const pick = (id) => {
@@ -125,14 +128,16 @@ export default function PostEditor({
       )
     : communities
 
-  const avatarOf = (c, cls = 'comm-ic') =>
-    c.pic ? (
-      <img className={`${cls} as-img`} src={c.pic} alt="" />
+  const avatarOf = (c, cls = 'comm-ic') => {
+    const img = c.imageUrl ? mediaSrc(c.imageUrl) : (c.pic || null)
+    return img ? (
+      <img className={`${cls} as-img`} src={img} alt="" />
     ) : (
       <span className={cls} aria-hidden="true">
-        <i className={`fa-solid ${c.icon} ${c.color || ''}`} />
+        <i className={`fa-solid ${c.icon || 'fa-users'} ${c.color || ''}`} />
       </span>
     )
+  }
 
   const submit = () => {
     if (!title.trim()) return
@@ -304,17 +309,17 @@ export default function PostEditor({
               <div className="picker-list">
                 {commList.map((c) => (
                   <button
-                    key={c.id}
+                    key={cidOf(c)}
                     type="button"
-                    className={`picker-row${c.id === commId ? ' active' : ''}`}
-                    onClick={() => pick(c.id)}
+                    className={`picker-row${cidOf(c) === commId ? ' active' : ''}`}
+                    onClick={() => pick(cidOf(c))}
                   >
                     {avatarOf(c)}
                     <span className="trend-main">
                       <strong>t/{c.name}</strong>
-                      <small>{c.members} · {(c.desc || '').slice(0, 80)}</small>
+                      <small>{typeof c.members === 'number' ? `${c.members} Mitglieder · ` : (c.members ? `${c.members} · ` : '')}{(c.desc || '').slice(0, 80)}</small>
                     </span>
-                    {c.id === commId && <i className="fa-solid fa-check ic-teal" aria-hidden="true" />}
+                    {cidOf(c) === commId && <i className="fa-solid fa-check ic-teal" aria-hidden="true" />}
                   </button>
                 ))}
                 {commList.length === 0 && (

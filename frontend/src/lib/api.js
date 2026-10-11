@@ -163,7 +163,62 @@ export const apiToggleFollow = (username) =>
   })
 
 export const apiFollowed = () =>
-  request('/api/followed', { auth: true }).then((d) => d.users || [])
+  request('/api/followed', { auth: true }).then((d) => ({
+    users: d.users || [],
+    communities: d.communities || [],
+  }))
+
+// ---- Communities (echt, DB) ----
+
+export const apiListCommunities = () =>
+  request('/api/communities', { auth: true }).then((d) => d.communities || [])
+
+export const apiGetCommunity = (slug) =>
+  request(`/api/communities/${encodeURIComponent(slug)}`, { auth: true }).then(
+    (d) => d.community
+  )
+
+export const apiToggleCommunityFollow = (slug) =>
+  request(`/api/communities/${encodeURIComponent(slug)}/follow`, {
+    method: 'POST',
+    auth: true,
+  })
+
+export const apiVisitCommunity = (slug) =>
+  request(`/api/communities/${encodeURIComponent(slug)}/visit`, {
+    method: 'POST',
+    auth: true,
+  }).catch(() => null)
+
+export const apiRecentCommunities = () =>
+  request('/api/communities/recent', { auth: true })
+    .then((d) => d.communities || [])
+    .catch(() => [])
+
+// Community-Erstellung per XHR (Bild als Datei, kein Data-URL-Umweg).
+export const apiCreateCommunity = ({ name, description, imageFile }) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/communities`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* egal */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data.community)
+      else reject(new Error(data.error || `Fehler ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Server nicht erreichbar. Läuft das Backend?'))
+    const fd = new FormData()
+    fd.append('name', name)
+    fd.append('description', description || '')
+    if (imageFile) fd.append('image', imageFile)
+    xhr.send(fd)
+  })
 
 // Multipart-Upload per XHR (damit es echten Fortschritt gibt).
 export const apiUploadShort = ({

@@ -73,8 +73,33 @@ CREATE TABLE IF NOT EXISTS follows (
     created_at INTEGER NOT NULL,
     PRIMARY KEY (follower_id, followed_id)
 );
+CREATE TABLE IF NOT EXISTS communities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    image TEXT,
+    creator_id INTEGER,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS community_follows (
+    user_id INTEGER NOT NULL,
+    community_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, community_id)
+);
+CREATE TABLE IF NOT EXISTS community_visits (
+    user_id INTEGER NOT NULL,
+    community_id INTEGER NOT NULL,
+    visited_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, community_id)
+);
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug);
+CREATE INDEX IF NOT EXISTS idx_cfollow_user ON community_follows(user_id);
+CREATE INDEX IF NOT EXISTS idx_cfollow_comm ON community_follows(community_id);
+CREATE INDEX IF NOT EXISTS idx_cvisit_user ON community_visits(user_id);
 CREATE INDEX IF NOT EXISTS idx_likes_short ON short_likes(short_id);
 CREATE INDEX IF NOT EXISTS idx_comments_short ON short_comments(short_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes ON short_comment_likes(comment_id);
@@ -629,7 +654,154 @@ class Storage:
         conn.execute("DELETE FROM short_likes WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM short_comment_likes WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM short_comments WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM community_follows WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM community_visits WHERE user_id = ?", (user_id,))
         conn.commit()
+
+    # ---------- Communities ----------
+
+    @staticmethod
+    def _row_dict(cur, row) -> Optional[dict]:
+        return dict(zip([d[0] for d in cur.description], row)) if row else None
+
+    def create_community(
+        self,
+        slug: str,
+        name: str,
+        description: str,
+        creator_id: int,
+        image: Optional[str] = None,
+    ) -> dict:
+        """Legt eine Community an (slug eindeutig). Gibt die Zeile zurück."""
+        conn = self._require()
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO communities (slug, name, description, image, creator_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (slug, name, description, image, creator_id, now),
+        )
+        conn.commit()
+        return self.get_community_by_id(cur.lastrowid)
+
+    def set_community_image(self, community_id: int, filename: str) -> None:
+        conn = self._require()
+        conn.execute(
+            "UPDATE communities SET image = ? WHERE id = ?",
+            (filename, community_id),
+        )
+        conn.commit()
+
+    def get_community_by_id(self, community_id: int) -> Optional[dict]:
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT * FROM communities WHERE id = ?", (community_id,)
+        )
+        return self._row_dict(cur, cur.fetchone())
+
+    def get_community(self, slug: str) -> Optional[dict]:
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT * FROM communities WHERE slug = ?", (slug,)
+        )
+        return self._row_dict(cur, cur.fetchone())
+
+    def community_with_stats(self, community_id: int, viewer_id: Optional[int] = None) -> Optional[dict]:
+        """Community-Zeile plus Mitgliederzahl + followed-Flag für den Viewer."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
+            " WHERE f.community_id = c.id) AS members_n,"
+            " (SELECT COUNT(*) FROM community_follows f2"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " FROM communities c WHERE c.id = ?",
+            (viewer_id if viewer_id is not None else -1, community_id),
+        )
+        return self._row_dict(cur, cur.fetchone())
+
+    def list_communities(self, viewer_id: Optional[int] = None) -> list:
+        """Alle Communities (neueste zuerst) mit Kennzahlen + followed-Flag."""
+        conn = self._require()
+        vid = viewer_id if viewer_id is not None else -1
+        cur = conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
+            " WHERE f.community_id = c.id) AS members_n,"
+            " EXISTS(SELECT 1 FROM community_follows f2"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " FROM communities c ORDER BY c.id DESC",
+            (vid,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def toggle_community_follow(self, user_id: int, community_id: int) -> bool:
+        """Community-Follow umschalten. True = folgt jetzt."""
+        conn = self._require()
+        exists = conn.execute(
+            "SELECT 1 FROM community_follows WHERE user_id = ? AND community_id = ?",
+            (user_id, community_id),
+        ).fetchone()
+        if exists:
+            conn.execute(
+                "DELETE FROM community_follows WHERE user_id = ? AND community_id = ?",
+                (user_id, community_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO community_follows (user_id, community_id, created_at)"
+            " VALUES (?, ?, ?)",
+            (user_id, community_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def community_follower_count(self, community_id: int) -> int:
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM community_follows WHERE community_id = ?",
+            (community_id,),
+        ).fetchone()
+        return row[0] if row else 0
+
+    def list_followed_communities(self, user_id: int) -> list:
+        """Gefolgte Communities mit Mitgliederzahl (für /followed)."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
+            " WHERE f.community_id = c.id) AS members_n"
+            " FROM community_follows fo JOIN communities c ON c.id = fo.community_id"
+            " WHERE fo.user_id = ? ORDER BY c.slug ASC",
+            (user_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def record_community_visit(self, user_id: int, community_id: int) -> None:
+        """Merkt sich den letzten Besuch (Upsert für die Sidebar-Historie)."""
+        conn = self._require()
+        conn.execute(
+            "INSERT INTO community_visits (user_id, community_id, visited_at)"
+            " VALUES (?, ?, ?)"
+            " ON CONFLICT(user_id, community_id) DO UPDATE SET visited_at = excluded.visited_at",
+            (user_id, community_id, int(time.time() * 1000)),
+        )
+        conn.commit()
+
+    def list_recent_communities(self, user_id: int, limit: int = 5) -> list:
+        """Zuletzt geöffnete Communities (neueste zuerst, max. `limit`)."""
+        conn = self._require()
+        vid = user_id
+        cur = conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM community_follows f"
+            " WHERE f.community_id = c.id) AS members_n,"
+            " EXISTS(SELECT 1 FROM community_follows f2"
+            " WHERE f2.community_id = c.id AND f2.user_id = ?) AS followed"
+            " FROM community_visits v JOIN communities c ON c.id = v.community_id"
+            " WHERE v.user_id = ? ORDER BY v.visited_at DESC LIMIT ?",
+            (vid, user_id, limit),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
 if __name__ == "__main__":

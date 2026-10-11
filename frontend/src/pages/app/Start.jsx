@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS, commIdOf, postUrlOf } from './demoData.js'
+import { DEMO_POSTS, DEMO_SHORTS, commIdOf, postUrlOf } from './demoData.js'
 import ShareSheet from '../../components/ShareSheet.jsx'
 import PostBody from '../../components/PostBody.jsx'
+import { apiListCommunities, mediaSrc } from '../../lib/api.js'
 
 const SORTS = [
   { id: 'neu', label: 'Neu', icon: 'fa-clock' },
@@ -18,10 +19,16 @@ export default function Start() {
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null) // Post im Teilen-Menü (wie bei Shorts)
   const [ctx, setCtx] = useState(null) // { x, y, post } – eigenes Rechtsklick-Menü
+  // Echte Communities für "Trending Tontoos" (leer → Box versteckt).
+  const [trendComms, setTrendComms] = useState([])
   const shelfRef = useRef(null)
   const copyTimer = useRef(null)
 
   useEffect(() => () => clearTimeout(copyTimer.current), [])
+
+  useEffect(() => {
+    apiListCommunities().then(setTrendComms).catch(() => setTrendComms([]))
+  }, [])
 
   // Rechtsklick-Menü schließen: Escape, Klick, Scrollen
   useEffect(() => {
@@ -223,25 +230,31 @@ export default function Start() {
 
         {/* Rechte Spalte: aufräumen statt endloser Feed */}
         <aside className="start-side" aria-label="Entdecken">
+          {trendComms.length > 0 && (
           <div className="side-card">
             <h4 className="sidecard-title">
               <i className="fa-solid fa-users ic-teal" /> Trending Tontoos
             </h4>
             <div className="trend-list">
-              {COMMUNITIES.map((c) => (
-                <Link key={c.id} to={`/t/${c.id}`} className="trend-row">
+              {trendComms.slice(0, 5).map((c) => (
+                <Link key={c.slug} to={`/t/${c.slug}`} className="trend-row">
                   <span className="comm-ic" aria-hidden="true">
-                    <i className={`fa-solid ${c.icon} ${c.color}`} />
+                    {c.imageUrl ? (
+                      <img src={mediaSrc(c.imageUrl)} alt="" />
+                    ) : (
+                      <i className="fa-solid fa-users" />
+                    )}
                   </span>
                   <span className="trend-main">
                     <strong>t/{c.name}</strong>
-                    <small>{c.members} Mitglieder</small>
+                    <small>{Number(c.members || 0).toLocaleString('de-DE')} Mitglieder</small>
                   </span>
                   <i className="fa-solid fa-chevron-right trend-go" aria-hidden="true" />
                 </Link>
               ))}
             </div>
           </div>
+          )}
         </aside>
       </div>
 

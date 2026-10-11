@@ -1,23 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
-import { COMMUNITIES } from '../pages/app/demoData.js'
-import { addCustomTontoo, getCustomTontoos } from '../pages/app/customTontoos.js'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  apiCreateCommunity,
+  apiRecentCommunities,
+  getToken,
+  mediaSrc,
+} from '../lib/api.js'
 
 // Eigene Sidebar-Komponente – 1:1 identisch auf allen App-Routen
 // (/app, /shorts, /studio, /einstellungen, /t/:name, /u/:user).
+// Communities sind echt (DB): Die Liste zeigt die letzten 5 geöffneten,
+// Erstellen geht über das +-Modal (mit Login + Bild).
 export default function Sidebar({ open, onClose, showToast }) {
   const [commsOpen, setCommsOpen] = useState(true)
+  const [recent, setRecent] = useState([])
   const [createOpen, setCreateOpen] = useState(false)
-  const [customs, setCustoms] = useState(getCustomTontoos)
   const [cName, setCName] = useState('')
   const [cDesc, setCDesc] = useState('')
-  const [cPic, setCPic] = useState(null)
+  const [cPic, setCPic] = useState(null) // { url, file }
   const [cError, setCError] = useState(null)
+  const [cBusy, setCBusy] = useState(false)
   const fileRef = useRef(null)
+  const loc = useLocation()
+  const navigate = useNavigate()
 
   const cId = cName.trim().toLowerCase().replace(/[^a-z0-9._]/g, '')
 
-  const revokePic = (src) => { if (src?.startsWith('blob:')) URL.revokeObjectURL(src) }
+  const loggedIn = () => !!getToken()
+
+  const loadRecent = async () => {
+    if (!loggedIn()) {
+      setRecent([])
+      return
+    }
+    setRecent(await apiRecentCommunities())
+  }
+
+  // Historie bei jedem Seitenwechsel auffrischen (Besuche landen in der DB).
+  useEffect(() => {
+    loadRecent()
+  }, [loc.pathname])
+
+  const revokePic = (pic) => { if (pic?.url?.startsWith('blob:')) URL.revokeObjectURL(pic.url) }
 
   const closeCreate = () => {
     setCreateOpen(false)
@@ -33,29 +57,40 @@ export default function Sidebar({ open, onClose, showToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [createOpen])
 
-  const createTontoo = (e) => {
+  const openCreate = () => {
+    if (!loggedIn()) {
+      showToast?.('Bitte zuerst einloggen.')
+      return
+    }
+    setCreateOpen(true)
+  }
+
+  const createTontoo = async (e) => {
     e.preventDefault()
+    if (cBusy) return
     if (!cName.trim()) return setCError('Bitte einen Namen eingeben.')
     if (!cId) return setCError('Der Name muss a–z, 0–9, Punkt oder Unterstrich enthalten.')
     if (!cPic) return setCError('Bitte lade ein Bild für deinen Tontoo hoch.')
-    const taken = [...COMMUNITIES, ...getCustomTontoos()].some((c) => c.id === cId)
-    if (taken) return setCError(`t/${cId} gibt es schon.`)
-    addCustomTontoo({
-      id: cId,
-      name: cName.trim(),
-      desc: cDesc.trim(),
-      icon: 'fa-circle-user',
-      color: '',
-      pic: cPic,
-      members: '1 Mitglied',
-    })
-    setCustoms([...getCustomTontoos()])
-    setCName('')
-    setCDesc('')
-    setCPic(null)
-    setCreateOpen(false)
+    setCBusy(true)
     setCError(null)
-    showToast(`t/${cId} erstellt.`)
+    try {
+      const comm = await apiCreateCommunity({
+        name: cName.trim(),
+        description: cDesc.trim(),
+        imageFile: cPic.file,
+      })
+      closeCreate()
+      setCName('')
+      setCDesc('')
+      await loadRecent()
+      onClose?.()
+      navigate(`/t/${comm.slug}`)
+      showToast?.(`t/${comm.slug} erstellt.`)
+    } catch (err) {
+      setCError(err.message || 'Erstellen fehlgeschlagen.')
+    } finally {
+      setCBusy(false)
+    }
   }
 
   const uploadPic = (e) => {
@@ -63,7 +98,7 @@ export default function Sidebar({ open, onClose, showToast }) {
     e.target.value = ''
     if (!f) return
     revokePic(cPic)
-    setCPic(URL.createObjectURL(f))
+    setCPic({ url: URL.createObjectURL(f), file: f })
   }
 
   const removePic = () => {
@@ -107,31 +142,38 @@ export default function Sidebar({ open, onClose, showToast }) {
             className="iconbtn sm comms-add"
             aria-label="Tontoo erstellen"
             title="Tontoo erstellen"
-            onClick={() => setCreateOpen(true)}
+            onClick={openCreate}
           >
             <i className="fa-solid fa-plus" />
           </button>
         </div>
           <nav className={`comms-list${commsOpen ? '' : ' closed'}`} aria-label="Communities">
             <div className="comms-clip">
-              {[...COMMUNITIES, ...customs].map((c) => (
+              {recent.map((c) => (
                 <NavLink
-                  key={c.id}
-                  to={`/t/${c.id}`}
+                  key={c.slug}
+                  to={`/t/${c.slug}`}
                   className={({ isActive }) => `side-item comm${isActive ? ' active' : ''}`}
                   onClick={onClose}
                   tabIndex={commsOpen ? 0 : -1}
                 >
                   <span className="comm-ic">
-                    {c.pic ? (
-                      <img className="comm-pic" src={c.pic} alt="" />
+                    {c.imageUrl ? (
+                      <img className="comm-pic" src={mediaSrc(c.imageUrl)} alt="" />
                     ) : (
-                      <i className={`fa-solid ${c.icon} ${c.color}`} />
+                      <i className="fa-solid fa-users" />
                     )}
                   </span>
                   {c.name}
                 </NavLink>
               ))}
+              {recent.length === 0 && (
+                <p className="comms-hint">
+                  {loggedIn()
+                    ? 'Noch nichts geöffnet – die letzten 5 stehen hier.'
+                    : 'Logge dich ein, um Communities zu erstellen und hier zu sehen.'}
+                </p>
+              )}
             </div>
           </nav>
       </div>
@@ -165,7 +207,7 @@ export default function Sidebar({ open, onClose, showToast }) {
                   type="text"
                   placeholder="z. B. Fahrräder"
                   value={cName}
-                  maxLength={24}
+                  maxLength={32}
                   autoComplete="off"
                   onChange={(e) => setCName(e.target.value)}
                 />
@@ -177,7 +219,7 @@ export default function Sidebar({ open, onClose, showToast }) {
                   placeholder="Worum geht es in deinem Tontoo?"
                   value={cDesc}
                   rows={3}
-                  maxLength={140}
+                  maxLength={280}
                   onChange={(e) => setCDesc(e.target.value)}
                 />
               </label>
@@ -193,7 +235,7 @@ export default function Sidebar({ open, onClose, showToast }) {
               />
               {cPic ? (
                 <div className="pic-prev">
-                  <img src={cPic} alt="Ausgewähltes Tontoo-Bild" />
+                  <img src={cPic.url} alt="Ausgewähltes Tontoo-Bild" />
                   <span>Bild gewählt.</span>
                   <button type="button" className="comment-btn" onClick={removePic} aria-label="Bild entfernen">
                     <i className="fa-solid fa-xmark" />
@@ -212,7 +254,9 @@ export default function Sidebar({ open, onClose, showToast }) {
             </div>
             <div className="sheet-foot">
               <button type="button" className="btn btn-ghost" onClick={closeCreate}>Abbrechen</button>
-              <button type="submit" className="btn btn-brand"><i className="fa-solid fa-plus" /> Erstellen</button>
+              <button type="submit" className="btn btn-brand" disabled={cBusy}>
+                <i className={`fa-solid ${cBusy ? 'fa-circle-notch fa-spin' : 'fa-plus'}`} /> Erstellen
+              </button>
             </div>
           </form>
         </div>

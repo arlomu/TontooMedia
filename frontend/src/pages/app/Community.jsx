@@ -1,50 +1,77 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POSTS, commIdOf, postUrlOf } from './demoData.js'
-import { getCustomTontoos } from './customTontoos.js'
 import CommunityCard from '../../components/CommunityCard.jsx'
-import PostBody from '../../components/PostBody.jsx'
-import PostEditor from '../../components/PostEditor.jsx'
-import ShareSheet from '../../components/ShareSheet.jsx'
+import {
+  apiGetCommunity,
+  apiToggleCommunityFollow,
+  apiVisitCommunity,
+  getToken,
+  mediaSrc,
+} from '../../lib/api.js'
 
-const SORTS = [
-  { id: 'neu', label: 'Neu', icon: 'fa-clock' },
-  { id: 'top', label: 'Top', icon: 'fa-fire' },
-  { id: 'diskutiert', label: 'Diskutiert', icon: 'fa-comments' },
-]
+const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 
-// Community-Seite: /t/:name – Hero oben, Feed-Karten wie auf der Startseite,
-// rechts die sticky Community-Box (identisch zur Post-Ansicht).
-// Alles Demo, kein Backend.
-export default function Community() {
+// Community-Seite: /t/:name – Hero oben, rechts die sticky Community-Box.
+// Alles echt aus der DB (Bild, Mitglieder, Folgen). Posten kommt erst später:
+// Der Feed ist noch leer, der Posten-Button sagt das auch.
+export default function Community({ showToast }) {
   const { name } = useParams()
-  const comm = COMMUNITIES.find((c) => c.id === name) || getCustomTontoos().find((c) => c.id === name)
-
-  const [sort, setSort] = useState('neu')
-  const [liked, setLiked] = useState({})
-  const [copied, setCopied] = useState(null)
-  const [sharePost, setSharePost] = useState(null)
-  const [editorOpen, setEditorOpen] = useState(null) // commId mit Preselect
-  const copyTimer = useRef(null)
-
-  useEffect(() => () => clearTimeout(copyTimer.current), [])
+  const toast = (msg) => showToast?.(msg)
+  const [comm, setComm] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!sharePost && !editorOpen) return
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      setSharePost(null)
-      setEditorOpen(null)
+    let alive = true
+    setLoading(true)
+    setNotFound(false)
+    setError('')
+    setComm(null)
+    apiGetCommunity(name)
+      .then((c) => {
+        if (!alive) return
+        setComm(c)
+        // Besuch für die Sidebar-Historie merken (nur eingeloggt).
+        if (getToken()) apiVisitCommunity(c.slug)
+      })
+      .catch((e) => {
+        if (!alive) return
+        if (/nicht gefunden|404/i.test(e.message || '')) setNotFound(true)
+        else setError(e.message || 'Laden fehlgeschlagen.')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sharePost, editorOpen])
+  }, [name])
 
-  if (!comm) {
+  const toggleFollow = async () => {
+    try {
+      const r = await apiToggleCommunityFollow(comm.slug)
+      setComm((c) => (c ? { ...c, followed: !!r.followed, members: r.followers } : c))
+      if (r.followed) toast(`t/${comm.slug} gefolgt.`)
+      else toast(`t/${comm.slug} entfolgt.`)
+    } catch (e) {
+      toast(/eingeloggt/i.test(e.message || '') ? 'Bitte zuerst einloggen.' : (e.message || 'Folgen fehlgeschlagen.'))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="app-page narrow">
+        <p className="app-sub"><i className="fa-solid fa-circle-notch fa-spin" /> Wird geladen …</p>
+      </div>
+    )
+  }
+
+  if (notFound || (!comm && !error)) {
     return (
       <div className="app-page narrow">
         <h2 className="app-title">Nicht gefunden</h2>
-        <p className="app-sub">Diese Beispiel-Community gibt es nicht.</p>
+        <p className="app-sub">Diese Community gibt es nicht. Erstelle sie über das + in der Seitenleiste.</p>
         <Link to="/app" className="btn btn-ghost">
           <i className="fa-solid fa-arrow-left" /> Zurück zur Startseite
         </Link>
@@ -52,129 +79,54 @@ export default function Community() {
     )
   }
 
-  const base = DEMO_POSTS.filter((p) => commIdOf(p) === comm.id)
-  const posts = (base.length ? base : DEMO_POSTS.slice(0, 2)).sort((a, b) => {
-    if (sort === 'top') return b.likes - a.likes
-    if (sort === 'diskutiert') return b.comments - a.comments
-    return a.id - b.id
-  })
-
-  const copyLink = async (p) => {
-    const url = postUrlOf(p)
-    try {
-      await navigator.clipboard.writeText(url)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = url
-      document.body.appendChild(ta)
-      ta.select()
-      try { document.execCommand('copy') } catch { /* Demo: egal */ }
-      ta.remove()
-    }
-    setCopied(p.id)
-    clearTimeout(copyTimer.current)
-    copyTimer.current = setTimeout(() => setCopied(null), 1600)
+  if (error) {
+    return (
+      <div className="app-page narrow">
+        <h2 className="app-title">Fehler</h2>
+        <p className="app-sub">{error}</p>
+        <Link to="/app" className="btn btn-ghost">
+          <i className="fa-solid fa-arrow-left" /> Zurück zur Startseite
+        </Link>
+      </div>
+    )
   }
+
+  const img = comm.imageUrl ? mediaSrc(comm.imageUrl) : null
 
   return (
     <div className="app-page">
       {/* Hero */}
       <div className="comm-hero-card">
         <span className="comm-big" aria-hidden="true">
-          {comm.pic ? (
-            <img src={comm.pic} alt="" />
+          {img ? (
+            <img src={img} alt="" />
           ) : (
-            <i className={`fa-solid ${comm.icon} ${comm.color}`} />
+            <i className="fa-solid fa-users" />
           )}
         </span>
         <div className="comm-hero-main">
           <h2 className="comm-hero-name">t/{comm.name}</h2>
           <p className="comm-hero-meta">
-            <i className="fa-solid fa-users" /> {comm.members} Mitglieder · Öffentlich
+            <i className="fa-solid fa-users" /> {fmt(comm.members)} {comm.members === 1 ? 'Mitglied' : 'Mitglieder'} · Öffentlich
           </p>
-          <p className="comm-hero-desc">{comm.desc}</p>
+          {comm.desc ? <p className="comm-hero-desc">{comm.desc}</p> : null}
         </div>
       </div>
 
       <div className="start-layout">
         <div className="feed-col">
           <div className="feed-bar split">
-            {/* Gleicher Editor wie im Studio, Community vorausgewählt – Posten tut (Demo) nichts */}
-            <button type="button" className="btn btn-brand" onClick={() => setEditorOpen(comm.id)}>
+            <button type="button" className="btn btn-brand" onClick={() => toast('Posten kommt bald – erst Folgen und stöbern.')}>
               <i className="fa-solid fa-plus" /> Posten
             </button>
-            <div className="toolbar" role="tablist" aria-label="Beiträge sortieren">
-              {SORTS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={sort === s.id}
-                  className={`toolbtn${sort === s.id ? ' active' : ''}`}
-                  onClick={() => setSort(s.id)}
-                >
-                  <i className={`fa-solid ${s.icon}`} /> {s.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="app-feed">
-            {posts.map((p, i) => {
-              const cid = commIdOf(p)
-              const isLiked = !!liked[p.id]
-              return (
-                <article
-                  key={p.id}
-                  className="post start-post"
-                  style={{ animationDelay: `${Math.min(i, 5) * 40}ms` }}
-                >
-                  <div className="posthead">
-                    <span className="avatar" aria-hidden="true">
-                      <i className={`fa-solid ${p.icon} ${p.color}`} />
-                    </span>
-                    <div className="postheada">
-                      <div className="postline">
-                        <Link to={`/u/${p.author}`} className="comm-link">u/{p.author}</Link>
-                        <span className="dot" aria-hidden="true">·</span>
-                        <span className="posttime">
-                          <i className="fa-regular fa-clock" /> {p.time}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link to={`/t/${cid}/post/${p.id}`} className="post-titlelink">
-                    <h4 className="post-title">{p.title || p.text}</h4>
-                  </Link>
-                  <PostBody post={p} detailUrl={`/t/${cid}/post/${p.id}`} />
-
-                  <div className="post-toolbar">
-                    <button
-                      type="button"
-                      className={`toolbtn sm${isLiked ? ' active' : ''}`}
-                      aria-pressed={isLiked}
-                      aria-label="Liken"
-                      onClick={() => setLiked((m) => ({ ...m, [p.id]: !m[p.id] }))}
-                    >
-                      <i className={`${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart`} />
-                      {(p.likes + (isLiked ? 1 : 0)).toLocaleString('de-DE')}
-                    </button>
-                    <Link to={`/t/${cid}/post/${p.id}`} className="toolbtn sm" title="Kommentare öffnen">
-                      <i className="fa-regular fa-comment" /> {p.comments}
-                    </Link>
-                    <button
-                      type="button"
-                      className="toolbtn sm"
-                      aria-label="Teilen"
-                      onClick={() => setSharePost(p)}
-                    >
-                      <i className="fa-solid fa-share-nodes" /> Teilen
-                    </button>
-                  </div>
-                </article>
-              )
-            })}
+            <div className="follow-empty">
+              <i className="fa-solid fa-inbox big" aria-hidden="true" />
+              <p>Noch keine Beiträge in t/{comm.name}.</p>
+              <p className="app-sub">Posten ist noch nicht möglich – schau bald wieder vorbei.</p>
+            </div>
           </div>
         </div>
 
@@ -182,40 +134,15 @@ export default function Community() {
         <aside className="start-side" aria-label="Community">
           <CommunityCard
             comm={comm}
+            followed={comm.followed}
+            onToggleFollow={toggleFollow}
             stats={[
-              { value: comm.members, label: 'Mitglieder' },
-              { value: base.length || '–', label: 'Beiträge' },
+              { value: fmt(comm.members), label: 'Mitglieder' },
+              { value: '–', label: 'Beiträge' },
             ]}
           />
         </aside>
       </div>
-
-      {sharePost && (
-        <ShareSheet
-          sub={`t/${sharePost.community} · ${sharePost.title || sharePost.text}`}
-          url={postUrlOf(sharePost)}
-          copied={copied === sharePost.id}
-          onCopy={() => copyLink(sharePost)}
-          onClose={() => setSharePost(null)}
-        />
-      )}
-
-      {/* Gleiches Editor-Modal wie im Studio, Community vorausgewählt */}
-      {editorOpen && (
-        <div className="sheet-backdrop" onClick={() => setEditorOpen(null)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-head"><strong className="sheet-title">Post erstellen</strong></div>
-            <PostEditor
-              key={editorOpen}
-              communities={[...COMMUNITIES, ...getCustomTontoos()]}
-              communityId={editorOpen}
-              submitLabel="Posten"
-              onSubmit={() => {}}
-              onCancel={() => setEditorOpen(null)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

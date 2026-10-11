@@ -9,9 +9,9 @@ import {
 import ShareSheet from '../../components/ShareSheet.jsx'
 import PostEditor from '../../components/PostEditor.jsx'
 import ShortUpload from '../../components/ShortUpload.jsx'
-import { getCustomTontoos } from './customTontoos.js'
 import {
   apiDeleteShort,
+  apiListCommunities,
   apiListShorts,
   apiStudioOverview,
   apiUpdateShort,
@@ -98,7 +98,9 @@ export default function Studio({ showToast }) {
   // Post bearbeiten / erstellen
   const [epId, setEpId] = useState(null)
   const [npOpen, setNpOpen] = useState(false)
-  const [npComm, setNpComm] = useState(COMMUNITIES[0].id)
+  const [npComm, setNpComm] = useState('')
+  // Echte Communities für den Picker (Anzeige only – Posten bleibt Demo).
+  const [comms, setComms] = useState([])
   const [uploadOpen, setUploadOpen] = useState(false)
   const copyTimer = useRef(null)
 
@@ -144,6 +146,12 @@ export default function Studio({ showToast }) {
       setShortsError(e.message || 'Laden fehlgeschlagen.')
     } finally {
       setShortsLoading(false)
+    }
+    // Echte Communities für den Picker (ohne Login einfach leer).
+    try {
+      setComms(await apiListCommunities())
+    } catch {
+      setComms([])
     }
   }
 
@@ -283,9 +291,12 @@ export default function Studio({ showToast }) {
     notify('Post gespeichert (Demo).')
   }
   const editPost = epId !== null ? posts.find((x) => String(x.id) === String(epId)) : null
+  // Demo-Posts zeigen ihre Demo-Community, neue Posts echte aus der DB.
   const editComm = editPost
-    ? ([...COMMUNITIES, ...getCustomTontoos()].find((c) => c.id === commIdOf(editPost)) || COMMUNITIES[0])
-    : COMMUNITIES[0]
+    ? (comms.find((c) => (c.slug || c.id) === commIdOf(editPost))
+      || COMMUNITIES.find((c) => c.id === commIdOf(editPost))
+      || null)
+    : null
 
   const findRow = (kind, id) => {
     const pool = kind === 'short' ? shorts : posts
@@ -683,7 +694,7 @@ export default function Studio({ showToast }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head"><strong className="sheet-title">Post erstellen</strong></div>
             <PostEditor
-              communities={[...COMMUNITIES, ...getCustomTontoos()]}
+              communities={comms}
               communityId={npComm}
               onCommunity={setNpComm}
               submitLabel="Posten"
