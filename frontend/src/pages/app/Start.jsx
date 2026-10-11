@@ -15,7 +15,6 @@ const commIdOf = (p) =>
 // darunter Text-Posts aus den Sub-Tontoos (t/…) + rechte Info-Spalte.
 export default function Start() {
   const [sort, setSort] = useState('neu')
-  const [comm, setComm] = useState('alle')
   const [liked, setLiked] = useState({})
   const [saved, setSaved] = useState({})
   const [copied, setCopied] = useState(null)
@@ -38,12 +37,11 @@ export default function Start() {
     }
   }, [ctx])
 
-  const sorted = [...DEMO_POSTS].sort((a, b) => {
+  const filtered = [...DEMO_POSTS].sort((a, b) => {
     if (sort === 'top') return b.likes - a.likes
     if (sort === 'diskutiert') return b.comments - a.comments
     return a.id - b.id
   })
-  const filtered = comm === 'alle' ? sorted : sorted.filter((p) => commIdOf(p) === comm)
 
   const shelfScroll = (dir) => {
     shelfRef.current?.scrollBy({ left: dir * 380, behavior: 'smooth' })
@@ -88,27 +86,6 @@ export default function Start() {
 
   return (
     <div className="app-page start-page">
-      <div className="start-head">
-        <div>
-          <h2 className="app-title">Startseite</h2>
-          <p className="app-sub">Shorts im Hochformat + Text-Posts aus deinen Sub-Tontoos. Alles Demo.</p>
-        </div>
-        <div className="toolbar" role="tablist" aria-label="Feed sortieren">
-          {SORTS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={sort === s.id}
-              className={`toolbtn${sort === s.id ? ' active' : ''}`}
-              onClick={() => setSort(s.id)}
-            >
-              <i className={`fa-solid ${s.icon}`} /> {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Shorts: Hochkant-Shelf mit Quer-Scroll */}
       <section className="shelf" aria-label="Shorts">
         <div className="shelf-head">
@@ -149,28 +126,21 @@ export default function Start() {
       <div className="start-layout">
         {/* Text-Feed aus t/… */}
         <div className="feed-col">
-          <div className="chiprow" role="tablist" aria-label="Community filtern">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={comm === 'alle'}
-              className={`chipbtn${comm === 'alle' ? ' active' : ''}`}
-              onClick={() => setComm('alle')}
-            >
-              <i className="fa-solid fa-house" /> Alle
-            </button>
-            {COMMUNITIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                aria-selected={comm === c.id}
-                className={`chipbtn${comm === c.id ? ' active' : ''}`}
-                onClick={() => setComm(c.id)}
-              >
-                <i className={`fa-solid ${c.icon} ${c.color}`} /> t/{c.name}
-              </button>
-            ))}
+          <div className="feed-bar">
+            <div className="toolbar" role="tablist" aria-label="Feed sortieren">
+              {SORTS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={sort === s.id}
+                  className={`toolbtn${sort === s.id ? ' active' : ''}`}
+                  onClick={() => setSort(s.id)}
+                >
+                  <i className={`fa-solid ${s.icon}`} /> {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="app-feed">
@@ -251,14 +221,6 @@ export default function Start() {
                 </article>
               )
             })}
-            {filtered.length === 0 && (
-              <div className="post empty">
-                <p className="posttext">Hier ist noch nichts – schau in einer anderen Community vorbei.</p>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setComm('alle')}>
-                  <i className="fa-solid fa-rotate-left" /> Alle anzeigen
-                </button>
-              </div>
-            )}
           </div>
           <p className="feed-hint">Tipp: Rechtsklick auf einen Post öffnet das Beitrags-Menü.</p>
         </div>

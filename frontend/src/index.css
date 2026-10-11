@@ -683,9 +683,10 @@ main.app-wrap { max-width: none; padding: 0; }
 
 /* ---------- Startseite: Shorts-Shelf + Text-Feed (t/…) ---------- */
 .start-page { padding-bottom: 10px; }
-.start-head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+/* Schmale Leiste über dem Feed (nur Sortierung, kein Titel-Text) */
+.feed-bar {
+  display: flex; justify-content: flex-end;
+  margin-bottom: 14px;
 }
 /* Toolbar: gefüllte lange Pille mit Icons (laut AGENTS.md) */
 .toolbar {
@@ -759,17 +760,6 @@ main.app-wrap { max-width: none; padding: 0; }
   gap: 20px; align-items: start; margin-top: 18px; width: 100%;
 }
 .feed-col { min-width: 0; }
-.chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
-.chipbtn {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: var(--surface); border: 1px solid var(--border); cursor: pointer;
-  color: var(--text-sec); font-family: var(--font-body);
-  font-size: 13px; font-weight: 600;
-  border-radius: 999px; padding: 8px 14px;
-  transition: border-color 0.13s, color 0.13s, background 0.13s, transform 0.1s;
-}
-.chipbtn:hover { border-color: var(--text-3rd); color: var(--text); transform: translateY(-1px); }
-.chipbtn.active { border-color: var(--brand); color: var(--text); background: var(--surface2); }
 
 .start-post { animation: rise 0.3s ease both; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
@@ -862,19 +852,10 @@ main.app-wrap { max-width: none; padding: 0; }
   /* Topbar + Content: jeden Pixel nutzen, nichts quetscht */
   .app-topbar { gap: 8px; padding: 8px 0; }
   .app-search { max-width: none; }
-  .start-head { align-items: stretch; flex-direction: column; gap: 10px; margin-bottom: 14px; }
-  .app-title { font-size: 24px; }
+  .feed-bar { margin-bottom: 12px; }
   .toolbar { overflow-x: auto; max-width: 100%; align-self: stretch; }
   .toolbar .toolbtn { flex-shrink: 0; min-height: 40px; }
-  /* Chips: eine scrollbare Reihe statt Wand aus Pillen */
-  .chiprow {
-    flex-wrap: nowrap; overflow-x: auto;
-    margin: 0 -16px 12px; padding: 0 16px 6px;
-    scroll-snap-type: x proximity;
-  }
-  .chipbtn { flex-shrink: 0; scroll-snap-align: start; min-height: 40px; }
-  /* Shelf: volle Bildschirmbreite (edge-to-edge), Karten mit Peek */
-  .shelf { margin: 0 -16px; border-radius: 0; border-left: none; border-right: none; padding: 14px 0 12px; }
+  /* Shelf: volle Bildschirmbreite (edge-to-edge), Karten mit Peek */  .shelf { margin: 0 -16px; border-radius: 0; border-left: none; border-right: none; padding: 14px 0 12px; }
   .shelf-head { padding: 0 16px; }
   .shelf-actions .iconbtn { display: none; } /* mobil: wischen statt Pfeile */
   .shelf-scroll { padding: 2px 16px 8px; }
@@ -891,5 +872,5 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 /* Große Touch-Targets überall mit Touchscreen */
 @media (pointer: coarse) {
-  .chipbtn, .toolbtn.sm { min-height: 40px; }
+  .toolbtn.sm { min-height: 40px; }
 }
