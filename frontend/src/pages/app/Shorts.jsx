@@ -10,22 +10,37 @@ export default function Shorts({ showToast }) {
   const [muted, setMuted] = useState(false)
   const [liked, setLiked] = useState({})
   const [followed, setFollowed] = useState({})
-  const [dir, setDir] = useState('down') // Slide-Richtung beim Wechseln
+  const [slide, setSlide] = useState(null) // { from, to, dir } während der Wechsel-Animation
   const stageRef = useRef(null)
   const touchY = useRef(null)
   const wheelCool = useRef(0)
+  const busyRef = useRef(false)
+  const timerRef = useRef(null)
 
   const short = DEMO_SHORTS[idx]
   const demo = (msg) => showToast(msg || 'Das ist nur ein Beispiel.')
 
-  const prev = useCallback(() => {
-    setDir('up')
-    setIdx((i) => Math.max(0, i - 1))
-  }, [])
-  const next = useCallback(() => {
-    setDir('down')
-    setIdx((i) => Math.min(DEMO_SHORTS.length - 1, i + 1))
-  }, [])
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+
+  // Wechseln mit Push-Animation: neue Karte kommt vom Screen-Boden,
+  // alte geht oben hinter der Suche weg (wie auf YouTube)
+  const goTo = useCallback((d) => {
+    if (busyRef.current) return
+    const j = d === 'down'
+      ? Math.min(DEMO_SHORTS.length - 1, idx + 1)
+      : Math.max(0, idx - 1)
+    if (j === idx) return
+    busyRef.current = true
+    setSlide({ from: idx, to: j, dir: d })
+    setIdx(j)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      busyRef.current = false
+      setSlide(null)
+    }, 400)
+  }, [idx])
+  const prev = useCallback(() => goTo('up'), [goTo])
+  const next = useCallback(() => goTo('down'), [goTo])
 
   // Hoch/Runter-Tasten wechseln den Short
   useEffect(() => {
@@ -76,6 +91,80 @@ export default function Shorts({ showToast }) {
     else prev()
   }
 
+  // Kompletter Karten-Inhalt (slidet als Ganzes, Buttons inklusive)
+  const renderCard = (s) => (
+    <>
+      {/* Platzhalter statt Video */}
+      <div className="short-screen">
+        <i className={`fa-solid ${s.icon} ${s.color}`} />
+        <small>{s.title}</small>
+      </div>
+      {!playing && (
+        <button type="button" className="short-bigplay" aria-label="Abspielen" onClick={() => setPlaying(true)}>
+          <i className="fa-solid fa-play" />
+        </button>
+      )}
+
+      {/* Obere Overlay-Leiste */}
+      <div className="short-top">
+        <div className="short-topgroup">
+          <button type="button" className="pillbtn" aria-label={playing ? 'Pause' : 'Abspielen'} onClick={() => setPlaying((p) => !p)}>
+            <i className={`fa-solid ${playing ? 'fa-pause' : 'fa-play'}`} />
+          </button>
+          <button type="button" className="pillbtn" aria-label={muted ? 'Ton an' : 'Stumm'} onClick={() => setMuted((m) => !m)}>
+            <i className={`fa-solid ${muted ? 'fa-volume-xmark' : 'fa-volume-high'}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Action-Rail rechts */}
+      <div className="short-rail">
+        <button
+          type="button"
+          className="rail-btn"
+          aria-label="Liken"
+          aria-pressed={!!liked[s.id]}
+          onClick={() => setLiked((st) => ({ ...st, [s.id]: !st[s.id] }))}
+        >
+          <i className={`${liked[s.id] ? 'fa-solid liked' : 'fa-regular'} fa-heart`} />
+        </button>
+        <span className="rail-count">{s.likes}</span>
+        <button type="button" className="rail-btn" aria-label="Kommentare" onClick={() => demo('Kommentare kommen später (Beispiel).')}>
+          <i className="fa-regular fa-comment" />
+        </button>
+        <span className="rail-count">{s.comments}</span>
+        <button type="button" className="rail-btn" aria-label="Teilen" onClick={() => demo('Link kopiert (Beispiel).')}>
+          <i className="fa-solid fa-share" />
+        </button>
+        <span className="rail-count">Teilen</span>
+      </div>
+
+      {/* Info unten links */}
+      <div className="short-info">
+        <div className="short-userrow">
+          <Link to={`/u/${s.author}`} className="short-avatar" aria-label={`Profil von ${s.author}`}>
+            <i className="fa-solid fa-circle-user" />
+          </Link>
+          <span className="short-author">@{s.author}</span>
+          <button
+            type="button"
+            className={`btn btn-sm ${followed[s.author] ? 'btn-ghost' : 'btn-brand'} follow-btn`}
+            onClick={() => setFollowed((st) => ({ ...st, [s.author]: !st[s.author] }))}
+          >
+            {followed[s.author] ? (
+              <><i className="fa-solid fa-check" /> Gefolgt</>
+            ) : (
+              'Follow'
+            )}
+          </button>
+        </div>
+        <div className="short-title">{s.title}</div>
+      </div>
+    </>
+  )
+
+  const current = slide ? DEMO_SHORTS[slide.to] : short
+
   return (
     <div className="app-page shorts-page">
       <div className="shorts-center">
@@ -85,74 +174,17 @@ export default function Shorts({ showToast }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <div className="short-player">
-          <div key={short.id} className={`short-anim${dir === 'down' ? ' from-bottom' : ' from-top'}`}>
-          {/* Platzhalter statt Video */}
-          <div className="short-screen">
-            <i className={`fa-solid ${short.icon} ${short.color}`} />
-            <small>{short.title}</small>
-          </div>
-          {!playing && (
-            <button type="button" className="short-bigplay" aria-label="Abspielen" onClick={() => setPlaying(true)}>
-              <i className="fa-solid fa-play" />
-            </button>
+        <div className="shorts-stack">
+          {slide && (
+            <div className={`short-player is-out slide-out-${slide.dir}`} aria-hidden="true">
+              {renderCard(DEMO_SHORTS[slide.from])}
+            </div>
           )}
-
-          {/* Obere Overlay-Leiste */}
-          <div className="short-top">
-            <div className="short-topgroup">
-              <button type="button" className="pillbtn" aria-label={playing ? 'Pause' : 'Abspielen'} onClick={() => setPlaying((p) => !p)}>
-                <i className={`fa-solid ${playing ? 'fa-pause' : 'fa-play'}`} />
-              </button>
-              <button type="button" className="pillbtn" aria-label={muted ? 'Ton an' : 'Stumm'} onClick={() => setMuted((m) => !m)}>
-                <i className={`fa-solid ${muted ? 'fa-volume-xmark' : 'fa-volume-high'}`} />
-              </button>
-            </div>
-          </div>
-
-          {/* Action-Rail rechts */}
-          <div className="short-rail">
-            <button
-              type="button"
-              className="rail-btn"
-              aria-label="Liken"
-              aria-pressed={!!liked[short.id]}
-              onClick={() => setLiked((s) => ({ ...s, [short.id]: !s[short.id] }))}
-            >
-              <i className={`${liked[short.id] ? 'fa-solid liked' : 'fa-regular'} fa-heart`} />
-            </button>
-            <span className="rail-count">{short.likes}</span>
-            <button type="button" className="rail-btn" aria-label="Kommentare" onClick={() => demo('Kommentare kommen später (Beispiel).')}>
-              <i className="fa-regular fa-comment" />
-            </button>
-            <span className="rail-count">{short.comments}</span>
-            <button type="button" className="rail-btn" aria-label="Teilen" onClick={() => demo('Link kopiert (Beispiel).')}>
-              <i className="fa-solid fa-share" />
-            </button>
-            <span className="rail-count">Teilen</span>
-          </div>
-
-          {/* Info unten links */}
-          <div className="short-info">
-            <div className="short-userrow">
-              <Link to={`/u/${short.author}`} className="short-avatar" aria-label={`Profil von ${short.author}`}>
-                <i className="fa-solid fa-circle-user" />
-              </Link>
-              <span className="short-author">@{short.author}</span>
-              <button
-                type="button"
-                className={`btn btn-sm ${followed[short.author] ? 'btn-ghost' : 'btn-brand'} follow-btn`}
-                onClick={() => setFollowed((s) => ({ ...s, [short.author]: !s[short.author] }))}
-              >
-                {followed[short.author] ? (
-                  <><i className="fa-solid fa-check" /> Gefolgt</>
-                ) : (
-                  'Follow'
-                )}
-              </button>
-            </div>
-            <div className="short-title">{short.title}</div>
-          </div>
+          <div
+            key={slide ? `in-${slide.to}` : current.id}
+            className={`short-player${slide ? ` slide-in-${slide.dir}` : ''}`}
+          >
+            {renderCard(current)}
           </div>
         </div>
 

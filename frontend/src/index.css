@@ -365,11 +365,21 @@ main.app-wrap { max-width: none; padding: 0; }
   border-radius: var(--radius); overflow: hidden; flex-shrink: 1; min-width: 0;
   touch-action: none;
 }
-.short-anim { position: absolute; inset: 0; }
-.short-anim.from-bottom { animation: shortInBottom 0.35s ease-out; }
-.short-anim.from-top { animation: shortInTop 0.35s ease-out; }
-@keyframes shortInBottom { from { transform: translateY(100%); } }
-@keyframes shortInTop { from { transform: translateY(-100%); } }
+.shorts-stack { position: relative; display: flex; justify-content: center; width: 100%; }
+.short-player.is-out {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  z-index: 2; pointer-events: none;
+}
+/* Push-Transition wie auf YouTube: neue Karte kommt vom Screen-Boden,
+   alte geht oben hinter der Suche weg (bzw. umgekehrt zurück) */
+.short-player.slide-in-down { animation: shortSlideInDown 0.38s ease-out; }
+.short-player.slide-in-up { animation: shortSlideInUp 0.38s ease-out; }
+.short-player.slide-out-down { animation: shortSlideOutUp 0.38s ease-out; }
+.short-player.slide-out-up { animation: shortSlideOutDown 0.38s ease-out; }
+@keyframes shortSlideInDown { from { transform: translateY(110vh); } }
+@keyframes shortSlideInUp { from { transform: translateY(-70vh); } }
+@keyframes shortSlideOutUp { to { transform: translate(-50%, -70vh); opacity: 0; } }
+@keyframes shortSlideOutDown { to { transform: translate(-50%, 110vh); opacity: 0; } }
 .short-player:fullscreen { border-radius: 0; max-height: none; height: 100%; width: auto; aspect-ratio: 9 / 16; }
 .short-screen {
   position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -437,6 +447,7 @@ main.app-wrap { max-width: none; padding: 0; }
   }
   .short-nav { position: static; transform: none; }
   .short-nav .iconbtn { width: 44px; height: 44px; }
+  .short-player.is-out { display: none; }
 }
 
 /* Studio */
