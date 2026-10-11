@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
+import SearchBar from './components/SearchBar.jsx'
 import AppLayout from './components/AppLayout.jsx'
 import Start from './pages/app/Start.jsx'
 import Shorts from './pages/app/Shorts.jsx'
@@ -30,6 +31,12 @@ export default function App() {
     setToast(msg)
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2600)
+  }
+
+  // Demo-Suche (kein Backend): zeigt nur einen Hinweis-Toast
+  const handleSearch = (q) => {
+    const query = q.trim()
+    showToast(query ? `Suche nach „${query}“ ist noch Demo.` : 'Tippe etwas zum Suchen ein.')
   }
 
   // Reveal-Animation beim Scrollen (neu pro Route)
@@ -76,6 +83,11 @@ export default function App() {
               <span className="brand-badge">beta</span>
             </a>
 
+            {/* Suche oben in der Mitte (Demo) */}
+            <div className="nav-search">
+              <SearchBar onSearch={handleSearch} placeholder="Suchen …" />
+            </div>
+
             {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
             <div className="nav-actions">
               <Link to="/login" className="btn btn-ghost">
@@ -99,6 +111,7 @@ export default function App() {
 
           {mobileOpen && (
             <nav className="mobilepanel">
+              <SearchBar onSearch={(q) => { setMobileOpen(false); handleSearch(q) }} placeholder="Suchen …" />
               <div className="mobilerow">
                 <Link to="/login" className="btn btn-ghost">
                   <i className="fa-solid fa-right-to-bracket" /> Login
@@ -118,7 +131,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Flache App-Routen, alle mit derselben Sidebar */}
-          <Route element={<AppLayout showToast={showToast} />}>
+          <Route element={<AppLayout showToast={showToast} onSearch={handleSearch} />}>
             <Route path="/app" element={<Start />} />
             <Route path="/shorts" element={<Shorts />} />
             <Route path="/followed" element={<Followed />} />

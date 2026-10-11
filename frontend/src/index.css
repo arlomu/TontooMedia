@@ -67,6 +67,38 @@ a { color: var(--accent); }
 /* Login / Register direkt auf dem Navbar-Hintergrund */
 .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
+/* Suche oben in der Mitte (Demo, überall gleich) */
+.nav-search { flex: 1; max-width: 430px; margin: 0 auto; }
+.searchbar {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 5px 5px 5px 16px;
+  transition: border-color 0.15s;
+}
+.searchbar:focus-within { border-color: var(--brand); }
+.searchbar input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 15px; font-family: var(--font-body);
+  appearance: none; -webkit-appearance: none;
+}
+.searchbar input::-webkit-search-cancel-button { display: none; }
+.searchbar input::placeholder { color: var(--text-3rd); }
+.sb-x {
+  display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0;
+  background: transparent; border: none; border-radius: 8px;
+  color: var(--text-sec); font-size: 15px; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.sb-x:hover { background: var(--surface2); color: var(--text); }
+.sb-div { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.sb-go {
+  display: grid; place-items: center; width: 40px; height: 36px; flex-shrink: 0;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: 15px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.sb-go:hover { border-color: var(--brand); transform: translateY(-1px); }
+
 /* Buttons: leicht gerundet (10px), Text + Icon, Hover überall */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
@@ -212,6 +244,7 @@ main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; paddin
 
 /* ---------- Responsive / iOS ---------- */
 @media (max-width: 820px) {
+  .nav-search { display: none; }
   .nav-actions { display: none; }
   .burger { display: inline-grid; }
   .mobilepanel { display: flex; }
@@ -285,9 +318,9 @@ main.app-wrap { max-width: none; padding: 0; }
 .side-foot { padding-top: 8px; }
 .side-div { border: none; border-top: 1px solid var(--border); margin: 6px 4px 10px; }
 .app-main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
-.app-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
-.app-topbrand { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
-.app-topbrand small { color: var(--text-3rd); font-family: var(--font-body); font-size: 13px; font-weight: 600; }
+.app-topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.app-topbar .burger { margin-left: 0; }
+.app-search { flex: 1; max-width: 480px; margin: 0 auto; }
 .app-content { min-width: 0; max-width: 960px; }
 .side-overlay { display: none; }
 
