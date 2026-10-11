@@ -1053,6 +1053,9 @@ a.cell-title:hover { text-decoration: underline; }
 .trend-main small { font-size: 12px; color: var(--text-3rd); }
 .trend-go { font-size: 12px; color: var(--text-3rd); }
 .sidecard-text { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--text-sec); }
+/* Admin-Zeile in der Community-Box */
+.sidecard-admin { margin: 10px 0 0; font-size: 13px; color: var(--text-sec); }
+.sidecard-admin i { color: var(--brand); margin-right: 6px; }
 
 /* ---------- Post-Detailansicht (Reddit-Stil) ---------- */
 .backrow { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }

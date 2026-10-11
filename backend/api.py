@@ -226,6 +226,7 @@ def public_community(row: dict) -> dict:
         "imageUrl": f"/api/media/{img}" if img else None,
         "members": row.get("members_n") or 0,
         "followed": bool(row.get("followed")),
+        "creator": row.get("creator"),
     }
 
 
@@ -238,6 +239,7 @@ def public_followed_community(row: dict) -> dict:
         "desc": row.get("description") or "",
         "imageUrl": f"/api/media/{img}" if img else None,
         "members": row.get("members_n") or 0,
+        "creator": row.get("creator"),
     }
 
 

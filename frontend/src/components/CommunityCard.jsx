@@ -47,6 +47,12 @@ export default function CommunityCard({
         t/{comm.name}
       </h4>
       {comm.desc ? <p className="sidecard-text">{comm.desc}</p> : null}
+      {comm.creator ? (
+        <p className="sidecard-admin">
+          <i className="fa-solid fa-crown" aria-hidden="true" /> Admin:{' '}
+          <Link to={`/u/${comm.creator}`} className="comm-link">u/{comm.creator}</Link>
+        </p>
+      ) : null}
       <button
         type="button"
         className={`btn authbtn join-btn ${followed ? 'btn-ghost' : 'btn-brand'}`}
