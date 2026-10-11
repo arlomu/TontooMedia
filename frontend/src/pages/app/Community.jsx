@@ -21,16 +21,24 @@ export default function Community() {
   const [liked, setLiked] = useState({})
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null)
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newText, setNewText] = useState('')
+  const [myPosts, setMyPosts] = useState([])
   const copyTimer = useRef(null)
 
   useEffect(() => () => clearTimeout(copyTimer.current), [])
 
   useEffect(() => {
-    if (!sharePost) return
-    const onKey = (e) => e.key === 'Escape' && setSharePost(null)
+    if (!sharePost && !composerOpen) return
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      setSharePost(null)
+      setComposerOpen(false)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sharePost])
+  }, [sharePost, composerOpen])
 
   if (!comm) {
     return (
@@ -45,11 +53,41 @@ export default function Community() {
   }
 
   const base = DEMO_POSTS.filter((p) => commIdOf(p) === comm.id)
-  const posts = (base.length ? base : DEMO_POSTS.slice(0, 2)).sort((a, b) => {
+  const sortedBase = (base.length ? base : DEMO_POSTS.slice(0, 2)).sort((a, b) => {
     if (sort === 'top') return b.likes - a.likes
     if (sort === 'diskutiert') return b.comments - a.comments
     return a.id - b.id
   })
+  // Eigene Posts stehen immer oben
+  const mine = [...myPosts].reverse()
+
+  const closeComposer = () => {
+    setComposerOpen(false)
+    setNewTitle('')
+    setNewText('')
+  }
+
+  const submitPost = () => {
+    const title = newTitle.trim()
+    if (!title) return
+    setMyPosts((list) => [
+      ...list,
+      {
+        id: `m-${Date.now()}`,
+        author: 'du',
+        community: comm.name,
+        commId: comm.id,
+        title,
+        text: newText.trim(),
+        time: 'jetzt',
+        likes: 0,
+        comments: 0,
+        icon: 'fa-circle-user',
+        color: 'ic-yellow',
+      },
+    ])
+    closeComposer()
+  }
 
   const copyLink = async (p) => {
     const url = postUrlOf(p)
@@ -86,7 +124,14 @@ export default function Community() {
 
       <div className="start-layout">
         <div className="feed-col">
-          <div className="feed-bar">
+          <div className="feed-bar split">
+            <button
+              type="button"
+              className="btn btn-brand posten-btn"
+              onClick={() => setComposerOpen(true)}
+            >
+              <i className="fa-solid fa-plus" /> Posten
+            </button>
             <div className="toolbar" role="tablist" aria-label="Beiträge sortieren">
               {SORTS.map((s) => (
                 <button
@@ -104,7 +149,7 @@ export default function Community() {
           </div>
 
           <div className="app-feed">
-            {posts.map((p, i) => {
+            {[...mine, ...sortedBase].map((p, i) => {
               const cid = commIdOf(p)
               const isLiked = !!liked[p.id]
               return (
@@ -186,6 +231,43 @@ export default function Community() {
           onCopy={() => copyLink(sharePost)}
           onClose={() => setSharePost(null)}
         />
+      )}
+
+      {/* Posten-Dialog direkt im Tontoo */}
+      {composerOpen && (
+        <div className="sheet-backdrop" onClick={closeComposer}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Posten" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong className="sheet-title">Posten in t/{comm.name}</strong>
+            </div>
+            <div className="sheet-body">
+              <div className="post-form">
+                <input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Titel"
+                  aria-label="Titel"
+                  maxLength={120}
+                  autoFocus
+                />
+                <textarea
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  placeholder="Text (optional)"
+                  aria-label="Text"
+                  rows={4}
+                  maxLength={1000}
+                />
+              </div>
+            </div>
+            <div className="sheet-foot">
+              <button type="button" className="btn btn-ghost" onClick={closeComposer}>Abbrechen</button>
+              <button type="button" className="btn btn-brand" disabled={!newTitle.trim()} onClick={submitPost}>
+                <i className="fa-solid fa-paper-plane" /> Posten
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

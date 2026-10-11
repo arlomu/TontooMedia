@@ -754,9 +754,22 @@ main.app-wrap { max-width: none; padding: 0; }
 .start-page { padding-bottom: 10px; }
 /* Schmale Leiste über dem Feed (nur Sortierung, kein Titel-Text) */
 .feed-bar {
-  display: flex; justify-content: flex-end;
-  margin-bottom: 14px;
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 10px; margin-bottom: 14px;
 }
+.feed-bar.split { justify-content: space-between; }
+.feed-bar.split .toolbar { min-width: 0; }
+.posten-btn { flex-shrink: 0; }
+/* Posten-Formular im Dialog */
+.post-form { display: flex; flex-direction: column; gap: 10px; }
+.post-form input, .post-form textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; color: var(--text);
+  font-size: 14px; font-family: var(--font-body); outline: none;
+  resize: vertical; transition: border-color 0.15s;
+}
+.post-form input:focus, .post-form textarea:focus { border-color: var(--brand); }
+.post-form input::placeholder, .post-form textarea::placeholder { color: var(--text-3rd); }
 /* Toolbar: gefüllte lange Pille mit Icons (laut AGENTS.md) */
 .toolbar {
   display: inline-flex; align-items: center; gap: 4px;
