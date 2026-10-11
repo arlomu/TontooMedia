@@ -250,3 +250,51 @@ export const DEMO_POST_COMMENTS = {
     },
   ],
 }
+
+// ---------- Studio (Demo-Kennzahlen, alles Beispiel) ----------
+
+// Übersicht fürs Dashboard (28-Tage-Basis, wird pro Zeitraum skaliert)
+export const DEMO_STUDIO_OVERVIEW = {
+  views: 1284500,
+  watchHours: 8420,
+  subs: 12480,
+  subsGain: 312,
+  likes: 96300,
+  delta: { views: 12.4, watchHours: 8.1, subs: 2.6, likes: 18.9 },
+  daily: {
+    views: [42, 58, 51, 70, 66, 88, 95],
+    watch: [30, 44, 40, 55, 60, 72, 80],
+    subs: [5, 8, 6, 12, 9, 15, 18],
+    likes: [35, 50, 46, 62, 58, 77, 84],
+  },
+}
+
+// Kennzahlen pro Short (wird auf DEMO_SHORTS gemappt)
+const SHORT_STATS = {
+  1: { views: 2104500, date: '08.10.2026', status: 'live', visibility: 'Öffentlich', desc: '1v3-Clutch, ungeschnitten.' },
+  2: { views: 740200, date: '09.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Golden Hour, 50mm, kein Filter.' },
+  3: { views: 198400, date: '10.10.2026', status: 'live', visibility: 'Öffentlich', desc: 'Beat aus dem Homestudio.' },
+  4: { views: 96300, date: '10.10.2026', status: 'live', visibility: 'Ungelisted', desc: 'Mitternachtspasta zum Nachkochen.' },
+  5: { views: 141800, date: '11.10.2026', status: 'draft', visibility: 'Privat', desc: 'Setup-Tour, Schnitt fast fertig.' },
+}
+
+export const DEMO_STUDIO_SHORTS = DEMO_SHORTS.map((s) => ({ ...s, ...SHORT_STATS[s.id] }))
+
+// Kennzahlen pro Text-Post (wird auf DEMO_POSTS gemappt)
+const POST_STATS = {
+  1: { views: 8420, date: '11.10.2026', status: 'live' },
+  2: { views: 15230, date: '11.10.2026', status: 'live' },
+  3: { views: 5110, date: '11.10.2026', status: 'live' },
+  4: { views: 9840, date: '10.10.2026', status: 'live' },
+  5: { views: 12070, date: '10.10.2026', status: 'live' },
+  6: { views: 4320, date: '09.10.2026', status: 'live' },
+}
+
+export const DEMO_STUDIO_POSTS = DEMO_POSTS.map((p) => ({ ...p, ...POST_STATS[p.id] }))
+
+// Geplante Inhalte (Shorts + Posts gemischt, Feld `kind`)
+export const DEMO_PLANNED = [
+  { id: 'plan-s1', kind: 'short', author: 'du', title: 'Setup-Tour Teil 2: Kabelmanagement', plannedFor: 'So, 12.10. · 18:00', icon: 'fa-microchip', color: 'ic-violet', dur: '0:47' },
+  { id: 'plan-p1', kind: 'post', author: 'du', community: 'Tech', commId: 'tech', title: 'Dock-Vergleich: 3 Modelle im Test', text: 'Thunderbolt gegen USB-C – welches Dock lohnt sich wirklich? Tabelle folgt.', plannedFor: 'Mo, 13.10. · 09:00', icon: 'fa-microchip', color: 'ic-violet' },
+  { id: 'plan-p2', kind: 'post', author: 'du', community: 'Fotografie', commId: 'fotografie', title: 'Album-Drop am Wochenende', text: 'Volle Golden-Hour-Serie, 24 Bilder, unbearbeitet.', plannedFor: 'Sa, 18.10. · 20:00', icon: 'fa-camera', color: 'ic-teal' },
+]
