@@ -824,7 +824,82 @@ main.app-wrap { max-width: none; padding: 0; }
 .trend-main strong { font-size: 13.5px; font-family: var(--font-body); }
 .trend-main small { font-size: 12px; color: var(--text-3rd); }
 .trend-go { font-size: 12px; color: var(--text-3rd); }
-.ic-danger { color: var(--danger); }
+.sidecard-text { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--text-sec); }
+
+/* ---------- Post-Detailansicht (Reddit-Stil) ---------- */
+.backrow { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.backrow .postline { font-size: 13px; }
+.postuser-link { color: var(--text-sec); font-weight: 600; text-decoration: none; font-family: var(--font-body); }
+.postuser-link:hover { color: var(--accent); }
+.post-detail-title { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; margin: 0 0 10px; overflow-wrap: break-word; }
+.post-detail-text { font-size: 15px; line-height: 1.7; color: var(--text-sec); margin: 0 0 4px; overflow-wrap: break-word; }
+.detail-toolbar { margin-bottom: 16px; }
+/* Titel/Text im Feed öffnen die Detailansicht */
+.post-titlelink, .post-textlink { display: block; text-decoration: none; color: inherit; }
+.post-titlelink .post-title, .post-textlink .posttext { transition: color 0.12s; }
+.post-titlelink:hover .post-title { color: var(--brand); }
+/* Kommentar-Composer */
+.composer {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 10px 10px 14px;
+  transition: border-color 0.15s;
+}
+.composer:focus-within { border-color: var(--brand); }
+.composer input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 14px; font-family: var(--font-body);
+}
+.composer input::placeholder { color: var(--text-3rd); }
+/* Sortieren + Suchen über den Kommentaren */
+.comments-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 18px 0 14px; }
+.sort-label { font-size: 13px; font-weight: 600; color: var(--text-3rd); font-family: var(--font-body); }
+.mini-search {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 180px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 14px; color: var(--text-3rd); font-size: 13px;
+  transition: border-color 0.15s;
+}
+.mini-search:focus-within { border-color: var(--brand); }
+.mini-search input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 13.5px; font-family: var(--font-body);
+}
+.mini-search input::placeholder { color: var(--text-3rd); }
+.comments-list { display: flex; flex-direction: column; gap: 16px; }
+.op-badge {
+  font-size: 10.5px; font-weight: 800; font-family: var(--font-body);
+  background: var(--brand); color: var(--brand-ink);
+  border-radius: 6px; padding: 2px 6px; margin-left: 6px;
+}
+.reply-form { display: flex; gap: 8px; margin-top: 8px; }
+.reply-form input {
+  flex: 1; min-width: 0; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px; color: var(--text);
+  font-size: 13.5px; font-family: var(--font-body); outline: none;
+  transition: border-color 0.15s;
+}
+.reply-form input:focus { border-color: var(--brand); }
+.reply-form input::placeholder { color: var(--text-3rd); }
+/* Community-Box: Beitreten, Stats, Regeln */
+.join-btn { margin-top: 12px; }
+.comm-stats { display: flex; gap: 18px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.comm-stats span { display: flex; flex-direction: column; line-height: 1.35; }
+.comm-stats strong { font-size: 15px; font-family: var(--font-body); }
+.comm-stats small { font-size: 12px; color: var(--text-3rd); }
+.rules-head { font-family: var(--font-body); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3rd); margin: 16px 0 8px; }
+.rules-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; counter-reset: rule; }
+.rules-list li {
+  counter-increment: rule; display: flex; gap: 10px; align-items: baseline;
+  font-size: 13px; line-height: 1.55; color: var(--text-sec);
+}
+.rules-list li::before {
+  content: counter(rule); flex-shrink: 0;
+  font-size: 11.5px; font-weight: 800; color: var(--brand);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1px 8px;
+}
+.rules-link { margin-top: 12px; display: inline-flex; }
 
 /* Eigenes Rechtsklick-Menü (statt Browser-Menü) */
 .ctx-backdrop { position: fixed; inset: 0; z-index: 60; }

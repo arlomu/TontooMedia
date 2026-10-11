@@ -191,8 +191,14 @@ export default function Start() {
                     </button>
                   </div>
 
-                  <h4 className="post-title">{p.title || p.text}</h4>
-                  {p.title && <p className="posttext">{p.text}</p>}
+                  <Link to={`/t/${cid}/post/${p.id}`} className="post-titlelink">
+                    <h4 className="post-title">{p.title || p.text}</h4>
+                  </Link>
+                  {p.title && (
+                    <Link to={`/t/${cid}/post/${p.id}`} className="post-textlink">
+                      <p className="posttext">{p.text}</p>
+                    </Link>
+                  )}
 
                   <div className="post-toolbar">
                     <button
@@ -205,9 +211,9 @@ export default function Start() {
                       <i className={`${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart`} />
                       {(p.likes + (isLiked ? 1 : 0)).toLocaleString('de-DE')}
                     </button>
-                    <span className="toolbtn sm static" title="Kommentare">
+                    <Link to={`/t/${cid}/post/${p.id}`} className="toolbtn sm" title="Kommentare öffnen">
                       <i className="fa-regular fa-comment" /> {p.comments}
-                    </span>
+                    </Link>
                     <button
                       type="button"
                       className="toolbtn sm"
@@ -300,9 +306,6 @@ export default function Start() {
             <Link to={`/u/${ctx.post.author}`} onClick={() => setCtx(null)}>
               <i className="fa-solid fa-circle-user ic-violet" /> Profil öffnen
             </Link>
-            <button type="button" onClick={() => setCtx(null)}>
-              <i className="fa-solid fa-flag ic-danger" /> Melden (Demo)
-            </button>
           </div>
         </div>
       )}

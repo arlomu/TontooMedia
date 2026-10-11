@@ -150,3 +150,95 @@ export const DEMO_COMMENTS = {
     },
   ],
 }
+
+// Beispiel-Kommentare pro Text-Post (verschachtelt) – kein Backend, nur Demo.
+export const DEMO_POST_COMMENTS = {
+  1: [
+    {
+      id: 'p1-k1', author: 'foto.nina', time: 'vor 1 Std.', likes: 42,
+      text: 'Der Beschnitt sitzt. Links vielleicht noch 5 % weg, dann führt alles auf die Skyline.',
+      replies: [
+        { id: 'p1-k1-a1', author: 'mia.postet', time: 'vor 48 Min.', likes: 18, text: 'Stimmt, probiere ich heute Abend aus!' },
+      ],
+    },
+    {
+      id: 'p1-k2', author: 'tech.ana', time: 'vor 2 Std.', likes: 15,
+      text: '50mm 1.8 ist einfach die ehrlichste Linse. Kein Schnickschnack nötig.',
+      replies: [],
+    },
+    {
+      id: 'p1-k3', author: 'pixel.tom', time: 'vor 3 Std.', likes: 7,
+      text: 'Volle Albumladung wann? Brauche mehr davon.',
+      replies: [
+        { id: 'p1-k3-a1', author: 'mia.postet', time: 'vor 2 Std.', likes: 9, text: 'Kommt am Wochenende, versprochen.' },
+      ],
+    },
+  ],
+  2: [
+    {
+      id: 'p2-k1', author: 'gaming.fan99', time: 'vor 20 Min.', likes: 88,
+      text: 'Der Flick bei 12 HP war komplett krank. Tutorial bitte, Schritt für Schritt.',
+      replies: [
+        { id: 'p2-k1-a1', author: 'pixel.tom', time: 'vor 12 Min.', likes: 31, text: 'Kommt diese Woche als Short + Langversion.' },
+        { id: 'p2-k1-a2', author: 'beat.lena', time: 'vor 5 Min.', likes: 12, text: 'Bin dabei, brauche das für meine Lobby.' },
+      ],
+    },
+    {
+      id: 'p2-k2', author: 'koch.finn', time: 'vor 1 Std.', likes: 11,
+      text: 'Ich verstehe nichts, aber die Energie stimmt.',
+      replies: [],
+    },
+  ],
+  3: [
+    {
+      id: 'p3-k1', author: 'pixel.tom', time: 'vor 40 Min.', likes: 27,
+      text: 'Mix klingt auf Kopfhörern schon fett. Auf welcher Abhöre hast du gemastert?',
+      replies: [
+        { id: 'p3-k1-a1', author: 'beat.lena', time: 'vor 25 Min.', likes: 14, text: 'Nur Kopfhörer + alte HiFi-Boxen. Umzugskarton-Ständer inklusive.' },
+      ],
+    },
+    {
+      id: 'p3-k2', author: 'mia.postet', time: 'vor 2 Std.', likes: 19,
+      text: 'Der Drop bei 0:20 bleibt im Kopf, läuft hier in Dauerschleife.',
+      replies: [],
+    },
+  ],
+  4: [
+    {
+      id: 'p4-k1', author: 'beat.lena', time: 'vor 2 Std.', likes: 33,
+      text: 'Nachts um 1 ist das ein Rettungsrezept. Schärfe-Variante: Chili + Zitrone.',
+      replies: [
+        { id: 'p4-k1-a1', author: 'koch.finn', time: 'vor 1 Std.', likes: 21, text: 'Chili ja, Zitrone teste ich heute. Danke!' },
+      ],
+    },
+    {
+      id: 'p4-k2', author: 'foto.nina', time: 'vor 3 Std.', likes: 8,
+      text: 'Foto vom Teller fehlt. Man isst schließlich auch mit den Augen.',
+      replies: [],
+    },
+  ],
+  5: [
+    {
+      id: 'p5-k1', author: 'pixel.tom', time: 'vor 4 Std.', likes: 24,
+      text: 'Ein Dock für alles klingt nach Traum. Welches Dock genau?',
+      replies: [
+        { id: 'p5-k1-a1', author: 'tech.ana', time: 'vor 3 Std.', likes: 16, text: 'Steht alles mit Preisen in meinem t/tech-Post. Kurz: ein Thunderbolt-Dock, zwei Kabel, fertig.' },
+      ],
+    },
+    {
+      id: 'p5-k2', author: 'mia.postet', time: 'vor 5 Std.', likes: 6,
+      text: 'Leise UND schnell? Zeig mal Lautstärke-Messung, glaube ich erst dann.',
+      replies: [],
+    },
+  ],
+  6: [
+    {
+      id: 'p6-k1', author: 'mia.postet', time: 'vor 6 Std.', likes: 29,
+      text: '1.8, ohne Diskussion. Das Bokeh bei 2.8 wirkt unruhig dagegen.',
+      replies: [
+        { id: 'p6-k1-a1', author: 'foto.nina', time: 'vor 5 Std.', likes: 11, text: 'Team 1.8. Bei 2.8 verliere ich das Motiv im Hintergrund.' },
+        { id: 'p6-k1-a2', author: 'tech.ana', time: 'vor 4 Std.', likes: 4, text: 'Gegenstimme: 2.8, weil bei 1.8 die Nasenspitze schon unscharf ist.' },
+      ],
+    },
+  ],
+}
