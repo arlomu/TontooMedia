@@ -234,21 +234,23 @@ export default function Post() {
             </button>
           </div>
 
-          {/* Mitmachen */}
+          {/* Mitmachen (fixierte Eingabeleiste ganz unten, wie im Chat) */}
           <form className="composer" onSubmit={submitTop}>
-            <span className="comment-ava" aria-hidden="true">
-              <i className="fa-solid fa-circle-user" />
-            </span>
-            <input
-              value={topDraft}
-              onChange={(e) => setTopDraft(e.target.value)}
-              placeholder="Beteilige dich an der Unterhaltung"
-              aria-label="Kommentar schreiben"
-              maxLength={280}
-            />
-            <button type="submit" className="btn btn-brand btn-sm" disabled={!topDraft.trim()} aria-label="Absenden">
-              <i className="fa-solid fa-paper-plane" />
-            </button>
+            <div className="composer-inner">
+              <span className="comment-ava" aria-hidden="true">
+                <i className="fa-solid fa-circle-user" />
+              </span>
+              <input
+                value={topDraft}
+                onChange={(e) => setTopDraft(e.target.value)}
+                placeholder="Beteilige dich an der Unterhaltung"
+                aria-label="Kommentar schreiben"
+                maxLength={280}
+              />
+              <button type="submit" className="btn btn-brand btn-sm" disabled={!topDraft.trim()} aria-label="Absenden">
+                <i className="fa-solid fa-paper-plane" />
+              </button>
+            </div>
           </form>
 
           {/* Sortieren + Suchen */}
