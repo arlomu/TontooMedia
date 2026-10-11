@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   COMMUNITIES,
-  DEMO_PLANNED,
   DEMO_STUDIO_OVERVIEW,
   DEMO_STUDIO_POSTS,
   DEMO_STUDIO_SHORTS,
@@ -13,7 +12,6 @@ import ShareSheet from '../../components/ShareSheet.jsx'
 const TABS = [
   { id: 'shorts', label: 'Shorts', icon: 'fa-clapperboard' },
   { id: 'posts', label: 'Posts', icon: 'fa-pen-to-square' },
-  { id: 'geplant', label: 'Geplant', icon: 'fa-calendar-clock' },
 ]
 const PERIODS = [
   { id: 7, label: '7 Tage' },
@@ -39,7 +37,6 @@ export default function Studio({ showToast }) {
   const [period, setPeriod] = useState(28)
   const [shorts, setShorts] = useState(DEMO_STUDIO_SHORTS)
   const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
-  const [planned, setPlanned] = useState(DEMO_PLANNED)
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
   const [ctx, setCtx] = useState(null) // { x, y, kind, id } Zeilen-Menü
   const [armDelete, setArmDelete] = useState(null)
@@ -56,8 +53,6 @@ export default function Studio({ showToast }) {
   const [npComm, setNpComm] = useState(COMMUNITIES[0].id)
   const [npTitle, setNpTitle] = useState('')
   const [npText, setNpText] = useState('')
-  const [npWhen, setNpWhen] = useState('jetzt')
-  const [npDate, setNpDate] = useState('')
   const armTimer = useRef(null)
   const copyTimer = useRef(null)
 
@@ -109,35 +104,13 @@ export default function Studio({ showToast }) {
       clearTimeout(armTimer.current)
       setArmDelete(null)
       if (kind === 'short') setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
-      else if (kind === 'post') setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
-      else setPlanned((s) => s.filter((x) => String(x.id) !== String(id)))
+      else setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
       notify('Gelöscht (Demo).')
     } else {
       setArmDelete(key)
       clearTimeout(armTimer.current)
       armTimer.current = setTimeout(() => setArmDelete(null), 3000)
     }
-  }
-
-  // Geplanten Inhalt sofort veröffentlichen
-  const publishPlanned = (item) => {
-    setPlanned((s) => s.filter((x) => String(x.id) !== String(item.id)))
-    if (item.kind === 'short') {
-      setShorts((s) => [{
-        id: `pub-${Date.now()}`, author: 'du', title: item.title,
-        likes: '0', comments: '0', remixes: '0', icon: item.icon, color: item.color,
-        dur: item.dur || '–', views: 0, date: 'heute', status: 'live',
-        visibility: 'Öffentlich', desc: '',
-      }, ...s])
-    } else {
-      const c = COMMUNITIES.find((x) => x.id === item.commId) || COMMUNITIES[0]
-      setPosts((s) => [{
-        id: `pub-${Date.now()}`, author: 'du', community: c.name, commId: c.id,
-        title: item.title, text: item.text || '', time: 'jetzt', date: 'heute',
-        likes: 0, comments: 0, views: 0, status: 'live', icon: c.icon, color: c.color,
-      }, ...s])
-    }
-    notify(`„${item.title}“ ist jetzt live (Demo).`)
   }
 
   const openShare = (url, sub) => {
@@ -197,41 +170,28 @@ export default function Studio({ showToast }) {
     notify('Post gespeichert (Demo).')
   }
 
-  // Neuen Post anlegen (jetzt oder geplant)
+  // Neuen Post anlegen
   const resetNp = () => {
     setNpOpen(false)
     setNpTitle('')
     setNpText('')
-    setNpWhen('jetzt')
-    setNpDate('')
     setNpComm(COMMUNITIES[0].id)
   }
   const saveNewPost = () => {
     if (!npTitle.trim()) return
     const c = COMMUNITIES.find((x) => x.id === npComm) || COMMUNITIES[0]
-    if (npWhen === 'planen') {
-      const when = npDate ? new Date(npDate).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Geplant'
-      setPlanned((s) => [{
-        id: `plan-${Date.now()}`, kind: 'post', author: 'du',
-        community: c.name, commId: c.id, title: npTitle.trim(), text: npText.trim(),
-        plannedFor: when, icon: c.icon, color: c.color,
-      }, ...s])
-      setTab('geplant')
-      notify('Post eingeplant (Demo).')
-    } else {
-      setPosts((s) => [{
-        id: `new-${Date.now()}`, author: 'du', community: c.name, commId: c.id,
-        title: npTitle.trim(), text: npText.trim(), time: 'jetzt', date: 'heute',
-        likes: 0, comments: 0, views: 0, status: 'live', icon: c.icon, color: c.color,
-      }, ...s])
-      setTab('posts')
-      notify('Post veröffentlicht (Demo).')
-    }
+    setPosts((s) => [{
+      id: `new-${Date.now()}`, author: 'du', community: c.name, commId: c.id,
+      title: npTitle.trim(), text: npText.trim(), time: 'jetzt', date: 'heute',
+      likes: 0, comments: 0, views: 0, status: 'live', icon: c.icon, color: c.color,
+    }, ...s])
+    setTab('posts')
+    notify('Post veröffentlicht (Demo).')
     resetNp()
   }
 
   const findRow = (kind, id) => {
-    const pool = kind === 'short' ? shorts : kind === 'post' ? posts : planned
+    const pool = kind === 'short' ? shorts : posts
     return pool.find((x) => String(x.id) === String(id))
   }
 
@@ -246,7 +206,7 @@ export default function Studio({ showToast }) {
     { label: 'Likes', icon: 'fa-heart', color: 'ic-yellow', value: fmt(scale(ov.likes)), delta: ov.delta.likes, bars: ov.daily.likes },
   ]
 
-  const counts = { shorts: shorts.length, posts: posts.length, geplant: planned.length }
+  const counts = { shorts: shorts.length, posts: posts.length }
 
   const delBtn = (kind, id, label) => {
     const armed = armDelete === `${kind}:${id}`
@@ -448,59 +408,6 @@ export default function Studio({ showToast }) {
         </>
       )}
 
-      {/* Geplant */}
-      {tab === 'geplant' && (
-        <div className="table-scroll">
-          <table className="studio-table">
-            <thead>
-              <tr>
-                <th>Inhalt</th>
-                <th>Typ</th>
-                <th>Geplant für</th>
-                <th><span className="sr-only">Aktionen</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {planned.map((p) => (
-                <tr key={p.id} onContextMenu={(e) => openCtx(e, 'plan', p.id)}>
-                  <td>
-                    <span className="cell-main">
-                      <span className={`thumb-mini${p.kind === 'post' ? ' square' : ''}`} aria-hidden="true">
-                        <i className={`fa-solid ${p.icon} ${p.color}`} />
-                        {p.kind === 'short' && <span className="thumb-dur">{p.dur}</span>}
-                      </span>
-                      <span className="cell-text">
-                        <strong className="cell-title">{p.title}</strong>
-                        <small className="cell-sub">
-                          {p.kind === 'post' ? `t/${p.community}` : 'Short'} · von {p.author === 'du' ? 'dir' : p.author}
-                        </small>
-                      </span>
-                    </span>
-                  </td>
-                  <td>
-                    <span className="pill plan">{p.kind === 'short' ? 'Short' : 'Post'}</span>
-                  </td>
-                  <td className="cell-sub nowrap">
-                    <i className="fa-regular fa-clock" /> {p.plannedFor}
-                  </td>
-                  <td>
-                    <span className="row-actions">
-                      <button type="button" className="iconbtn sm go-live" title="Jetzt veröffentlichen" aria-label="Jetzt veröffentlichen" onClick={() => publishPlanned(p)}>
-                        <i className="fa-solid fa-paper-plane" />
-                      </button>
-                      {delBtn('plan', p.id)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {planned.length === 0 && (
-                <tr><td colSpan={4} className="cell-sub">Nichts geplant – erstelle einen Post und wähle „Planen“.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* Erstellen-Menü */}
       {createAt && (
         <div className="ctx-backdrop" onClick={() => setCreateAt(null)} onContextMenu={(e) => { e.preventDefault(); setCreateAt(null) }}>
@@ -521,29 +428,20 @@ export default function Studio({ showToast }) {
       {ctx && (() => {
         const row = findRow(ctx.kind, ctx.id)
         if (!row) return null
-        const isPlan = ctx.kind === 'plan'
-        const url = ctx.kind === 'short' ? shortUrl(row.id) : ctx.kind === 'post' ? postUrlOf(row) : null
+        const url = ctx.kind === 'short' ? shortUrl(row.id) : postUrlOf(row)
         return (
           <div className="ctx-backdrop" onClick={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }}>
             <div className="ctx-menu" role="menu" aria-label="Zeilen-Menü" style={{ top: ctx.y, left: ctx.x }} onClick={(e) => e.stopPropagation()}>
               <div className="ctx-title">{row.title || row.text}</div>
-              {isPlan ? (
-                <button type="button" onClick={() => { setCtx(null); publishPlanned(row) }}>
-                  <i className="fa-solid fa-paper-plane ic-teal" /> Jetzt veröffentlichen
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => (ctx.kind === 'short' ? openEditShort(row) : openEditPost(row))}
-                >
-                  <i className="fa-solid fa-pen ic-yellow" /> Bearbeiten
-                </button>
-              )}
-              {url && (
-                <button type="button" onClick={() => openShare(url, row.title || row.text)}>
-                  <i className="fa-solid fa-share-nodes ic-teal" /> Teilen
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => (ctx.kind === 'short' ? openEditShort(row) : openEditPost(row))}
+              >
+                <i className="fa-solid fa-pen ic-yellow" /> Bearbeiten
+              </button>
+              <button type="button" onClick={() => openShare(url, row.title || row.text)}>
+                <i className="fa-solid fa-share-nodes ic-teal" /> Teilen
+              </button>
               <button type="button" onClick={() => { setCtx(null); askDelete(ctx.kind, ctx.id) }}>
                 <i className="fa-solid fa-trash ic-danger" /> Löschen
               </button>
@@ -629,7 +527,7 @@ export default function Studio({ showToast }) {
         </div>
       )}
 
-      {/* Post erstellen (jetzt oder planen) */}
+      {/* Post erstellen */}
       {npOpen && (
         <div className="sheet-backdrop" onClick={() => setNpOpen(false)}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
@@ -657,27 +555,12 @@ export default function Studio({ showToast }) {
                 <label className="field"><span>Text</span>
                   <textarea value={npText} onChange={(e) => setNpText(e.target.value)} rows={4} maxLength={1000} placeholder="Text (optional)" aria-label="Text" />
                 </label>
-                <div className="field"><span>Wann?</span>
-                  <div className="toolbar" role="radiogroup" aria-label="Zeitpunkt">
-                    <button type="button" role="radio" aria-checked={npWhen === 'jetzt'} className={`toolbtn${npWhen === 'jetzt' ? ' active' : ''}`} onClick={() => setNpWhen('jetzt')}>
-                      <i className="fa-solid fa-bolt" /> Jetzt
-                    </button>
-                    <button type="button" role="radio" aria-checked={npWhen === 'planen'} className={`toolbtn${npWhen === 'planen' ? ' active' : ''}`} onClick={() => setNpWhen('planen')}>
-                      <i className="fa-solid fa-calendar-clock" /> Planen
-                    </button>
-                  </div>
-                </div>
-                {npWhen === 'planen' && (
-                  <label className="field"><span>Datum &amp; Uhrzeit</span>
-                    <input type="datetime-local" value={npDate} onChange={(e) => setNpDate(e.target.value)} aria-label="Datum und Uhrzeit" />
-                  </label>
-                )}
               </div>
             </div>
             <div className="sheet-foot">
               <button type="button" className="btn btn-ghost" onClick={() => setNpOpen(false)}>Abbrechen</button>
               <button type="button" className="btn btn-brand" disabled={!npTitle.trim()} onClick={saveNewPost}>
-                <i className="fa-solid fa-paper-plane" /> {npWhen === 'planen' ? 'Einplanen' : 'Posten'}
+                <i className="fa-solid fa-paper-plane" /> Posten
               </button>
             </div>
           </div>

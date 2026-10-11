@@ -291,10 +291,3 @@ const POST_STATS = {
 }
 
 export const DEMO_STUDIO_POSTS = DEMO_POSTS.map((p) => ({ ...p, ...POST_STATS[p.id] }))
-
-// Geplante Inhalte (Shorts + Posts gemischt, Feld `kind`)
-export const DEMO_PLANNED = [
-  { id: 'plan-s1', kind: 'short', author: 'du', title: 'Setup-Tour Teil 2: Kabelmanagement', plannedFor: 'So, 12.10. · 18:00', icon: 'fa-microchip', color: 'ic-violet', dur: '0:47' },
-  { id: 'plan-p1', kind: 'post', author: 'du', community: 'Tech', commId: 'tech', title: 'Dock-Vergleich: 3 Modelle im Test', text: 'Thunderbolt gegen USB-C – welches Dock lohnt sich wirklich? Tabelle folgt.', plannedFor: 'Mo, 13.10. · 09:00', icon: 'fa-microchip', color: 'ic-violet' },
-  { id: 'plan-p2', kind: 'post', author: 'du', community: 'Fotografie', commId: 'fotografie', title: 'Album-Drop am Wochenende', text: 'Volle Golden-Hour-Serie, 24 Bilder, unbearbeitet.', plannedFor: 'Sa, 18.10. · 20:00', icon: 'fa-camera', color: 'ic-teal' },
-]

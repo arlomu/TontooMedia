@@ -623,7 +623,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   border-radius: 999px; padding: 4px 12px; white-space: nowrap;
 }
 .pill.live { color: var(--accent); border-color: rgba(79, 176, 168, 0.55); }
-.pill.plan { color: var(--brand); border-color: rgba(245, 179, 1, 0.55); }
 .pill.private { color: var(--danger); border-color: rgba(224, 93, 93, 0.55); }
 
 .sr-only {
@@ -650,7 +649,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   transition: border-color 0.15s;
 }
 .field textarea:focus { border-color: var(--brand); }
-.field input[type="datetime-local"] { color-scheme: dark; }
 .sheet-body .field { text-align: left; margin-bottom: 12px; }
 .ic-danger { color: var(--danger); }
 
