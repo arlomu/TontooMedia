@@ -246,16 +246,6 @@ export default function Start() {
               ))}
             </div>
           </div>
-          <div className="side-card muted">
-            <h4 className="sidecard-title">
-              <i className="fa-solid fa-circle-info ic-violet" /> Beispiel-Feed
-            </h4>
-            <p className="sidecard-text">
-              Posts, Shorts und Communities sind Demo ohne Backend. Lade im{' '}
-              <Link to="/studio">Studio</Link> etwas hoch oder stöbere in den{' '}
-              <Link to={`/shorts/${DEMO_SHORTS[0].id}`}>Shorts</Link>.
-            </p>
-          </div>
         </aside>
       </div>
 
