@@ -171,15 +171,16 @@ main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; paddin
 
 /* ---------- Auth (Login / Register) ---------- */
 .field { display: block; margin-bottom: 6px; }
-.field span { display: block; font-size: 12.5px; color: var(--text-3rd); margin-bottom: 6px; font-weight: 600; }
-.field input {
+/* Nur direkte Kinder – sonst zerschießt es Pillen/Inputs in Unter-Boxen */
+.field > span { display: block; font-size: 12.5px; color: var(--text-3rd); margin-bottom: 6px; font-weight: 600; }
+.field > input {
   width: 100%; background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 11px 13px; color: var(--text);
   font-size: 16px; font-family: var(--font-body); outline: none;
   transition: border-color 0.15s;
 }
-.field input:focus { border-color: var(--brand); }
-.field input::placeholder { color: var(--text-3rd); }
+.field > input:focus { border-color: var(--brand); }
+.field > input::placeholder { color: var(--text-3rd); }
 .authwrap {
   display: grid; place-items: center;
   padding: 56px 0 24px; min-height: 60vh;
@@ -643,13 +644,13 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 }
 .chipbtn:hover { border-color: var(--text-3rd); color: var(--text); }
 .chipbtn.active { border-color: var(--brand); color: var(--text); background: var(--surface2); }
-.field textarea {
+.field > textarea {
   width: 100%; background: var(--surface2); border: 1px solid var(--border);
   border-radius: 10px; padding: 11px 13px; color: var(--text);
   font-size: 14px; font-family: var(--font-body); outline: none; resize: vertical;
   transition: border-color 0.15s;
 }
-.field textarea:focus { border-color: var(--brand); }
+.field > textarea:focus { border-color: var(--brand); }
 .sheet-body .field { text-align: left; margin-bottom: 12px; }
 .ic-danger { color: var(--danger); }
 
@@ -664,8 +665,8 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   font-family: var(--font-body); font-size: 16px; font-weight: 800;
   margin: 0 0 14px; color: var(--text);
 }
-.set-section .field input, .set-section .field textarea { background: var(--surface2); }
-.sheet .field input, .sheet .field textarea { background: var(--surface2); }
+.set-section .field > input, .set-section .field > textarea { background: var(--surface2); }
+.sheet .field > input, .sheet .field > textarea { background: var(--surface2); }
 .sheet-narrow { width: min(420px, 100%); }
 .create-prev { margin: 8px 0 0; font-size: 13px; font-weight: 700; color: var(--accent); }
 .create-label { font-size: 12.5px; font-weight: 600; color: var(--text-3rd); margin-top: 2px; }
@@ -717,14 +718,14 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .profile-prev strong { font-size: 16px; color: var(--text); }
 .profile-prev small { font-size: 13px; color: var(--text-sec); font-weight: 600; }
 .profile-prev p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-3rd); }
-.field textarea {
+.field > textarea {
   width: 100%; background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 11px 13px; color: var(--text);
   font-size: 16px; font-family: var(--font-body); outline: none; resize: vertical;
   min-height: 76px; transition: border-color 0.15s;
 }
-.field textarea:focus { border-color: var(--brand); }
-.field textarea::placeholder { color: var(--text-3rd); }
+.field > textarea:focus { border-color: var(--brand); }
+.field > textarea::placeholder { color: var(--text-3rd); }
 .field.nomargin { margin-bottom: 0; }
 .char-row { display: flex; justify-content: flex-end; font-size: 12px; color: var(--text-3rd); margin-top: 6px; }
 .saved-hint {
@@ -1117,6 +1118,19 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   padding: 4px 0; font-size: 14px; font-weight: 600; font-family: var(--font-body);
 }
 .switch-row small { display: block; font-weight: 400; color: var(--text-3rd); font-size: 12.5px; margin-top: 2px; }
+/* Schalter (Basis – wird u. a. im Upload-Wizard genutzt) */
+.switch {
+  position: relative; width: 46px; height: 26px; flex-shrink: 0;
+  border-radius: 999px; background: var(--surface2); border: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s; padding: 0;
+}
+.switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--text-3rd);
+  transition: left 0.15s, background 0.15s;
+}
+.switch.on { background: var(--brand); border-color: var(--brand); }
+.switch.on::after { left: 22px; background: var(--brand-ink); }
 .thumb-pick { display: flex; align-items: center; gap: 12px; }
 .thumb-frame {
   width: 64px; height: 114px; flex-shrink: 0;
