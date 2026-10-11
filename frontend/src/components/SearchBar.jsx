@@ -23,10 +23,6 @@ export default function SearchBar({ onSearch, placeholder = 'Suchen …' }) {
           <i className="fa-solid fa-xmark" />
         </button>
       )}
-      <span className="sb-div" aria-hidden="true" />
-      <button type="submit" className="sb-go" aria-label="Suchen">
-        <i className="fa-solid fa-magnifying-glass" />
-      </button>
     </form>
   )
 }

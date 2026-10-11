@@ -72,32 +72,24 @@ a { color: var(--accent); }
 .searchbar {
   display: flex; align-items: center; gap: 4px;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 5px 5px 5px 16px;
+  border-radius: 999px; padding: 2px 6px 2px 14px;
   transition: border-color 0.15s;
 }
 .searchbar:focus-within { border-color: var(--brand); }
 .searchbar input {
   flex: 1; min-width: 0; background: transparent; border: none; outline: none;
-  color: var(--text); font-size: 15px; font-family: var(--font-body);
+  color: var(--text); font-size: 14px; font-family: var(--font-body);
   appearance: none; -webkit-appearance: none;
 }
 .searchbar input::-webkit-search-cancel-button { display: none; }
 .searchbar input::placeholder { color: var(--text-3rd); }
 .sb-x {
-  display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0;
-  background: transparent; border: none; border-radius: 8px;
-  color: var(--text-sec); font-size: 15px; cursor: pointer;
+  display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0;
+  background: transparent; border: none; border-radius: 50%;
+  color: var(--text-sec); font-size: 13px; cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 .sb-x:hover { background: var(--surface2); color: var(--text); }
-.sb-div { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
-.sb-go {
-  display: grid; place-items: center; width: 40px; height: 36px; flex-shrink: 0;
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
-  color: var(--text); font-size: 15px; cursor: pointer;
-  transition: border-color 0.15s, transform 0.1s;
-}
-.sb-go:hover { border-color: var(--brand); transform: translateY(-1px); }
 
 /* Buttons: leicht gerundet (10px), Text + Icon, Hover überall */
 .btn {
