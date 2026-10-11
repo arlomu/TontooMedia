@@ -38,6 +38,7 @@ export default function Studio({ showToast }) {
   const notify = (msg) => showToast?.(msg)
   const [tab, setTab] = useState('shorts')
   const [period, setPeriod] = useState(28)
+  const [query, setQuery] = useState('')
   const [shorts, setShorts] = useState(DEMO_STUDIO_SHORTS)
   const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
@@ -198,6 +199,13 @@ export default function Studio({ showToast }) {
 
   const counts = { shorts: shorts.length, posts: posts.length }
 
+  // Suche neben den Tabs: filtert Titel, Tags, Text, Community
+  const q = query.trim().toLowerCase()
+  const matches = (...parts) =>
+    !q || parts.some((p) => String(p || '').toLowerCase().includes(q))
+  const visibleShorts = shorts.filter((s) => matches(s.title, ...(s.tags || [])))
+  const visiblePosts = posts.filter((p) => matches(p.title, p.text, p.community, ...(p.tags || [])))
+
   const delBtn = (kind, id, label) => (
     <button
       type="button"
@@ -261,21 +269,32 @@ export default function Studio({ showToast }) {
         })}
       </div>
 
-      {/* Tabs */}
-      <div className="toolbar studio-tabs" role="tablist" aria-label="Studio-Bereich">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            className={`toolbtn${tab === t.id ? ' active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            <i className={`fa-solid ${t.icon}`} /> {t.label}
-            <span className="tab-count">{counts[t.id]}</span>
-          </button>
-        ))}
+      {/* Tabs + Suche */}
+      <div className="studio-bar">
+        <div className="toolbar studio-tabs" role="tablist" aria-label="Studio-Bereich">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`toolbtn${tab === t.id ? ' active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              <i className={`fa-solid ${t.icon}`} /> {t.label}
+              <span className="tab-count">{counts[t.id]}</span>
+            </button>
+          ))}
+        </div>
+        <label className="mini-search studio-search">
+          <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={tab === 'shorts' ? 'Shorts durchsuchen' : 'Posts durchsuchen'}
+            aria-label={tab === 'shorts' ? 'Shorts durchsuchen' : 'Posts durchsuchen'}
+          />
+        </label>
       </div>
 
       {/* Shorts */}
@@ -295,7 +314,7 @@ export default function Studio({ showToast }) {
                 </tr>
               </thead>
               <tbody>
-                {shorts.map((s) => {
+                {visibleShorts.map((s) => {
                   const pill = visPill(s)
                   return (
                     <tr key={s.id} onContextMenu={(e) => openCtx(e, 'short', s.id)}>
@@ -333,8 +352,8 @@ export default function Studio({ showToast }) {
                     </tr>
                   )
                 })}
-                {shorts.length === 0 && (
-                  <tr><td colSpan={7} className="cell-sub">Keine Shorts – lade oben welche hoch.</td></tr>
+                {visibleShorts.length === 0 && (
+                  <tr><td colSpan={7} className="cell-sub">{q ? `Keine Shorts für „${query.trim()}“ gefunden.` : 'Keine Shorts – lade oben welche hoch.'}</td></tr>
                 )}
               </tbody>
             </table>
@@ -359,7 +378,7 @@ export default function Studio({ showToast }) {
                 </tr>
               </thead>
               <tbody>
-                {posts.map((p) => (
+                {visiblePosts.map((p) => (
                   <tr key={p.id} onContextMenu={(e) => openCtx(e, 'post', p.id)}>
                     <td>
                       <span className="cell-main">
@@ -387,8 +406,8 @@ export default function Studio({ showToast }) {
                     </td>
                   </tr>
                 ))}
-                {posts.length === 0 && (
-                  <tr><td colSpan={7} className="cell-sub">Keine Posts – erstelle oben einen neuen.</td></tr>
+                {visiblePosts.length === 0 && (
+                  <tr><td colSpan={7} className="cell-sub">{q ? `Keine Posts für „${query.trim()}“ gefunden.` : 'Keine Posts – erstelle oben einen neuen.'}</td></tr>
                 )}
               </tbody>
             </table>
