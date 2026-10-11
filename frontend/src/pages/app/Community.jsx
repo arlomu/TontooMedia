@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { COMMUNITIES, DEMO_POSTS, commIdOf, postUrlOf } from './demoData.js'
 import { getCustomTontoos } from './customTontoos.js'
 import CommunityCard from '../../components/CommunityCard.jsx'
+import PostBody from '../../components/PostBody.jsx'
+import PostEditor from '../../components/PostEditor.jsx'
 import ShareSheet from '../../components/ShareSheet.jsx'
 
 const SORTS = [
@@ -22,16 +24,21 @@ export default function Community() {
   const [liked, setLiked] = useState({})
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null)
+  const [editorOpen, setEditorOpen] = useState(null) // commId mit Preselect
   const copyTimer = useRef(null)
 
   useEffect(() => () => clearTimeout(copyTimer.current), [])
 
   useEffect(() => {
-    if (!sharePost) return
-    const onKey = (e) => e.key === 'Escape' && setSharePost(null)
+    if (!sharePost && !editorOpen) return
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      setSharePost(null)
+      setEditorOpen(null)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sharePost])
+  }, [sharePost, editorOpen])
 
   if (!comm) {
     return (
@@ -92,8 +99,8 @@ export default function Community() {
       <div className="start-layout">
         <div className="feed-col">
           <div className="feed-bar split">
-            {/* Demo-Button ohne Funktion */}
-            <button type="button" className="btn btn-brand">
+            {/* Gleicher Editor wie im Studio, Community vorausgewählt – Posten tut (Demo) nichts */}
+            <button type="button" className="btn btn-brand" onClick={() => setEditorOpen(comm.id)}>
               <i className="fa-solid fa-plus" /> Posten
             </button>
             <div className="toolbar" role="tablist" aria-label="Beiträge sortieren">
@@ -140,11 +147,7 @@ export default function Community() {
                   <Link to={`/t/${cid}/post/${p.id}`} className="post-titlelink">
                     <h4 className="post-title">{p.title || p.text}</h4>
                   </Link>
-                  {p.title && (
-                    <Link to={`/t/${cid}/post/${p.id}`} className="post-textlink">
-                      <p className="posttext">{p.text}</p>
-                    </Link>
-                  )}
+                  <PostBody post={p} detailUrl={`/t/${cid}/post/${p.id}`} />
 
                   <div className="post-toolbar">
                     <button
@@ -195,6 +198,23 @@ export default function Community() {
           onCopy={() => copyLink(sharePost)}
           onClose={() => setSharePost(null)}
         />
+      )}
+
+      {/* Gleiches Editor-Modal wie im Studio, Community vorausgewählt */}
+      {editorOpen && (
+        <div className="sheet-backdrop" onClick={() => setEditorOpen(null)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head"><strong className="sheet-title">Post erstellen</strong></div>
+            <PostEditor
+              key={editorOpen}
+              communities={[...COMMUNITIES, ...getCustomTontoos()]}
+              communityId={editorOpen}
+              submitLabel="Posten"
+              onSubmit={() => {}}
+              onCancel={() => setEditorOpen(null)}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

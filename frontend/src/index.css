@@ -631,7 +631,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 }
 
 /* Formular-Helfer im Studio */
-.chipwrap { display: flex; flex-wrap: wrap; gap: 8px; }
 .chipbtn {
   display: inline-flex; align-items: center; gap: 7px;
   background: var(--surface); border: 1px solid var(--border); cursor: pointer;
@@ -977,7 +976,6 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
 .postuser-link { color: var(--text-sec); font-weight: 600; text-decoration: none; font-family: var(--font-body); }
 .postuser-link:hover { color: var(--accent); }
 .post-detail-title { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; margin: 0 0 10px; overflow-wrap: break-word; }
-.post-detail-text { font-size: 15px; line-height: 1.7; color: var(--text-sec); margin: 0 0 4px; overflow-wrap: break-word; }
 .detail-toolbar { margin-bottom: 16px; }
 /* Titel/Text im Feed öffnen die Detailansicht */
 .post-titlelink, .post-textlink { display: block; text-decoration: none; color: inherit; }
@@ -1068,6 +1066,149 @@ table.studio-table { width: 100%; min-width: 760px; border-collapse: collapse; f
   border-radius: 8px; padding: 1px 8px;
 }
 .rules-link { margin-top: 12px; display: inline-flex; }
+.tool-spacer { flex: 1; }
+.chipbtn.static { cursor: default; }
+
+/* ---------- Post-Editor (Reddit-Stil) ---------- */
+.editor { display: flex; flex-direction: column; gap: 12px; }
+.editor-title {
+  background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 20px; font-weight: 700; font-family: var(--font-body);
+  padding: 2px 0; width: 100%;
+}
+.editor-title::placeholder { color: var(--text-3rd); }
+.editor-title:focus { border-bottom: 1px solid var(--border); }
+.mini-ava {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: inline-grid; place-items: center; overflow: hidden;
+  background: var(--surface2); border: 1px solid var(--border); font-size: 11px;
+}
+.mini-ava.as-img { object-fit: cover; padding: 0; border-radius: 50%; }
+/* #-Tags */
+.tagrow {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px;
+}
+.tag-ic { color: var(--text-3rd); font-size: 12px; }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(79, 176, 168, 0.14); border: 1px solid rgba(79, 176, 168, 0.45);
+  color: var(--accent); font-size: 12.5px; font-weight: 700; font-family: var(--font-body);
+  border-radius: 999px; padding: 3px 6px 3px 10px;
+}
+.tag-pill button {
+  display: grid; place-items: center; width: 18px; height: 18px;
+  background: transparent; border: none; border-radius: 50%; cursor: pointer;
+  color: var(--text-sec); font-size: 10px;
+}
+.tag-pill button:hover { background: rgba(224, 93, 93, 0.2); color: var(--danger); }
+.tag-input {
+  flex: 1; min-width: 140px; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 13px; font-family: var(--font-body);
+}
+.tag-input::placeholder { color: var(--text-3rd); }
+.tagrow-show { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tagrow-show .tag-pill { padding: 3px 10px; }
+/* Editor-Text + Toolbar */
+.editor-text {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; color: var(--text);
+  font-size: 14px; line-height: 1.6; font-family: var(--font-body); outline: none;
+  resize: vertical; transition: border-color 0.15s;
+}
+.editor-text:focus { border-color: var(--brand); }
+.editor-text::placeholder { color: var(--text-3rd); }
+.mtoolbar {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  border-top: 1px solid var(--border); padding-top: 8px;
+}
+.tbtn {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  background: transparent; border: none; border-radius: 8px; cursor: pointer;
+  color: var(--text-sec); font-size: 13px;
+  transition: background 0.12s, color 0.12s;
+}
+.tbtn:hover { background: var(--surface2); color: var(--text); }
+/* Bild-Vorschau im Editor */
+.img-previews { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.img-prev { position: relative; width: 96px; height: 96px; flex-shrink: 0; }
+.img-prev img {
+  width: 100%; height: 100%; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--border); display: block;
+}
+.img-prev button {
+  position: absolute; top: 5px; right: 5px;
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border-radius: 50%; border: 1px solid var(--border); cursor: pointer;
+  background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 11px;
+}
+.img-prev button:hover { border-color: var(--danger); color: var(--danger); }
+.img-count { font-size: 12px; font-weight: 700; color: var(--text-3rd); font-family: var(--font-body); }
+/* Community-Picker */
+.picker-backdrop {
+  position: fixed; inset: 0; z-index: 75;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  animation: fade 0.18s ease;
+}
+.sheet.picker { width: min(560px, 100%); }
+.picker-head { display: flex; align-items: center; justify-content: space-between; }
+.picker-search { margin-bottom: 10px; }
+.picker-list {
+  display: flex; flex-direction: column;
+  max-height: min(46vh, 380px); overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.picker-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; text-align: left; padding: 12px 8px;
+  color: var(--text); font-family: var(--font-body);
+  transition: background 0.12s;
+}
+.picker-row:last-child { border-bottom: none; }
+.picker-row:hover { background: var(--surface2); }
+.picker-row.active { background: var(--surface2); }
+.picker-row .trend-main small {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 100%;
+}
+/* Gerendertes Markdown in Posts */
+.md { overflow-wrap: break-word; }
+.md p { margin: 0 0 8px; }
+.md p:last-child, .md ul:last-child, .md blockquote:last-child { margin-bottom: 0; }
+.md strong { color: var(--text); }
+.md em { color: var(--text); }
+.md del { color: var(--text-3rd); }
+.md code {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1px 6px;
+  font-size: 0.88em; color: var(--brand); font-family: ui-monospace, monospace;
+}
+.md a { color: var(--accent); }
+.md ul { margin: 0 0 8px; padding-left: 20px; }
+.md li { margin-bottom: 3px; }
+.md blockquote {
+  margin: 0 0 8px; padding: 6px 12px;
+  border-left: 3px solid var(--brand); color: var(--text-sec);
+}
+.md .md-tag { color: var(--accent); font-weight: 600; }
+/* Bilder an Posts */
+.feed-imgs { display: flex; gap: 8px; margin-top: 10px; }
+.feed-imgs a, .feed-imgs img {
+  display: block; border-radius: 10px; border: 1px solid var(--border);
+  overflow: hidden;
+}
+.feed-imgs img { width: 100%; height: 120px; object-fit: cover; }
+.feed-imgs a { flex: 1; min-width: 0; transition: border-color 0.15s; }
+.feed-imgs a:hover { border-color: var(--brand); }
+.feed-imgs.big img { height: min(46vw, 260px); }
+@media (max-width: 640px) {
+  .editor-title { font-size: 18px; }
+  .sheet.picker { width: 100%; }
+}
 
 /* Eigenes Rechtsklick-Menü (statt Browser-Menü) */
 .ctx-backdrop { position: fixed; inset: 0; z-index: 60; }

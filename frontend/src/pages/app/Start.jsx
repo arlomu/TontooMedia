@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS, commIdOf, postUrlOf } from './demoData.js'
 import ShareSheet from '../../components/ShareSheet.jsx'
+import PostBody from '../../components/PostBody.jsx'
 
 const SORTS = [
   { id: 'neu', label: 'Neu', icon: 'fa-clock' },
@@ -189,11 +190,7 @@ export default function Start() {
                   <Link to={`/t/${cid}/post/${p.id}`} className="post-titlelink">
                     <h4 className="post-title">{p.title || p.text}</h4>
                   </Link>
-                  {p.title && (
-                    <Link to={`/t/${cid}/post/${p.id}`} className="post-textlink">
-                      <p className="posttext">{p.text}</p>
-                    </Link>
-                  )}
+                  <PostBody post={p} detailUrl={`/t/${cid}/post/${p.id}`} />
 
                   <div className="post-toolbar">
                     <button

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { COMMUNITIES, DEMO_POST_COMMENTS, DEMO_POSTS, commIdOf } from './demoData.js'
 import CommunityCard from '../../components/CommunityCard.jsx'
+import PostBody from '../../components/PostBody.jsx'
 import ShareSheet from '../../components/ShareSheet.jsx'
 
 const COMMENT_SORTS = [
@@ -218,7 +219,7 @@ export default function Post() {
           </div>
 
           <h2 className="post-detail-title">{post.title || post.text}</h2>
-          {post.title && <p className="post-detail-text">{post.text}</p>}
+          {post.title && <PostBody post={post} large />}
 
           <div className="post-toolbar detail-toolbar">
             <button

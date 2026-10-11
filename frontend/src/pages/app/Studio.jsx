@@ -8,6 +8,8 @@ import {
   postUrlOf,
 } from './demoData.js'
 import ShareSheet from '../../components/ShareSheet.jsx'
+import PostEditor from '../../components/PostEditor.jsx'
+import { getCustomTontoos } from './customTontoos.js'
 
 const TABS = [
   { id: 'shorts', label: 'Shorts', icon: 'fa-clapperboard' },
@@ -51,8 +53,6 @@ export default function Studio({ showToast }) {
   const [epId, setEpId] = useState(null)
   const [npOpen, setNpOpen] = useState(false)
   const [npComm, setNpComm] = useState(COMMUNITIES[0].id)
-  const [npTitle, setNpTitle] = useState('')
-  const [npText, setNpText] = useState('')
   const armTimer = useRef(null)
   const copyTimer = useRef(null)
 
@@ -150,45 +150,24 @@ export default function Studio({ showToast }) {
     notify('Short gespeichert (Demo).')
   }
 
-  // Post-Edit öffnen / speichern
+  // Post-Edit öffnen / speichern (gleicher Editor, Community fest)
   const openEditPost = (p) => {
     setCtx(null)
     setEpId(p.id)
-    setNpComm(commIdOf(p))
-    setNpTitle(p.title || '')
-    setNpText(p.text || '')
   }
-  const savePost = () => {
-    if (!npTitle.trim()) return
-    const c = COMMUNITIES.find((x) => x.id === npComm) || COMMUNITIES[0]
+  const saveEditPost = (data) => {
     setPosts((list) => list.map((x) =>
       String(x.id) === String(epId)
-        ? { ...x, title: npTitle.trim(), text: npText.trim(), community: c.name, commId: c.id, icon: c.icon, color: c.color }
+        ? { ...x, title: data.title, text: data.text, tags: data.tags, images: data.images }
         : x
     ))
     setEpId(null)
     notify('Post gespeichert (Demo).')
   }
-
-  // Neuen Post anlegen
-  const resetNp = () => {
-    setNpOpen(false)
-    setNpTitle('')
-    setNpText('')
-    setNpComm(COMMUNITIES[0].id)
-  }
-  const saveNewPost = () => {
-    if (!npTitle.trim()) return
-    const c = COMMUNITIES.find((x) => x.id === npComm) || COMMUNITIES[0]
-    setPosts((s) => [{
-      id: `new-${Date.now()}`, author: 'du', community: c.name, commId: c.id,
-      title: npTitle.trim(), text: npText.trim(), time: 'jetzt', date: 'heute',
-      likes: 0, comments: 0, views: 0, status: 'live', icon: c.icon, color: c.color,
-    }, ...s])
-    setTab('posts')
-    notify('Post veröffentlicht (Demo).')
-    resetNp()
-  }
+  const editPost = epId !== null ? posts.find((x) => String(x.id) === String(epId)) : null
+  const editComm = editPost
+    ? ([...COMMUNITIES, ...getCustomTontoos()].find((c) => c.id === commIdOf(editPost)) || COMMUNITIES[0])
+    : COMMUNITIES[0]
 
   const findRow = (kind, id) => {
     const pool = kind === 'short' ? shorts : posts
@@ -489,80 +468,39 @@ export default function Studio({ showToast }) {
         </div>
       )}
 
-      {/* Post bearbeiten */}
-      {epId !== null && (
+      {/* Post bearbeiten – selber Editor, Community fest */}
+      {epId !== null && editPost && (
         <div className="sheet-backdrop" onClick={() => setEpId(null)}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Post bearbeiten" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head"><strong className="sheet-title">Post bearbeiten</strong></div>
-            <div className="sheet-body">
-              <div className="post-form">
-                <label className="field"><span>Community</span>
-                  <span className="chipwrap">
-                    {COMMUNITIES.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={npComm === c.id}
-                        className={`chipbtn${npComm === c.id ? ' active' : ''}`}
-                        onClick={() => setNpComm(c.id)}
-                      >
-                        <i className={`fa-solid ${c.icon} ${c.color}`} /> t/{c.name}
-                      </button>
-                    ))}
-                  </span>
-                </label>
-                <label className="field"><span>Titel</span>
-                  <input value={npTitle} onChange={(e) => setNpTitle(e.target.value)} maxLength={120} aria-label="Titel" />
-                </label>
-                <label className="field"><span>Text</span>
-                  <textarea value={npText} onChange={(e) => setNpText(e.target.value)} rows={4} maxLength={1000} aria-label="Text" />
-                </label>
-              </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setEpId(null)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" disabled={!npTitle.trim()} onClick={savePost}>Speichern</button>
-            </div>
+            <PostEditor
+              key={epId}
+              fixedCommunity={editComm}
+              initialTitle={editPost.title || ''}
+              initialText={editPost.text || ''}
+              initialTags={editPost.tags || []}
+              initialImages={editPost.images || []}
+              submitLabel="Speichern"
+              onSubmit={saveEditPost}
+              onCancel={() => setEpId(null)}
+            />
           </div>
         </div>
       )}
 
-      {/* Post erstellen */}
+      {/* Post erstellen – Posten tut (Demo) nichts */}
       {npOpen && (
         <div className="sheet-backdrop" onClick={() => setNpOpen(false)}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head"><strong className="sheet-title">Post erstellen</strong></div>
-            <div className="sheet-body">
-              <div className="post-form">
-                <label className="field"><span>Community</span>
-                  <span className="chipwrap">
-                    {COMMUNITIES.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={npComm === c.id}
-                        className={`chipbtn${npComm === c.id ? ' active' : ''}`}
-                        onClick={() => setNpComm(c.id)}
-                      >
-                        <i className={`fa-solid ${c.icon} ${c.color}`} /> t/{c.name}
-                      </button>
-                    ))}
-                  </span>
-                </label>
-                <label className="field"><span>Titel</span>
-                  <input value={npTitle} onChange={(e) => setNpTitle(e.target.value)} maxLength={120} placeholder="Worum geht's?" aria-label="Titel" />
-                </label>
-                <label className="field"><span>Text</span>
-                  <textarea value={npText} onChange={(e) => setNpText(e.target.value)} rows={4} maxLength={1000} placeholder="Text (optional)" aria-label="Text" />
-                </label>
-              </div>
-            </div>
-            <div className="sheet-foot">
-              <button type="button" className="btn btn-ghost" onClick={() => setNpOpen(false)}>Abbrechen</button>
-              <button type="button" className="btn btn-brand" disabled={!npTitle.trim()} onClick={saveNewPost}>
-                <i className="fa-solid fa-paper-plane" /> Posten
-              </button>
-            </div>
+            <PostEditor
+              communities={[...COMMUNITIES, ...getCustomTontoos()]}
+              communityId={npComm}
+              onCommunity={setNpComm}
+              submitLabel="Posten"
+              onSubmit={() => {}}
+              onCancel={() => setNpOpen(false)}
+            />
           </div>
         </div>
       )}
