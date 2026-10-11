@@ -3,7 +3,6 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import GridBackground from './components/GridBackground.jsx'
 import AppLayout from './components/AppLayout.jsx'
 import Start from './pages/app/Start.jsx'
 import Shorts from './pages/app/Shorts.jsx'
@@ -64,9 +63,6 @@ export default function App() {
 
   return (
     <div className="page">
-      {/* Hintergrund: Gitter auf Schwarz, überall gleich */}
-      <GridBackground />
-
       {!isApp && (
         <header className="nav">
           <div className="nav-inner">
