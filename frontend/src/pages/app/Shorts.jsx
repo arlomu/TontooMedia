@@ -14,6 +14,16 @@ import ShareSheet from '../../components/ShareSheet.jsx'
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('de-DE')
 const needLogin = (msg) => (/eingeloggt/i.test(msg || '') ? 'Bitte zuerst einloggen.' : (msg || 'Das hat nicht geklappt.'))
+const MUTE_KEY = 'tontoo_shorts_muted'
+// Ton-Wahl merken (Standard: an). Ein Reload ohne Klick davor blockt der
+// Browser trotzdem kurz – die erste Interaktion irgendwo entstummt dann sofort.
+const readMutedPref = () => {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 // Shorts-Viewer wie auf YouTube: echtes Hochkant-Video mit Ton (Standard an),
 // roter Fortschritt unten, Action-Rail (Like/Kommentare/Teilen), User-Zeile
@@ -26,7 +36,15 @@ export default function Shorts({ showToast }) {
   const [feedError, setFeedError] = useState('')
   const [idx, setIdx] = useState(0) // man startet ganz oben (neuste)
   const [playing, setPlaying] = useState(true)
-  const [muted, setMuted] = useState(false)
+  const [muted, setMuted] = useState(readMutedPref)
+  const setMutedPref = (m) => {
+    setMuted(m)
+    try {
+      localStorage.setItem(MUTE_KEY, m ? '1' : '0')
+    } catch {
+      /* egal */
+    }
+  }
   const [sndBlocked, setSndBlocked] = useState(false) // Browser blockt Ton-Autoplay
   const [progress, setProgress] = useState(0)
   const [slide, setSlide] = useState(null) // { from, to, dir } während der Wechsel-Animation
@@ -44,7 +62,7 @@ export default function Shorts({ showToast }) {
   const videoRef = useRef(null)
   const playingRef = useRef(true)
   playingRef.current = playing
-  const mutedRef = useRef(false)
+  const mutedRef = useRef(muted)
   mutedRef.current = muted
   const dragRef = useRef(null)
   const wheelCool = useRef(0)
@@ -162,6 +180,26 @@ export default function Shorts({ showToast }) {
       }
     })
   }, [shortId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Erste Interaktion irgendwo (Klick/Taste) entstummt sofort, falls Ton
+  // gewollt ist, der Browser ihn nach Reload aber erst mal blockt hat
+  useEffect(() => {
+    const onFirst = () => {
+      if (mutedRef.current) return // manuell stumm -> bleibt stumm
+      const v = videoRef.current
+      if (v && v.muted) {
+        v.muted = false
+        setSndBlocked(false)
+        if (playingRef.current) v.play().catch(() => {})
+      }
+    }
+    window.addEventListener('pointerdown', onFirst)
+    window.addEventListener('keydown', onFirst)
+    return () => {
+      window.removeEventListener('pointerdown', onFirst)
+      window.removeEventListener('keydown', onFirst)
+    }
+  }, [])
 
   // Escape schließt offene Menüs
   useEffect(() => {
@@ -370,7 +408,7 @@ export default function Shorts({ showToast }) {
         e.preventDefault()
         setPlaying((p) => !p)
       } else if (e.key === 'm' || e.key === 'M') {
-        setMuted((m) => !m)
+        setMutedPref(!mutedRef.current)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -473,7 +511,7 @@ export default function Shorts({ showToast }) {
           <button type="button" className="pillbtn" aria-label={playing ? 'Pause' : 'Abspielen'} onClick={() => setPlaying((p) => !p)}>
             <i className={`fa-solid ${playing ? 'fa-pause' : 'fa-play'}`} />
           </button>
-          <button type="button" className={`pillbtn${isMuted ? ' on' : ''}`} aria-label={isMuted ? 'Ton an' : 'Stumm'} onClick={() => setMuted((m) => !m)}>
+          <button type="button" className={`pillbtn${isMuted ? ' on' : ''}`} aria-label={isMuted ? 'Ton an' : 'Stumm'} onClick={() => setMutedPref(!mutedRef.current)}>
             <i className={`fa-solid ${isMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`} />
           </button>
         </div>
@@ -481,7 +519,7 @@ export default function Shorts({ showToast }) {
 
       {/* Ton-Hinweis, falls der Browser Ton-Autoplay wirklich blockt */}
       {active && sndBlocked && !muted && (
-        <button type="button" className="snd-hint" onClick={() => setMuted(false)}>
+        <button type="button" className="snd-hint" onClick={() => setMutedPref(false)}>
           <i className="fa-solid fa-volume-xmark" /> Ton an
         </button>
       )}
