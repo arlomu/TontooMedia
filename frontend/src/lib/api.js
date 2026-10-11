@@ -168,6 +168,66 @@ export const apiFollowed = () =>
     communities: d.communities || [],
   }))
 
+// ---- Posts in Communities (echt, DB) ----
+
+export const apiListPosts = (slug) =>
+  request(`/api/communities/${encodeURIComponent(slug)}/posts`, { auth: true }).then(
+    (d) => d.posts || []
+  )
+
+// Post-Erstellung per XHR (Bilder als Dateien).
+export const apiCreatePost = ({ slug, title, text, tags, imageFiles }) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/communities/${encodeURIComponent(slug)}/posts`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* egal */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data.post)
+      else reject(new Error(data.error || `Fehler ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Server nicht erreichbar. Läuft das Backend?'))
+    const fd = new FormData()
+    fd.append('title', title)
+    fd.append('text', text || '')
+    fd.append('tags', JSON.stringify(tags || []))
+    ;(imageFiles || []).slice(0, 2).forEach((f, i) => fd.append(`image${i}`, f))
+    xhr.send(fd)
+  })
+
+export const apiDeleteCommunityPost = (slug, id) =>
+  request(`/api/communities/${encodeURIComponent(slug)}/posts/${id}`, {
+    method: 'DELETE',
+    auth: true,
+  })
+
+export const apiDeleteCommunity = (slug) =>
+  request(`/api/communities/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    auth: true,
+  })
+
+// ---- Eigene Posts fürs Studio (echt) ----
+
+export const apiMyPosts = () =>
+  request('/api/me/posts', { auth: true }).then((d) => d.posts || [])
+
+export const apiUpdatePost = (id, { title, text, tags }) =>
+  request(`/api/posts/${id}`, {
+    method: 'PATCH',
+    auth: true,
+    body: { title, text, tags },
+  }).then((d) => d.post)
+
+export const apiDeletePost = (id) =>
+  request(`/api/posts/${id}`, { method: 'DELETE', auth: true })
+
 // ---- Communities (echt, DB) ----
 
 export const apiListCommunities = () =>

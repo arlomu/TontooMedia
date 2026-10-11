@@ -363,8 +363,21 @@ main.app-wrap { max-width: none; padding: 0; }
 .posthead { display: flex; gap: 10px; align-items: center; }
 .avatar {
   width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  background: var(--surface2); border: 1px solid var(--border); font-size: 17px;
+  background: var(--surface2); border: 1px solid var(--border); font-size: 17px; overflow: hidden;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* "+x mehr"-Button unter dem ersten Post-Bild */
+.more-imgs { margin-top: 8px; }
+/* Danger Zone im Admin-Modal */
+.danger-zone {
+  margin-top: 18px; padding: 14px; border: 1px solid rgba(224, 93, 93, 0.55);
+  border-radius: var(--radius); background: rgba(224, 93, 93, 0.06);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.danger-text { display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.danger-text i { color: var(--danger); margin-right: 6px; }
+.danger-text small { color: var(--text-sec); }
+.danger-confirm { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; flex-wrap: wrap; }
 .postname { font-weight: 700; font-size: 14px; }
 .postname a { color: var(--text); text-decoration: none; }
 .postname a:hover { color: var(--accent); }

@@ -95,6 +95,17 @@ CREATE TABLE IF NOT EXISTS community_visits (
     visited_at INTEGER NOT NULL,
     PRIMARY KEY (user_id, community_id)
 );
+CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    community_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    text TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '[]',
+    images TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community_id);
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug);
@@ -830,6 +841,126 @@ class Storage:
         )
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    # ---------- Posts in Communities ----------
+
+    def create_post(
+        self,
+        community_id: int,
+        user_id: int,
+        title: str,
+        text: str,
+        tags_json: str,
+        images_json: str = "[]",
+    ) -> dict:
+        """Legt einen Post an. Gibt die Zeile zurück."""
+        conn = self._require()
+        cur = conn.execute(
+            "INSERT INTO posts (community_id, user_id, title, text, tags, images, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (community_id, user_id, title, text, tags_json, images_json, int(time.time())),
+        )
+        conn.commit()
+        return self.get_post(cur.lastrowid)
+
+    def get_post(self, post_id: int) -> Optional[dict]:
+        conn = self._require()
+        cur = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
+        return self._row_dict(cur, cur.fetchone())
+
+    def set_post_images(self, post_id: int, images_json: str) -> None:
+        conn = self._require()
+        conn.execute(
+            "UPDATE posts SET images = ? WHERE id = ?", (images_json, post_id)
+        )
+        conn.commit()
+
+    def list_community_posts(self, community_id: int, viewer_id: Optional[int] = None) -> list:
+        """Posts einer Community (neueste zuerst) mit Autor + Admin-Flag."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT c.creator_id FROM communities c WHERE c.id = p.community_id) AS creator_id"
+            " FROM posts p JOIN users u ON u.id = p.user_id"
+            " WHERE p.community_id = ? ORDER BY p.id DESC",
+            (community_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        for r in rows:
+            r["can_delete"] = (
+                viewer_id is not None and r.get("creator_id") == viewer_id
+            )
+        return rows
+
+    def delete_post(self, post_id: int) -> Optional[dict]:
+        """Löscht einen Post. Gibt die gelöschte Zeile (für Datei-Cleanup) zurück."""
+        conn = self._require()
+        row = self.get_post(post_id)
+        if row is None:
+            return None
+        conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.commit()
+        return row
+
+    def delete_community(self, community_id: int) -> dict:
+        """Löscht Community + Posts + Follows + Visits.
+
+        Gibt Dateinamen zum Aufräumen zurück: {image, post_images}.
+        """
+        conn = self._require()
+        comm = self.get_community_by_id(community_id)
+        if comm is None:
+            return {"image": None, "post_images": []}
+        cur = conn.execute(
+            "SELECT images FROM posts WHERE community_id = ?", (community_id,)
+        )
+        post_images = []
+        for (images_json,) in cur.fetchall():
+            try:
+                import json as _json
+
+                imgs = _json.loads(images_json or "[]")
+                if isinstance(imgs, list):
+                    post_images.extend(imgs)
+            except ValueError:
+                pass
+        conn.execute("DELETE FROM posts WHERE community_id = ?", (community_id,))
+        conn.execute(
+            "DELETE FROM community_follows WHERE community_id = ?", (community_id,)
+        )
+        conn.execute(
+            "DELETE FROM community_visits WHERE community_id = ?", (community_id,)
+        )
+        conn.execute("DELETE FROM communities WHERE id = ?", (community_id,))
+        conn.commit()
+        return {"image": comm.get("image"), "post_images": post_images}
+
+    def list_user_posts(self, user_id: int) -> list:
+        """Eigene Posts (neueste zuerst) mit Community + Autor (fürs Studio)."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " c.slug AS community_slug, c.name AS community_name"
+            " FROM posts p JOIN users u ON u.id = p.user_id"
+            " JOIN communities c ON c.id = p.community_id"
+            " WHERE p.user_id = ? ORDER BY p.id DESC",
+            (user_id,),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        for r in rows:
+            r["can_delete"] = True
+        return rows
+
+    def update_post(self, post_id: int, title: str, text: str, tags_json: str) -> None:
+        """Aktualisiert Titel/Text/Tags eines Posts (Bilder bleiben)."""
+        conn = self._require()
+        conn.execute(
+            "UPDATE posts SET title = ?, text = ?, tags = ? WHERE id = ?",
+            (title, text, tags_json, post_id),
+        )
+        conn.commit()
 
 
 if __name__ == "__main__":

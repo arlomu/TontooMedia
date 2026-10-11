@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  COMMUNITIES,
-  DEMO_STUDIO_POSTS,
-  commIdOf,
-  postUrlOf,
-} from './demoData.js'
 import ShareSheet from '../../components/ShareSheet.jsx'
 import PostEditor from '../../components/PostEditor.jsx'
 import ShortUpload from '../../components/ShortUpload.jsx'
 import {
+  apiCreatePost,
+  apiDeletePost,
   apiDeleteShort,
   apiListCommunities,
   apiListShorts,
+  apiMyPosts,
   apiStudioOverview,
+  apiUpdatePost,
   apiUpdateShort,
   apiUploadShortThumb,
   mediaSrc,
@@ -39,8 +37,7 @@ const visPill = (s) => s.visibility === 'Privat'
   ? { label: 'Privat', cls: 'private' }
   : { label: 'Öffentlich', cls: 'live' }
 
-// Creator-Studio: Kennzahlen + Shorts sind echt (Backend Port 3001),
-// Posts bleiben vorerst Demo (kommen später).
+// Creator-Studio: Kennzahlen + Shorts + Posts sind echt (Backend Port 3001).
 const rowOf = (s) => ({
   id: s.id,
   title: s.title,
@@ -56,6 +53,18 @@ const rowOf = (s) => ({
   videoUrl: mediaSrc(s.videoUrl),
   icon: 'fa-clapperboard',
   color: 'ic-teal',
+})
+
+// API-Post -> Studio-Zeile (mit Community + absoluten Bild-URLs).
+const postRowOf = (p) => ({
+  id: p.id,
+  title: p.title || '',
+  text: p.text || '',
+  tags: p.tags || [],
+  images: (p.images || []).map(mediaSrc),
+  date: p.date || '–',
+  community: p.community?.name || '',
+  communitySlug: p.community?.slug || '',
 })
 
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -78,7 +87,9 @@ export default function Studio({ showToast }) {
   const [shortsLoading, setShortsLoading] = useState(true)
   const [shortsError, setShortsError] = useState('')
   const [ovApi, setOvApi] = useState(null)
-  const [posts, setPosts] = useState(DEMO_STUDIO_POSTS)
+  const [posts, setPosts] = useState([])
+  const [postsLoading, setPostsLoading] = useState(true)
+  const [postsError, setPostsError] = useState('')
   const [createAt, setCreateAt] = useState(null) // { x, y } Erstellen-Menü
   const [ctx, setCtx] = useState(null) // { x, y, kind, id } Zeilen-Menü
   const [deleteTarget, setDeleteTarget] = useState(null) // { kind, id } fürs Lösch-Modal
@@ -134,10 +145,12 @@ export default function Studio({ showToast }) {
     notify('Short hochgeladen.')
   }
 
-  // Shorts + Kennzahlen laden
+  // Shorts + Kennzahlen + eigene Posts laden
   const loadShorts = async () => {
     setShortsLoading(true)
     setShortsError('')
+    setPostsLoading(true)
+    setPostsError('')
     try {
       const [list, overview] = await Promise.all([apiListShorts(), apiStudioOverview()])
       setShorts((list || []).map(rowOf))
@@ -146,6 +159,13 @@ export default function Studio({ showToast }) {
       setShortsError(e.message || 'Laden fehlgeschlagen.')
     } finally {
       setShortsLoading(false)
+    }
+    try {
+      setPosts((await apiMyPosts()).map(postRowOf))
+    } catch (e) {
+      setPostsError(e.message || 'Laden fehlgeschlagen.')
+    } finally {
+      setPostsLoading(false)
     }
     // Echte Communities für den Picker (ohne Login einfach leer).
     try {
@@ -179,22 +199,22 @@ export default function Studio({ showToast }) {
     })
   }
 
-  // Löschen erst nach Bestätigung im Modal (Shorts echt, Posts Demo)
+  // Löschen erst nach Bestätigung im Modal (Shorts + Posts echt)
   const confirmDelete = async () => {
     if (!deleteTarget || deleting) return
     const { kind, id } = deleteTarget
-    if (kind !== 'short') {
-      setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
-      setDeleteTarget(null)
-      notify('Gelöscht (Demo).')
-      return
-    }
     setDeleting(true)
     try {
-      await apiDeleteShort(id)
-      setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
+      if (kind === 'short') {
+        await apiDeleteShort(id)
+        setShorts((s) => s.filter((x) => String(x.id) !== String(id)))
+        notify('Short gelöscht.')
+      } else {
+        await apiDeletePost(id)
+        setPosts((s) => s.filter((x) => String(x.id) !== String(id)))
+        notify('Post gelöscht.')
+      }
       setDeleteTarget(null)
-      notify('Short gelöscht.')
     } catch (e) {
       notify(e.message || 'Löschen fehlgeschlagen.')
     } finally {
@@ -276,26 +296,64 @@ export default function Studio({ showToast }) {
     setEsThumb('')
   }
 
-  // Post-Edit öffnen / speichern (gleicher Editor, Community fest)
+  // Post-Edit öffnen / speichern (gleicher Editor, Community fest, Bilder bleiben)
   const openEditPost = (p) => {
     setCtx(null)
     setEpId(p.id)
   }
-  const saveEditPost = (data) => {
-    setPosts((list) => list.map((x) =>
-      String(x.id) === String(epId)
-        ? { ...x, title: data.title, text: data.text, tags: data.tags, images: data.images }
-        : x
-    ))
-    setEpId(null)
-    notify('Post gespeichert (Demo).')
+  const saveEditPost = async (data) => {
+    try {
+      const updated = await apiUpdatePost(epId, {
+        title: data.title,
+        text: data.text,
+        tags: data.tags,
+      })
+      const row = postRowOf(updated)
+      setPosts((list) => list.map((x) =>
+        String(x.id) === String(epId) ? { ...row, images: x.images } : x
+      ))
+      setEpId(null)
+      notify('Post gespeichert.')
+    } catch (e) {
+      notify(e.message || 'Speichern fehlgeschlagen.')
+    }
+  }
+  // Post erstellen (echt in die gewählte Community, Bilder bleiben lokal als Vorschau)
+  const createPost = async (data) => {
+    const slug = data.commId
+    if (!slug) {
+      notify('Wähle zuerst eine Community.')
+      return
+    }
+    try {
+      const files = await Promise.all(
+        (data.images || [])
+          .filter((u) => typeof u === 'string' && u.startsWith('blob:'))
+          .slice(0, 2)
+          .map(async (u, i) => {
+            const res = await fetch(u)
+            const blob = await res.blob()
+            return new File([blob], `bild${i + 1}.jpg`, { type: blob.type || 'image/jpeg' })
+          })
+      )
+      const created = await apiCreatePost({
+        slug,
+        title: data.title,
+        text: data.text,
+        tags: data.tags,
+        imageFiles: files,
+      })
+      setPosts((list) => [postRowOf(created), ...list])
+      setNpOpen(false)
+      setTab('posts')
+      notify('Post veröffentlicht.')
+    } catch (e) {
+      notify(e.message || 'Posten fehlgeschlagen.')
+    }
   }
   const editPost = epId !== null ? posts.find((x) => String(x.id) === String(epId)) : null
-  // Demo-Posts zeigen ihre Demo-Community, neue Posts echte aus der DB.
   const editComm = editPost
-    ? (comms.find((c) => (c.slug || c.id) === commIdOf(editPost))
-      || COMMUNITIES.find((c) => c.id === commIdOf(editPost))
-      || null)
+    ? (comms.find((c) => (c.slug || c.id) === editPost.communitySlug) || null)
     : null
 
   const findRow = (kind, id) => {
@@ -496,7 +554,7 @@ export default function Studio({ showToast }) {
         </>
       )}
 
-      {/* Posts */}
+      {/* Posts (echt aus den eigenen Communities) */}
       {tab === 'posts' && (
         <>
           <div className="table-scroll">
@@ -504,11 +562,9 @@ export default function Studio({ showToast }) {
               <thead>
                 <tr>
                   <th>Post</th>
-                  <th>Status</th>
+                  <th>Community</th>
                   <th>Datum</th>
-                  <th className="num-h">Aufrufe</th>
-                  <th className="num-h">Likes</th>
-                  <th className="num-h">Kommis</th>
+                  <th className="num-h">Bilder</th>
                   <th><span className="sr-only">Aktionen</span></th>
                 </tr>
               </thead>
@@ -518,19 +574,29 @@ export default function Studio({ showToast }) {
                     <td>
                       <span className="cell-main">
                         <span className="thumb-mini square" aria-hidden="true">
-                          <i className={`fa-solid ${p.icon} ${p.color}`} />
+                          {p.images?.[0] ? (
+                            <img className="thumb-img" src={p.images[0]} alt="" />
+                          ) : (
+                            <i className="fa-solid fa-pen-to-square" />
+                          )}
                         </span>
                         <span className="cell-text">
-                          <strong className="cell-title">{p.title || p.text}</strong>
-                          <small className="cell-sub">t/{p.community} · {p.time}</small>
+                          <strong className="cell-title">{p.title}</strong>
+                          {!!p.tags?.length && (
+                            <small className="cell-sub">{p.tags.map((t) => `#${t}`).join(' ')}</small>
+                          )}
                         </span>
                       </span>
                     </td>
-                    <td><span className="pill live">Live</span></td>
-                    <td className="cell-sub nowrap">{p.date || '–'}</td>
-                    <td className="num">{fmt(p.views)}</td>
-                    <td className="num">{fmt(p.likes)}</td>
-                    <td className="num">{fmt(p.comments)}</td>
+                    <td>
+                      {p.communitySlug ? (
+                        <Link to={`/t/${p.communitySlug}`} className="cell-link">t/{p.community}</Link>
+                      ) : (
+                        <span className="cell-sub">t/{p.community}</span>
+                      )}
+                    </td>
+                    <td className="cell-sub nowrap">{p.date}</td>
+                    <td className="num">{p.images?.length || 0}</td>
                     <td>
                       <span className="row-actions">
                         <button type="button" className="iconbtn sm" title="Bearbeiten" aria-label="Post bearbeiten" onClick={() => openEditPost(p)}>
@@ -541,8 +607,21 @@ export default function Studio({ showToast }) {
                     </td>
                   </tr>
                 ))}
-                {visiblePosts.length === 0 && (
-                  <tr><td colSpan={7} className="cell-sub">{q ? `Keine Posts für „${query.trim()}“ gefunden.` : 'Keine Posts – erstelle oben einen neuen.'}</td></tr>
+                {visiblePosts.length === 0 && !postsLoading && !postsError && (
+                  <tr><td colSpan={5} className="cell-sub">{q ? `Keine Posts für „${query.trim()}“ gefunden.` : 'Keine Posts – erstelle oben einen neuen.'}</td></tr>
+                )}
+                {postsLoading && (
+                  <tr><td colSpan={5} className="cell-sub">
+                    <i className="fa-solid fa-circle-notch fa-spin" /> Posts werden geladen …
+                  </td></tr>
+                )}
+                {postsError && (
+                  <tr><td colSpan={5} className="cell-sub">
+                    {postsError}{' '}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={loadShorts}>
+                      <i className="fa-solid fa-rotate-right" /> Erneut versuchen
+                    </button>
+                  </td></tr>
                 )}
               </tbody>
             </table>
@@ -569,7 +648,10 @@ export default function Studio({ showToast }) {
       {ctx && (() => {
         const row = findRow(ctx.kind, ctx.id)
         if (!row) return null
-        const url = ctx.kind === 'short' ? shortUrl(row.id) : postUrlOf(row)
+        // Echte Posts haben keine Detailseite – Teilen zeigt die Community.
+        const url = ctx.kind === 'short'
+          ? shortUrl(row.id)
+          : `${window.location.origin}/t/${row.communitySlug || ''}`
         return (
           <div className="ctx-backdrop" onClick={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }}>
             <div className="ctx-menu" role="menu" aria-label="Zeilen-Menü" style={{ top: ctx.y, left: ctx.x }} onClick={(e) => e.stopPropagation()}>
@@ -688,7 +770,7 @@ export default function Studio({ showToast }) {
         </div>
       )}
 
-      {/* Post erstellen – Posten tut (Demo) nichts */}
+      {/* Post erstellen – echt in die gewählte Community */}
       {npOpen && (
         <div className="sheet-backdrop" onClick={() => setNpOpen(false)}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Post erstellen" onClick={(e) => e.stopPropagation()}>
@@ -698,7 +780,7 @@ export default function Studio({ showToast }) {
               communityId={npComm}
               onCommunity={setNpComm}
               submitLabel="Posten"
-              onSubmit={() => {}}
+              onSubmit={createPost}
               onCancel={() => setNpOpen(false)}
             />
           </div>
@@ -729,7 +811,7 @@ export default function Studio({ showToast }) {
               <div className="sheet-body">
                 <p className="sheet-sub">
                   „{row?.title || row?.text || 'Dieser Inhalt'}“ wird endgültig entfernt
-                  {deleteTarget.kind === 'short' ? ' (inkl. Video).' : ' (Demo).'}
+                  {deleteTarget.kind === 'short' ? ' (inkl. Video).' : ' (inkl. Bilder).'}
                 </p>
               </div>
               <div className="sheet-foot">

@@ -32,6 +32,13 @@ Endpunkte (alle unter /api/...):
    GET    /api/communities/recent (Bearer) -> {communities: [...]} (letzte 5 Besuche)
    GET    /api/communities/<slug> -> {community} (404 wenn unbekannt)
    PATCH  /api/communities/<slug> (Bearer + Admin, multipart description+rules+image?) -> {community}
+   DELETE /api/communities/<slug> (Bearer + Admin) -> {ok: true}
+   GET    /api/communities/<slug>/posts -> {posts: [...]} (öffentlich, neueste zuerst)
+   POST   /api/communities/<slug>/posts (Bearer, multipart title+text+tags+image0+image1) -> {post}
+   DELETE /api/communities/<slug>/posts/<id> (Bearer + Admin/Autor) -> {ok: true}
+   GET    /api/me/posts (Bearer) -> {posts: [...]} (eigene Posts, fürs Studio)
+   PATCH  /api/posts/<id> (Bearer + Autor, {title, text, tags}) -> {post}
+   DELETE /api/posts/<id> (Bearer + Autor/Admin) -> {ok: true}
    POST   /api/communities/<slug>/follow (Bearer) -> {followed, followers} (Toggle)
    POST   /api/communities/<slug>/visit (Bearer) -> {ok: true} (Besuch merken)
   POST   /api/shorts/<id>/view -> {views}
@@ -56,6 +63,12 @@ try:
         toggle_community_follow,
         update_community,
         visit_community,
+    )
+    from .functions.posts import (
+        create_post,
+        delete_community,
+        delete_post,
+        update_post,
     )
     from .functions.shorts import (
         THUMB_DIR,
@@ -87,6 +100,12 @@ except ImportError:  # direkter Start via `python backend/api.py`
         update_community,
         visit_community,
     )
+    from functions.posts import (
+        create_post,
+        delete_community,
+        delete_post,
+        update_post,
+    )
     from functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
@@ -117,6 +136,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_AVATAR = BASE_DIR / "frontend" / "public" / "assets" / "Tontoo_Black.png"
 AVATAR_DIR = BASE_DIR / "db" / "avatars"
 COMM_DIR = BASE_DIR / "db" / "media" / "communities"
+POSTS_DIR = BASE_DIR / "db" / "media" / "posts"
 
 # Serialisiert alle Storage-Zugriffe (SQLite-Verbindung ist geteilt).
 DB_LOCK = threading.Lock()
@@ -233,6 +253,38 @@ def public_community(row: dict) -> dict:
         "followed": bool(row.get("followed")),
         "creator": row.get("creator"),
         "rules": rules_of(row),
+    }
+
+
+def public_post(row: dict) -> dict:
+    """Post für den Community-Feed (mit Autor + Admin-Delete-Flag)."""
+    try:
+        tags = json.loads(row.get("tags") or "[]")
+    except ValueError:
+        tags = []
+    try:
+        images = json.loads(row.get("images") or "[]")
+    except ValueError:
+        images = []
+    return {
+        "id": row["id"],
+        "title": row.get("title") or "",
+        "text": row.get("text") or "",
+        "tags": tags if isinstance(tags, list) else [],
+        "images": [
+            f"/api/media/{n}" for n in (images if isinstance(images, list) else []) if n
+        ],
+        "author": {
+            "username": row.get("username") or "?",
+            "name": row.get("author_name") or row.get("username") or "?",
+            "avatarUrl": avatar_url(row.get("author_avatar")),
+        },
+        "date": date_label(row.get("created_at") or 0),
+        "canDelete": bool(row.get("can_delete")),
+        "community": {
+            "slug": row.get("community_slug") or "",
+            "name": row.get("community_name") or "",
+        },
     }
 
 
@@ -390,6 +442,13 @@ class _Handler(BaseHTTPRequestHandler):
             if user is None:
                 return self._fail(401, "Nicht eingeloggt.")
             return self._ok({"user": public_user(user)})
+        if self.path == "/api/me/posts":
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                rows = _storage.list_user_posts(user_id)
+            return self._ok({"posts": [public_post(r) for r in rows]})
         if self.path == "/api/shorts":
             user, user_id = self._auth_user()
             if user is None:
@@ -443,6 +502,15 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_recent_communities(user_id)
             return self._ok({"communities": [public_community(r) for r in rows]})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/posts", self.path)
+        if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Login kein canDelete
+            with DB_LOCK:
+                comm = _storage.get_community(m.group(1))
+                if comm is None:
+                    return self._fail(404, "Community nicht gefunden.")
+                rows = _storage.list_community_posts(comm["id"], viewer_id)
+            return self._ok({"posts": [public_post(r) for r in rows]})
         m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed
@@ -652,6 +720,39 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 full = _storage.community_with_stats(comm["id"], user_id)
             return self._send(201, {"community": public_community(full)})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/posts", self.path)
+        if m:
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            raw = self._read_bytes(8 * 1024 * 1024)
+            if raw is None:
+                return self._fail(413, "Upload ist leer oder größer als 8 MB.")
+            fields, files = parse_multipart(raw, self.headers.get("Content-Type"))
+            import json as _json
+
+            try:
+                tags = _json.loads(fields.get("tags") or "[]")
+            except ValueError:
+                tags = []
+            images = []
+            for key in ("image0", "image1"):
+                f = files.get(key)
+                if f and f["data"]:
+                    images.append(f["data"])
+            try:
+                with DB_LOCK:
+                    row = create_post(
+                        _storage, user_id, m.group(1),
+                        fields.get("title", ""), fields.get("text", ""),
+                        tags if isinstance(tags, list) else [], images,
+                    )
+                    full = _storage.list_community_posts(row["community_id"], user_id)
+                    created = next((r for r in full if r["id"] == row["id"]), row)
+            except ValueError as e:
+                msg = str(e)
+                return self._fail(404 if "gefunden" in msg else 400, msg)
+            return self._send(201, {"post": public_post(created)})
         m = re.fullmatch(r"/api/shorts/(\d+)/like", self.path)
         if m:
             _, user_id = self._auth_user()
@@ -703,6 +804,38 @@ class _Handler(BaseHTTPRequestHandler):
         return self._fail(404, "Unbekannter Endpunkt.")
 
     def do_PATCH(self) -> None:  # noqa: N802
+        m = re.fullmatch(r"/api/posts/(\d+)", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            body = self._read_json()
+            try:
+                with DB_LOCK:
+                    fresh = update_post(
+                        _storage, user_id, int(m.group(1)),
+                        body.get("title", ""), body.get("text", ""),
+                        body.get("tags", []),
+                    )
+                    author = _storage.get_user_by_id(fresh["user_id"])
+                    comm = _storage.get_community_by_id(fresh["community_id"])
+                    enriched = {
+                        **fresh,
+                        "username": author["username"],
+                        "author_name": author["name"],
+                        "author_avatar": author.get("avatar"),
+                        "can_delete": True,
+                        "community_slug": comm["slug"],
+                        "community_name": comm["name"],
+                    }
+            except ValueError as e:
+                msg = str(e)
+                if "gefunden" in msg:
+                    return self._fail(404, msg)
+                if "nicht dein" in msg:
+                    return self._fail(403, msg)
+                return self._fail(400, msg)
+            return self._ok({"post": public_post(enriched)})
         m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})", self.path)
         if m:
             user, user_id = self._auth_user()
@@ -797,6 +930,60 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400, str(e))
             return self._ok({"ok": True})
+        m = re.fullmatch(r"/api/posts/(\d+)", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    row = _storage.get_post(int(m.group(1)))
+                    if row is None:
+                        return self._fail(404, "Post nicht gefunden.")
+                    comm = _storage.get_community_by_id(row["community_id"])
+                    if comm is None:
+                        return self._fail(404, "Post nicht gefunden.")
+                    delete_post(_storage, user_id, comm["slug"], row["id"])
+            except ValueError as e:
+                msg = str(e)
+                if "gefunden" in msg:
+                    return self._fail(404, msg)
+                if "Nur der Admin oder der Autor" in msg:
+                    return self._fail(403, msg)
+                return self._fail(400, msg)
+            return self._ok({"ok": True})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})/posts/(\d+)", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    delete_post(_storage, user_id, m.group(1), int(m.group(2)))
+            except ValueError as e:
+                msg = str(e)
+                if "gefunden" in msg:
+                    return self._fail(404, msg)
+                if "Nur der Admin" in msg:
+                    return self._fail(403, msg)
+                return self._fail(400, msg)
+            return self._ok({"ok": True})
+        m = re.fullmatch(r"/api/communities/([a-z0-9._]{3,21})", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    delete_community(_storage, user_id, m.group(1))
+            except ValueError as e:
+                msg = str(e)
+                if "gefunden" in msg:
+                    return self._fail(404, msg)
+                if "Nur der Admin" in msg:
+                    return self._fail(403, msg)
+                return self._fail(400, msg)
+            return self._ok({"ok": True})
         m = re.fullmatch(r"/api/shorts/(\d+)", self.path)
         if m:
             user, user_id = self._auth_user()
@@ -836,6 +1023,8 @@ class _Handler(BaseHTTPRequestHandler):
             target = THUMB_DIR / safe
         if not target.is_file():
             target = COMM_DIR / safe
+        if not target.is_file():
+            target = POSTS_DIR / safe
         if not target.is_file():
             return self._fail(404, "Nicht gefunden.")
         ctype = {
