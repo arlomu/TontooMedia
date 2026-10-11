@@ -145,6 +145,23 @@ export const apiLikeShortComment = (commentId) =>
 export const apiViewShort = (id) =>
   request(`/api/shorts/${id}/view`, { method: 'POST' }).catch(() => null)
 
+// ---- Öffentliches Profil /u/:user (404 wenn unbekannt) ----
+
+export const apiGetUser = (username) =>
+  request(`/api/users/${encodeURIComponent(username)}`, { auth: true }).then((d) => ({
+    user: d.user,
+    followers: d.followers || 0,
+    followed: !!d.followed,
+    posts: d.posts || 0,
+    shorts: d.shorts || [],
+  }))
+
+export const apiToggleFollow = (username) =>
+  request(`/api/users/${encodeURIComponent(username)}/follow`, {
+    method: 'POST',
+    auth: true,
+  })
+
 // Multipart-Upload per XHR (damit es echten Fortschritt gibt).
 export const apiUploadShort = ({
   file,

@@ -17,7 +17,9 @@ Endpunkte (alle unter /api/...):
   POST   /api/shorts/<id>/thumb {data: dataURL} -> {short}
   DELETE /api/shorts/<id>   -> {ok: true}
   GET    /api/studio/overview (Bearer) -> Kennzahlen
-  GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
+   GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
+   GET    /api/users/<name>  -> {user, followers, followed, posts, shorts} (404 wenn unbekannt)
+   POST   /api/users/<name>/follow (Bearer) -> {followed, followers} (Toggle)
   POST   /api/shorts/<id>/like (Bearer) -> {liked, likes}
   GET    /api/shorts/<id>/comments -> {comments: [...]}
   POST   /api/shorts/<id>/comments (Bearer, {text, parent_id?}) -> {comment}
@@ -353,6 +355,30 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_feed_shorts(viewer_id)
             return self._ok({"shorts": [public_feed_short(r) for r in rows]})
+        m = re.fullmatch(r"/api/users/([A-Za-z0-9._]{1,30})", self.path)
+        if m:
+            _, viewer_id = self._auth_user()  # optional: ohne Login einfach kein followed
+            with DB_LOCK:
+                target = _storage.find_user(m.group(1))
+                if target is None:
+                    return self._fail(404, "User nicht gefunden.")
+                target_id = target["id"]
+                followers = _storage.follower_count(target_id)
+                followed = (
+                    _storage.is_following(viewer_id, target_id)
+                    if viewer_id
+                    else False
+                )
+                rows = _storage.list_user_shorts(
+                    target_id, viewer_id, include_private=(viewer_id == target_id)
+                )
+            return self._ok({
+                "user": public_user(target),
+                "followers": followers,
+                "followed": followed,
+                "posts": 0,  # Posts gibt es noch nicht
+                "shorts": [public_feed_short(r) for r in rows],
+            })
         m = re.fullmatch(r"/api/shorts/(\d+)/comments", self.path)
         if m:
             _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
@@ -469,6 +495,21 @@ class _Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self._fail(400 if "gefunden" not in str(e) else 404, str(e))
             return self._ok({"short": public_short(fresh)})
+        m = re.fullmatch(r"/api/users/([A-Za-z0-9._]{1,30})/follow", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                target = _storage.find_user(m.group(1))
+                if target is None:
+                    return self._fail(404, "User nicht gefunden.")
+                try:
+                    followed = _storage.toggle_follow(user_id, target["id"])
+                except ValueError as e:
+                    return self._fail(400, str(e))
+                followers = _storage.follower_count(target["id"])
+            return self._ok({"followed": followed, "followers": followers})
         m = re.fullmatch(r"/api/shorts/(\d+)/like", self.path)
         if m:
             _, user_id = self._auth_user()

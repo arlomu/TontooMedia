@@ -1,51 +1,161 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { COMMUNITIES, DEMO_POSTS, DEMO_SHORTS } from './demoData.js'
+import { apiGetUser, apiToggleFollow, avatarSrc, mediaSrc } from '../../lib/api.js'
 
-// Profil: /u/:user – Tabs für Posts & Shorts (Demo, alles lokal).
-const commIdOf = (p) =>
-  p.commId || COMMUNITIES.find((c) => c.name === p.community)?.id
+const DEFAULT_AVATAR = '/assets/Tontoo_Black.png'
+const fmt = (n) => Number(n || 0).toLocaleString('de-DE')
 
-const followersOf = (author) => {
-  let h = 0
-  for (const ch of author) h = (h * 31 + ch.codePointAt(0)) % 9973
-  return 800 + h
-}
-
-export default function User({ showToast }) {
-  const { user } = useParams()
+// Profil: /u/:user – echt per API. 404 wenn es den User nicht gibt.
+// Follower + Folgen sind echt, Posts gibt es noch nicht (immer 0),
+// Shorts sind die echten öffentlichen Shorts des Users.
+export default function User({ showToast, me }) {
+  const { user: username } = useParams()
   const [tab, setTab] = useState('posts')
-  const [followed, setFollowed] = useState(false)
+  const [status, setStatus] = useState('loading') // loading | ready | missing | error
+  const [profile, setProfile] = useState(null)
+  const [followBusy, setFollowBusy] = useState(false)
   const toast = (msg) => showToast?.(msg)
 
-  const posts = DEMO_POSTS.filter((p) => p.author === user)
-  const shorts = DEMO_SHORTS.filter((s) => s.author === user)
-  const first = posts[0] || shorts[0] || DEMO_POSTS[0]
+  useEffect(() => {
+    let alive = true
+    setStatus('loading')
+    setProfile(null)
+    apiGetUser(username).then(
+      (p) => {
+        if (!alive) return
+        setProfile(p)
+        setStatus('ready')
+      },
+      (err) => {
+        if (!alive) return
+        setStatus(/nicht gefunden/i.test(err.message || '') ? 'missing' : 'error')
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [username])
 
-  const flipFollow = () => {
-    toast(followed ? `u/${user} entfolgt.` : `u/${user} gefolgt.`)
-    setFollowed((f) => !f)
+  if (status === 'loading') {
+    return (
+      <div className="app-page narrow">
+        <p className="feed-hint">Profil lädt …</p>
+      </div>
+    )
+  }
+
+  if (status === 'missing') {
+    return (
+      <div className="app-page narrow">
+        <div className="follow-empty">
+          <i className="fa-solid fa-circle-question big" aria-hidden="true" />
+          <p>
+            <strong>u/{username} gibt es nicht.</strong>
+          </p>
+          <p>Vielleicht ein Tippfehler? Prüfe den Usernamen.</p>
+          <Link to="/app" className="btn btn-brand btn-sm">
+            <i className="fa-solid fa-house" /> Zur Startseite
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error' || !profile) {
+    return (
+      <div className="app-page narrow">
+        <div className="follow-empty">
+          <i className="fa-solid fa-triangle-exclamation big" aria-hidden="true" />
+          <p>
+            <strong>Profil konnte nicht geladen werden.</strong>
+          </p>
+          <p>Läuft das Backend? Versuch es gleich nochmal.</p>
+          <button
+            type="button"
+            className="btn btn-brand btn-sm"
+            onClick={() => {
+              setStatus('loading')
+              apiGetUser(username).then(
+                (p) => {
+                  setProfile(p)
+                  setStatus('ready')
+                },
+                (err) => setStatus(/nicht gefunden/i.test(err.message || '') ? 'missing' : 'error')
+              )
+            }}
+          >
+            <i className="fa-solid fa-rotate-right" /> Nochmal versuchen
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const u = profile.user
+  const shorts = profile.shorts
+  const isOwn = me && me.id === u.id
+
+  const flipFollow = async () => {
+    if (!me) {
+      toast('Logge dich ein, um zu folgen.')
+      return
+    }
+    if (followBusy) return
+    setFollowBusy(true)
+    try {
+      const r = await apiToggleFollow(username)
+      setProfile((p) => ({ ...p, followed: r.followed, followers: r.followers }))
+      toast(r.followed ? `u/${username} gefolgt.` : `u/${username} entfolgt.`)
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setFollowBusy(false)
+    }
   }
 
   return (
     <div className="app-page narrow">
       <div className="profile-head">
         <span className="profile-ava" aria-hidden="true">
-          <i className={`fa-solid ${first.icon} ${first.color}`} />
+          <img
+            src={avatarSrc(u.avatarUrl) || DEFAULT_AVATAR}
+            alt=""
+            onError={(e) => {
+              if (!e.currentTarget.dataset.fbk) {
+                e.currentTarget.dataset.fbk = '1'
+                e.currentTarget.src = DEFAULT_AVATAR
+              }
+            }}
+          />
         </span>
         <div className="profile-id">
-          <h2 className="profile-name">u/{user}</h2>
+          <h2 className="profile-name">{u.name}</h2>
           <p className="profile-sub">
-            {followersOf(user).toLocaleString('de-DE')} Follower · {posts.length} {posts.length === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length} {shorts.length === 1 ? 'Short' : 'Shorts'}
+            @{u.username}
+            {u.bio ? ` · ${u.bio}` : ''}
           </p>
-          <button
-            type="button"
-            className={`btn btn-sm ${followed ? 'btn-ghost' : 'btn-brand'}`}
-            aria-pressed={followed}
-            onClick={flipFollow}
-          >
-            {followed ? (<><i className="fa-solid fa-check" /> Gefolgt</>) : 'Folgen'}
-          </button>
+          <p className="profile-sub">
+            {fmt(profile.followers)} Follower · {fmt(profile.posts)}{' '}
+            {profile.posts === 1 ? 'Beitrag' : 'Beiträge'} · {shorts.length}{' '}
+            {shorts.length === 1 ? 'Short' : 'Shorts'}
+          </p>
+          {!isOwn && (
+            <button
+              type="button"
+              className={`btn btn-sm ${profile.followed ? 'btn-ghost' : 'btn-brand'}`}
+              aria-pressed={profile.followed}
+              disabled={followBusy}
+              onClick={flipFollow}
+            >
+              {profile.followed ? (
+                <>
+                  <i className="fa-solid fa-check" /> Gefolgt
+                </>
+              ) : (
+                'Folgen'
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -71,59 +181,41 @@ export default function User({ showToast }) {
       </div>
 
       {tab === 'posts' ? (
-        posts.length === 0 ? (
-          <p className="feed-hint">Noch keine Posts von u/{user}.</p>
-        ) : (
-          <div className="app-feed">
-            {posts.map((p) => {
-              const cid = commIdOf(p)
-              const title = p.title || p.text
-              return (
-                <article key={p.id} className="post">
-                  <div className="posthead">
-                    <span className="avatar" aria-hidden="true">
-                      <i className={`fa-solid ${p.icon} ${p.color}`} />
-                    </span>
-                    <div>
-                      <div className="postname">t/{p.community}</div>
-                      <div className="posttime">
-                        <i className="fa-regular fa-clock" /> {p.time}
-                      </div>
-                    </div>
-                  </div>
-                  {cid ? (
-                    <Link to={`/t/${cid}/post/${p.id}`} className="post-titlelink">
-                      <h4 className="post-title">{title}</h4>
-                    </Link>
-                  ) : (
-                    <h4 className="post-title">{title}</h4>
-                  )}
-                  {p.title && <p className="posttext">{p.text}</p>}
-                  <div className="postmeta">
-                    <span><i className="fa-regular fa-heart" /> {p.likes}</span>
-                    <span><i className="fa-regular fa-comment" /> {p.comments}</span>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )
+        <p className="feed-hint">Noch keine Beiträge von u/{username}.</p>
       ) : shorts.length === 0 ? (
-        <p className="feed-hint">Noch keine Shorts von u/{user}.</p>
+        <p className="feed-hint">Noch keine Shorts von u/{username}.</p>
       ) : (
         <div className="profile-shorts">
           {shorts.map((s) => (
-            <Link key={s.id} to={`/shorts/${s.id}`} className="short-card" aria-label={`Short ${s.title}`}>
+            <Link
+              key={s.id}
+              to={`/shorts/${s.id}`}
+              className="short-card"
+              aria-label={`Short ${s.title}`}
+            >
               <span className="short-thumb">
-                <i className={`fa-solid ${s.icon} ${s.color}`} aria-hidden="true" />
+                {s.thumbUrl ? (
+                  <img src={mediaSrc(s.thumbUrl)} alt="" loading="lazy" />
+                ) : (
+                  <i className="fa-solid fa-clapperboard ic-yellow" aria-hidden="true" />
+                )}
                 <span className="short-dur">{s.dur}</span>
                 <span className="short-play" aria-hidden="true">
                   <i className="fa-solid fa-play" />
                 </span>
               </span>
               <span className="short-cardmeta">
-                <strong>{s.title}</strong>
-                <small>{s.likes} Likes</small>
+                <strong>
+                  {s.visibility !== 'Öffentlich' && (
+                    <>
+                      <i className="fa-solid fa-lock" aria-label="Privat" title="Privat" />{' '}
+                    </>
+                  )}
+                  {s.title}
+                </strong>
+                <small>
+                  {fmt(s.views)} Aufrufe · {fmt(s.likes)} Likes
+                </small>
               </span>
             </Link>
           ))}

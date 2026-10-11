@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS short_comment_likes (
     created_at INTEGER NOT NULL,
     PRIMARY KEY (comment_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id INTEGER NOT NULL,
+    followed_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (follower_id, followed_id)
+);
+CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_likes_short ON short_likes(short_id);
 CREATE INDEX IF NOT EXISTS idx_comments_short ON short_comments(short_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes ON short_comment_likes(comment_id);
@@ -234,6 +241,10 @@ class Storage:
         """Löscht User + dessen Sessions unwiderruflich (Avatar-Datei: user.py)."""
         conn = self._require()
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.execute(
+            "DELETE FROM follows WHERE follower_id = ? OR followed_id = ?",
+            (user_id, user_id),
+        )
         conn.commit()
         sessions = self._require_sessions()
         sessions.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
@@ -277,6 +288,50 @@ class Storage:
         conn = self._require_sessions()
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
         conn.commit()
+
+    # ---------- Folgen ----------
+
+    def toggle_follow(self, follower_id: int, followed_id: int) -> bool:
+        """Folgen umschalten. Gibt True zurück, wenn jetzt gefolgt wird.
+
+        Wirft ValueError bei Selbst-Follow."""
+        if follower_id == followed_id:
+            raise ValueError("Du kannst dir nicht selbst folgen.")
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+            (follower_id, followed_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM follows WHERE follower_id = ? AND followed_id = ?",
+                (follower_id, followed_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, ?)",
+            (follower_id, followed_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def follower_count(self, user_id: int) -> int:
+        """Anzahl Follower eines Users."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE followed_id = ?", (user_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+    def is_following(self, follower_id: int, followed_id: int) -> bool:
+        """Prüft, ob follower_id dem followed_id folgt."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+            (follower_id, followed_id),
+        ).fetchone()
+        return row is not None
 
     # ---------- Shorts ----------
 
@@ -397,6 +452,31 @@ class Storage:
             " WHERE s.visibility = 'Öffentlich'"
             " ORDER BY s.id DESC LIMIT ? OFFSET ?",
             (vid, limit, offset),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def list_user_shorts(
+        self, user_id: int, viewer_id: Optional[int], include_private: bool = False
+    ) -> list:
+        """Shorts eines Users, neueste zuerst (mit Autor + Zählern, wie der Feed).
+
+        Fremde sehen nur öffentliche Shorts, der Besitzer (include_private=True)
+        auch private."""
+        conn = self._require()
+        vid = viewer_id or -1
+        vis = "" if include_private else "AND s.visibility = 'Öffentlich'"
+        cur = conn.execute(
+            "SELECT s.id, s.user_id, s.title, s.tags, s.visibility, s.comments_off,"
+            " s.filename, s.thumb, s.duration, s.width, s.height, s.views, s.created_at,"
+            " u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT COUNT(*) FROM short_likes l WHERE l.short_id = s.id) AS likes,"
+            " (SELECT COUNT(*) FROM short_comments c WHERE c.short_id = s.id) AS comments_n,"
+            " EXISTS(SELECT 1 FROM short_likes l2 WHERE l2.short_id = s.id AND l2.user_id = ?) AS liked"
+            " FROM shorts s JOIN users u ON u.id = s.user_id"
+            f" WHERE s.user_id = ? {vis}"
+            " ORDER BY s.id DESC",
+            (vid, user_id),
         )
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
