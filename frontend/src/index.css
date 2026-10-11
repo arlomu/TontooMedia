@@ -26,7 +26,7 @@ html {
 }
 body {
   margin: 0;
-  background: var(--bg);
+  background: #000;
   color: var(--text);
   font-family: var(--font-body);
   min-height: 100vh;
@@ -44,13 +44,10 @@ a { color: var(--accent); }
 
 .page { position: relative; min-height: 100vh; overflow-x: clip; }
 
-/* Hintergrund: Glow wie vor dem Redesign */
-.bg-glow {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background:
-    radial-gradient(600px 400px at 20% 10%, rgba(124, 58, 237, 0.35), transparent 60%),
-    radial-gradient(700px 450px at 85% 20%, rgba(236, 72, 153, 0.28), transparent 60%),
-    radial-gradient(500px 500px at 50% 100%, rgba(34, 211, 238, 0.12), transparent 60%);
+/* Gitter-Hintergrund: weißes Gitter auf komplett schwarzem Grund */
+#gitter-bg {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none; display: block; background: #000;
 }
 
 /* ---------- Navbar ---------- */
