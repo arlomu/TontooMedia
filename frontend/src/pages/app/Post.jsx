@@ -311,9 +311,9 @@ export default function Post() {
                 onClick={() => setJoined((j) => !j)}
               >
                 {joined ? (
-                  <><i className="fa-solid fa-check" /> Beigetreten</>
+                  <><i className="fa-solid fa-check" /> Gefolgt</>
                 ) : (
-                  'Beitreten'
+                  <><i className="fa-solid fa-plus" /> Folgen</>
                 )}
               </button>
               <div className="comm-stats">
