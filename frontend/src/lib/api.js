@@ -164,6 +164,39 @@ export const apiFeedPosts = (sort = 'neu') =>
 export const apiLikePost = (id) =>
   request(`/api/posts/${id}/like`, { method: 'POST', auth: true })
 
+// ---- KI-Video (TontooVideo-CLI im Backend, mit Polling) ----
+
+export const apiCreateAiVideo = ({ title, tags, prompt, thumbFile }) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/shorts/ai`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.onload = () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* egal */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data.job)
+      else reject(new Error(data.error || `Fehler ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('Server nicht erreichbar. Läuft das Backend?'))
+    const fd = new FormData()
+    fd.append('title', title)
+    fd.append('tags', JSON.stringify(tags || []))
+    fd.append('prompt', prompt)
+    if (thumbFile) fd.append('thumb', thumbFile)
+    xhr.send(fd)
+  })
+
+export const apiAiJob = (id) =>
+  request(`/api/shorts/ai/${encodeURIComponent(id)}`, { auth: true }).then((d) => d.job)
+
+export const apiAiJobs = () =>
+  request('/api/shorts/ai', { auth: true }).then((d) => d.jobs || [])
+
 // ---- Öffentliches Profil /u/:user (404 wenn unbekannt) ----
 
 export const apiGetUser = (username) =>

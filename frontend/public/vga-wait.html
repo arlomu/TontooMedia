@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video wird erstellt</title>
+<style>html,body{height:100%;margin:0;background:#05060a}</style>
+</head>
+<body>
+<!-- TontooMedia AI-Wartebild (ohne Demo-Steuerung).
+     Phasen nur per JS: contentWindow.VideoGenAnim.goTo('search'|'cut'|'music'), finish().
+     data-duration="300" = 5-Min-Schätzung, data-auto="false" = Server steuert. -->
+<div class="vga" data-vga data-duration="300" data-auto="false">
+  <div class="vga-steps"></div>
+  <div class="vga-stage">
+    <div class="vga-s vga-s1"><div class="vga-beam"></div><div class="vga-ret"></div><div class="vga-world"></div></div>
+    <div class="vga-s vga-s2">
+      <div class="vga-strip">
+        <div class="vga-cutline"></div>
+        <svg class="vga-sc" viewBox="0 0 48 62" width="46" height="60" aria-hidden="true">
+          <g class="b1"><path d="M24 26 L18 60 L25 60 Z" fill="#dfe3ee"/><path d="M24 26 L13 10" stroke="#f5b400" stroke-width="3" stroke-linecap="round"/><circle cx="11" cy="7" r="6" fill="none" stroke="#f5b400" stroke-width="3"/></g>
+          <g class="b2"><path d="M24 26 L30 60 L23 60 Z" fill="#c4cadb"/><path d="M24 26 L35 10" stroke="#f5b400" stroke-width="3" stroke-linecap="round"/><circle cx="37" cy="7" r="6" fill="none" stroke="#f5b400" stroke-width="3"/></g>
+        </svg>
+      </div>
+    </div>
+    <div class="vga-s vga-s3"><div class="vga-tl"></div></div>
+    <div class="vga-wipe"></div>
+  </div>
+  <p class="vga-cap" role="status"></p>
+  <div class="vga-foot">
+    <div class="vga-lbl">Ungefähre Wartezeit</div>
+    <div class="vga-time">5:00</div>
+    <div class="vga-bar"></div>
+  </div>
+</div>
+
+<style>
+.vga{--g:#f5b400;position:relative;display:flex;flex-direction:column;width:100%;height:100%;min-height:440px;overflow:hidden;color:#eef1f7;font-family:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;background:radial-gradient(60% 50% at 50% 45%,rgba(245,180,0,.10),transparent 70%),#05060a;border-radius:inherit}
+.vga *{box-sizing:border-box}
+.vga-steps{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;padding:16px 12px 0}
+.vga-step{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:rgba(255,255,255,.05);color:#7d8596;font-size:13px;font-weight:600;transition:.4s}
+.vga-step b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:12px}
+.vga-step.on{background:rgba(245,180,0,.14);color:#fff}
+.vga-step.on b{background:var(--g);color:#1a1400}
+.vga-step.done{color:#c9cfdc}
+.vga-step.done b{background:rgba(245,180,0,.35);color:#fff}
+.vga-stage{position:relative;flex:1;min-height:0}
+.vga-s{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;perspective:900px;opacity:0;pointer-events:none;transition:opacity .6s,transform .8s,filter .8s}
+.vga-s.on{opacity:1}
+.vga-s1:not(.on){transform:scale(1.3);filter:blur(8px)}
+.vga-s2:not(.on),.vga-s3:not(.on){transform:scale(.92)}
+.vga-world{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d;transform:scale(var(--s,1)) translateZ(-150px) rotateX(-12deg)}
+.vga-ring{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.vga-card{position:absolute;left:-35px;top:-52px;width:70px;height:104px;border-radius:10px;border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.vga-card i{width:0;height:0;margin-left:4px;border-left:14px solid rgba(255,255,255,.92);border-top:9px solid transparent;border-bottom:9px solid transparent}
+.vga-card b{position:absolute;right:5px;bottom:5px;font-size:10px;padding:1px 5px;border-radius:5px;background:rgba(0,0,0,.6)}
+.vga-card.hot{border-color:var(--g);box-shadow:0 0 26px rgba(245,180,0,.6)}
+.vga-ring.leaving .vga-card{transition:transform .9s cubic-bezier(.3,.7,.2,1),opacity .9s}
+.vga-ret{position:absolute;left:50%;top:50%;width:calc(92px*var(--s,1));height:calc(136px*var(--s,1));transform:translate(-50%,-50%);--c:linear-gradient(var(--g),var(--g));background:var(--c) 0 0/16px 2px,var(--c) 0 0/2px 16px,var(--c) 100% 0/16px 2px,var(--c) 100% 0/2px 16px,var(--c) 0 100%/16px 2px,var(--c) 0 100%/2px 16px,var(--c) 100% 100%/16px 2px,var(--c) 100% 100%/2px 16px;background-repeat:no-repeat;opacity:.85}
+.vga-beam{position:absolute;left:8%;right:8%;top:12%;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);box-shadow:0 0 18px 4px rgba(245,180,0,.45);animation:vga-beam 2.8s ease-in-out infinite alternate}
+@keyframes vga-beam{to{top:88%}}
+.vga-strip{position:relative;width:min(86%,560px);height:80px;transform-style:preserve-3d;transform:rotateX(20deg) rotateY(-12deg)}
+.vga-seg{position:absolute;left:0;top:0;width:25%;height:100%;padding:12px 3px;display:flex;gap:3px;background:#161923;border-radius:4px;box-shadow:0 14px 30px rgba(0,0,0,.5);transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.vga-seg u{flex:1;border-radius:2px}
+.vga-seg::before,.vga-seg::after{content:"";position:absolute;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,#303546 0 6px,transparent 6px 12px)}
+.vga-seg::before{top:3px}
+.vga-seg::after{bottom:3px}
+.vga-sc{position:absolute;left:0;top:-70px;z-index:5;transform:translateX(-80px);transition:transform .6s cubic-bezier(.4,0,.2,1);filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+.vga-sc g{transform-origin:24px 26px;transition:transform .12s}
+.vga-sc.open .b1{transform:rotate(14deg)}
+.vga-sc.open .b2{transform:rotate(-14deg)}
+.vga-cutline{position:absolute;top:-8px;bottom:-8px;left:0;border-left:2px dashed var(--g);opacity:0;transition:opacity .2s}
+.vga-tl{position:relative;width:min(92%,620px);display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transform-style:preserve-3d;transform:rotateX(20deg) rotateY(-9deg);box-shadow:0 40px 60px -30px rgba(245,180,0,.25)}
+.tl-r em{display:block;margin-bottom:6px;font-style:normal;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7d8596}
+.tl-t{height:46px;display:flex;border-radius:8px;background:rgba(0,0,0,.4);overflow:hidden}
+.tl-v i{display:block;height:100%;margin-right:3px;border-radius:5px}
+.tl-a{height:64px;padding:0 6px}
+.tl-bars{display:flex;align-items:center;gap:3px;width:100%;height:100%;clip-path:inset(0 100% 0 0)}
+.vga-s3.on .tl-bars{animation:vga-reveal 2.6s ease-out .3s forwards}
+.tl-bars i{flex:1;border-radius:2px;background:var(--g);animation:vga-eq var(--d,.8s) ease-in-out infinite alternate}
+@keyframes vga-reveal{to{clip-path:inset(0 0 0 0)}}
+@keyframes vga-eq{from{transform:scaleY(.55)}to{transform:scaleY(1)}}
+.tl-play{position:absolute;top:10px;bottom:10px;left:16px;width:2px;background:#fff;box-shadow:0 0 10px #fff;opacity:0}
+.vga-s3.on .tl-play{opacity:1;animation:vga-play 5.5s linear 1s infinite}
+@keyframes vga-play{to{left:calc(100% - 18px)}}
+.vga-note{position:absolute;top:-6px;left:var(--x);font-size:22px;color:var(--g);opacity:0;animation:vga-note 2.8s ease-in infinite var(--w)}
+.vga-s3:not(.on) .vga-note{animation:none}
+@keyframes vga-note{0%{opacity:0;transform:translateY(0)}20%{opacity:1}80%{opacity:1;transform:translateY(120px)}100%{opacity:0;transform:translateY(130px)}}
+.vga-wipe{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 40%,rgba(245,180,0,.35) 50%,transparent 60%);transform:translateX(-100%)}
+.vga-wipe.go{animation:vga-wipe .8s ease-out}
+@keyframes vga-wipe{to{transform:translateX(100%)}}
+.vga-cap{margin:0;padding:6px 16px;min-height:30px;text-align:center;font-size:14px;color:#9aa3b2}
+.vga-foot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 24px 22px}
+.vga-lbl{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#7d8596}
+.vga-time{font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.vga-bar{display:flex;gap:3px;width:min(100%,420px)}
+.vga-bar i{flex:1;height:6px;border-radius:2px;background:var(--g);transition:background .5s}
+.vga-bar i.off{background:#262a36}
+@media (prefers-reduced-motion:reduce){.vga-beam,.tl-bars i,.vga-note{animation:none}}
+</style>
+
+<script>
+(function(){
+var root=document.querySelector('[data-vga]');if(!root)return;
+function qs(s){return root.querySelector(s)}
+var DUR=+root.dataset.duration||300;var AUTO=root.dataset.auto!=='false';
+var SPEED=1;
+var NAMES=['search','cut','music'],STEPS=['Clips suchen','Schneiden','Musik'];
+var CAPS=['','Szenen werden geschnitten und neu zusammengesetzt …','Passende Musik wird eingefügt …'];
+var HUES=[44,172,255,340,200],SH=[44,172,255,340],R=185,N=30;
+var stage=qs('.vga-stage'),world=qs('.vga-world'),strip=qs('.vga-strip'),sc=qs('.vga-sc'),cutl=qs('.vga-cutline'),
+ cap=qs('.vga-cap'),timeEl=qs('.vga-time'),barEl=qs('.vga-bar'),lbl=qs('.vga-lbl'),wipe=qs('.vga-wipe');
+var scenes=[qs('.vga-s1'),qs('.vga-s2'),qs('.vga-s3')];
+function rnd(a,b){return a+Math.random()*(b-a)}
+function sl(ms){return new Promise(function(r){setTimeout(r,ms)})}
+
+/* Stepper + Zeitblöcke */
+STEPS.forEach(function(t,i){qs('.vga-steps').insertAdjacentHTML('beforeend','<div class="vga-step"><b>'+(i+1)+'</b><span>'+t+'</span></div>')});
+var steps=root.querySelectorAll('.vga-step');
+for(var i=0;i<N;i++)barEl.appendChild(document.createElement('i'));
+var blocks=barEl.children;
+
+/* Szene 1: drei 3D-Ringe aus Video-Karten */
+var SP=[12,-18,12];
+var rings=[-118,0,118].map(function(y){
+  var el=document.createElement('div');el.className='vga-ring';world.appendChild(el);
+  var cards=[];
+  for(var j=0;j<12;j++){
+    var a=j*30,c=document.createElement('div'),h=HUES[(Math.random()*HUES.length)|0];
+    c.className='vga-card';
+    c.style.background='linear-gradient(160deg,hsl('+h+' 55% 30%),hsl('+(h+30)+' 60% 13%))';
+    c.innerHTML='<i></i><b>0:'+(10+((Math.random()*50)|0))+'</b>';
+    c.style.transform='rotateY('+a+'deg) translateZ('+R+'px)';
+    el.appendChild(c);cards.push({el:c,a:a});
+  }
+  return{el:el,y:y,cards:cards,rot:rnd(0,30)};
+});
+function updRings(){
+  rings.forEach(function(r,k){
+    r.el.style.transform='translateY('+r.y+'px) rotateY('+r.rot+'deg)';
+    r.cards.forEach(function(c){
+      var z=Math.cos((c.a+r.rot)*Math.PI/180);
+      c.el.style.opacity=(.18+.82*Math.max(0,(z+.4)/1.4)).toFixed(2);
+      if(k===1){var hot=z>.985;if(hot!==c.hot){c.hot=hot;c.el.classList.toggle('hot',hot)}}
+    });
+  });
+}
+function resetCards(){
+  hold=false;tw=null;
+  rings.forEach(function(r){r.el.classList.remove('leaving');r.cards.forEach(function(c){c.el.style.transform='rotateY('+c.a+'deg) translateZ('+R+'px)';c.el.classList.remove('hot');c.hot=false})});
+}
+function pick(){
+  return new Promise(function(res){
+    var r=rings[1],best=0,bz=-2;
+    r.cards.forEach(function(c,j){var z=Math.cos((c.a+r.rot)*Math.PI/180);if(z>bz){bz=z;best=j}});
+    tw={t:0,base:r.rot,d:(((-r.cards[best].a-r.rot)%360)+540)%360-180,best:best,res:res};
+  });
+}
+function land(o){
+  hold=true;
+  rings.forEach(function(r,k){r.el.classList.add('leaving');r.cards.forEach(function(c,j){
+    if(k===1&&j===o.best){c.el.style.transform='rotateY('+c.a+'deg) translateZ('+(R+190)+'px) scale(1.25)';c.el.style.opacity=1;c.el.classList.add('hot')}
+    else{c.el.style.opacity=0;c.el.style.transform='rotateY('+c.a+'deg) translateZ('+(R+500)+'px)'}
+  })});
+  setTimeout(o.res,950);
+}
+
+/* Szene 2: Filmstreifen, Schere, Teile auseinandernehmen */
+var segs=SH.map(function(h){
+  var s=document.createElement('div');s.className='vga-seg';var f='';
+  for(var i=0;i<3;i++){var hh=h+i*8;f+='<u style="background:linear-gradient(135deg,hsl('+hh+' 62% 40%),hsl('+hh+' 62% 18%))"></u>'}
+  s.innerHTML=f;strip.appendChild(s);return s;
+});
+function cutLoop(tk){
+  var w=function(){return strip.clientWidth/4},G=16;
+  var live=function(){return tk===token};
+  function put(i,x,y,z,r,rx){segs[i].style.transform='translate3d('+x+'px,'+(y||0)+'px,'+(z||0)+'px) rotateZ('+(r||0)+'deg) rotateX('+(rx||0)+'deg)'}
+  function X(pos,k){return pos*w()+Math.min(pos,k)*G}
+  var order=[0,1,2,3];
+  order.forEach(function(s,p){put(s,X(p,0))});
+  var p=(async function(){
+    while(live()){
+      await sl(900);
+      for(var c=1;c<=3&&live();c++){
+        sc.style.transform='translateX('+(c*w()-23)+'px)';await sl(700);
+        for(var n=0;n<3;n++){sc.classList.add('open');await sl(130);sc.classList.remove('open');await sl(120)}
+        cutl.style.left=(c*w()+(c-1)*G)+'px';cutl.style.opacity=1;
+        order.forEach(function(s,pp){put(s,X(pp,c))});
+        await sl(380);cutl.style.opacity=0;
+      }
+      if(!live())return;
+      sc.style.transform='translateX(-80px)';
+      order.forEach(function(s,p){put(s,X(p,3)+(p-1.5)*34,rnd(-55,55),rnd(30,130),rnd(-14,14),rnd(-25,25))});
+      await sl(1500);if(!live())return;
+      var no;do{no=[0,1,2,3].sort(function(){return Math.random()-.5})}while(no.every(function(v,i){return v===i}));
+      order=no;order.forEach(function(s,p){put(s,X(p,3))});await sl(1000);if(!live())return;
+      order.forEach(function(s,p){put(s,X(p,0))});await sl(900);
+    }
+  })();
+}
+
+/* Szene 3: Timeline mit Videoclips und Musik-Wellenform */
+(function(){
+  var wd=[24,30,18,28],clips='',bars='';
+  SH.forEach(function(h,i){clips+='<i style="width:'+wd[i]+'%;background:linear-gradient(135deg,hsl('+h+' 62% 40%),hsl('+h+' 62% 20%))"></i>'});
+  for(var i=0;i<54;i++){var h=22+Math.round(Math.abs(Math.sin(i*.55))*40+Math.random()*34);bars+='<i style="height:'+h+'%;--d:'+rnd(.5,1.2).toFixed(2)+'s"></i>'}
+  qs('.vga-tl').innerHTML='<div class="tl-r"><em>Video</em><div class="tl-t tl-v">'+clips+'</div></div><div class="tl-r"><em>Musik</em><div class="tl-t tl-a"><div class="tl-bars">'+bars+'</div></div></div><div class="tl-play"></div><span class="vga-note" style="--x:14%;--w:0s">♪</span><span class="vga-note" style="--x:46%;--w:.9s">♫</span><span class="vga-note" style="--x:78%;--w:1.7s">♪</span>';
+})();
+
+/* Zustand und Steuerung */
+var phase=-1,token=0,busy=false,pending=null,tw=null,hold=false;
+var elapsed=0,total=DUR,started=false,finished=false,lastSec=-1,lastOn=-1,scanned=1200,lastScan=0,last=performance.now();
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+
+function show(p){
+  phase=p;
+  wipe.classList.remove('go');void wipe.offsetWidth;wipe.classList.add('go');
+  scenes.forEach(function(s,i){s.classList.toggle('on',i===p)});
+  steps.forEach(function(s,i){s.classList.toggle('on',i===p);s.classList.toggle('done',i<p)});
+  if(p>0)cap.textContent=CAPS[p];
+  token++;
+  if(p===0)resetCards();
+  if(p===1)cutLoop(token);
+  root.dispatchEvent(new CustomEvent('vga:phase',{detail:{phase:p,name:NAMES[p]}}));
+}
+function goTo(p){
+  if(typeof p!=='number')p=NAMES.indexOf(p);
+  if(p<0||p>2||finished)return;
+  if(busy){pending=p;return}
+  if(p===phase)return;
+  if(phase===0&&p>0){
+    busy=true;
+    pick().then(function(){busy=false;show(p);var q=pending;pending=null;if(q!==null&&q!==p)goTo(q)});
+  }else show(p);
+}
+function start(sec){
+  total=sec||DUR;elapsed=0;finished=false;started=true;lastSec=-1;lastOn=-1;busy=false;pending=null;scanned=1200;
+  lbl.textContent='Ungefähre Wartezeit';show(0);
+}
+function setRemaining(sec){total=elapsed+Math.max(0,sec);lastSec=-1}
+function finish(){
+  finished=true;token++;
+  steps.forEach(function(s){s.classList.remove('on');s.classList.add('done')});
+  cap.textContent='Fertig! Dein Video ist bereit.';lbl.textContent='Status';timeEl.textContent='Fertig';
+  Array.prototype.forEach.call(blocks,function(b){b.classList.add('off')});
+  root.dispatchEvent(new CustomEvent('vga:done'));
+}
+function updTime(){
+  var rem=Math.max(0,total-elapsed),sec=Math.ceil(rem);
+  if(sec!==lastSec){lastSec=sec;timeEl.textContent=fmt(sec);if(sec===0)lbl.textContent='Gleich fertig …'}
+  var on=Math.ceil(rem/total*N);
+  if(on!==lastOn){lastOn=on;Array.prototype.forEach.call(blocks,function(b,i){b.classList.toggle('off',i>=on)})}
+}
+function fit(){
+  var s=Math.min(1,stage.clientWidth/540,stage.clientHeight/400);
+  stage.style.setProperty('--s',Math.max(.35,s).toFixed(3));
+}
+var lastT=performance.now();
+function tick(t){
+  var dt=Math.min(.05,(t-lastT)/1000);lastT=t;
+  if(started&&!finished){
+    elapsed+=dt*SPEED;updTime();
+    if(AUTO){var f=elapsed/total,tg=f<.3?0:f<.72?1:2;if(tg>phase)goTo(tg)}
+  }
+  if(phase===0&&!hold){
+    rings.forEach(function(r,k){if(!(tw&&k===1))r.rot+=SP[k]*dt});
+    if(tw){
+      tw.t+=dt/.7;var e=1-Math.pow(1-Math.min(1,tw.t),3);
+      rings[1].rot=tw.base+tw.d*e;
+      if(tw.t>=1){var o=tw;tw=null;land(o)}
+    }
+    if(!hold)updRings();
+    if(!tw&&!busy&&started&&!finished){
+      scanned+=dt*rnd(180,300);
+      if(t-lastScan>120){lastScan=t;cap.textContent='Durchsuche Clip-Bibliothek … '+Math.floor(scanned).toLocaleString('de-DE')+' Clips geprüft'}
+    }
+  }
+  requestAnimationFrame(tick);
+}
+if(window.ResizeObserver)new ResizeObserver(fit).observe(stage);else addEventListener('resize',fit);
+fit();
+window.VideoGenAnim=root.vga={start:start,goTo:goTo,setRemaining:setRemaining,finish:finish,setAuto:function(v){AUTO=!!v},setSpeed:function(v){SPEED=+v||1},get phase(){return phase},get auto(){return AUTO},get speed(){return SPEED},get finished(){return finished},get remaining(){return Math.max(0,total-elapsed)}};
+show(0);updTime();
+if(root.dataset.autostart!=='false')start(DUR);
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

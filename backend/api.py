@@ -18,6 +18,9 @@ Endpunkte (alle unter /api/...):
   DELETE /api/shorts/<id>   -> {ok: true}
    GET    /api/studio/overview?days=7|28|90 (Bearer) -> echte Kennzahlen + Tages-Buckets
    POST   /api/shorts/<id>/watch ({seconds}) -> echte Watch-Time buchen
+   POST   /api/shorts/ai (Bearer, multipart title+tags+prompt+thumb?) -> {job} (KI-Video)
+   GET    /api/shorts/ai (Bearer) -> {jobs: [...]} (eigene KI-Jobs)
+   GET    /api/shorts/ai/<job> (Bearer) -> {job} (Status fürs Polling)
    GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
    GET    /api/feed/start    -> {shorts: [...]} (Start-Shelf: Woche/3 Tage/Neu)
    GET    /api/feed/posts?sort=neu|top|diskutiert -> {posts: [...]} (7 Stück, mit Top-Kommentar)
@@ -81,6 +84,13 @@ try:
         toggle_post_like,
         update_post,
     )
+    from .functions.ai_video import (
+        get_job as ai_get_job,
+        list_user_jobs as ai_list_jobs,
+        public_job as ai_public_job,
+        start_job as ai_start_job,
+        validate_job as ai_validate_job,
+    )
     from .functions.shorts import (
         THUMB_DIR,
         VIDEO_DIR,
@@ -120,6 +130,13 @@ except ImportError:  # direkter Start via `python backend/api.py`
         toggle_post_comment_like,
         toggle_post_like,
         update_post,
+    )
+    from functions.ai_video import (
+        get_job as ai_get_job,
+        list_user_jobs as ai_list_jobs,
+        public_job as ai_public_job,
+        start_job as ai_start_job,
+        validate_job as ai_validate_job,
     )
     from functions.shorts import (
         THUMB_DIR,
@@ -476,6 +493,22 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_shorts(user_id)
             return self._ok({"shorts": [public_short(r) for r in rows]})
+        if self.path == "/api/shorts/ai":
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            with DB_LOCK:
+                jobs = ai_list_jobs(user_id)
+            return self._ok({"jobs": jobs})
+        m = re.fullmatch(r"/api/shorts/ai/([A-Za-z0-9_-]{1,32})", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            job = ai_get_job(m.group(1))
+            if job is None or job["user_id"] != user_id:
+                return self._fail(404, "Job nicht gefunden.")
+            return self._ok({"job": ai_public_job(job)})
         if self.path == "/api/studio/overview" or self.path.startswith("/api/studio/overview?"):
             user, user_id = self._auth_user()
             if user is None:
@@ -707,6 +740,35 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 fresh = _storage.get_short(short["id"])
             return self._send(201, {"short": public_short(fresh)})
+        if self.path == "/api/shorts/ai":
+            user, user_id = self._auth_user()
+            if user is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            raw = self._read_bytes(8 * 1024 * 1024)
+            if raw is None:
+                return self._fail(413, "Upload ist leer oder größer als 8 MB.")
+            fields, files = parse_multipart(raw, self.headers.get("Content-Type"))
+            import json as _json2
+
+            try:
+                tags = _json2.loads(fields.get("tags") or "[]")
+            except ValueError:
+                tags = []
+            thumb_file = files.get("thumb")
+            thumb = thumb_file["data"] if thumb_file and thumb_file["data"] else None
+            try:
+                clean = ai_validate_job(
+                    fields.get("title", ""), tags if isinstance(tags, list) else [],
+                    fields.get("prompt", ""), thumb,
+                )
+            except ValueError as e:
+                return self._fail(400, str(e))
+            try:
+                with DB_LOCK:
+                    job = ai_start_job(_storage, user_id, *clean, thumb)
+            except ValueError as e:
+                return self._fail(400, str(e))
+            return self._send(201, {"job": job})
         m = re.fullmatch(r"/api/shorts/(\d+)/thumb", self.path)
         if m:
             user, user_id = self._auth_user()

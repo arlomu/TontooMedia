@@ -368,6 +368,10 @@ main.app-wrap { max-width: none; padding: 0; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* "+x mehr"-Button unter dem ersten Post-Bild */
 .more-imgs { margin-top: 8px; }
+/* KI-Wartebild (iframe, 1:1 aus TontooVideo) */
+.vga-frame { width: 100%; height: 480px; border: 0; border-radius: 14px; background: #05060a; display: block; }
+.ai-status { margin: 12px 0 4px; font-size: 14px; font-weight: 700; }
+@media (max-width: 640px) { .vga-frame { height: 420px; } }
 /* 1-Kommentar-Vorschau pro Zeile im Start-Feed */
 .top-comment {
   display: flex; align-items: center; gap: 10px;

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ShareSheet from '../../components/ShareSheet.jsx'
 import PostEditor from '../../components/PostEditor.jsx'
 import ShortUpload from '../../components/ShortUpload.jsx'
+import AiVideoModal from '../../components/AiVideoModal.jsx'
 import {
   apiCreatePost,
   apiDeletePost,
@@ -114,18 +115,19 @@ export default function Studio({ showToast }) {
   const [epId, setEpId] = useState(null)
   const [npOpen, setNpOpen] = useState(false)
   const [npComm, setNpComm] = useState('')
-  // Echte Communities für den Picker (Anzeige only – Posten bleibt Demo).
+  // Echte Communities für den Picker.
   const [comms, setComms] = useState([])
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
   const copyTimer = useRef(null)
 
   useEffect(() => () => {
     clearTimeout(copyTimer.current)
   }, [])
 
-  // Escape schließt Menüs und Dialoge
+  // Escape schließt Menüs und Dialoge (KI-Modal schließt sich selbst, Job läuft weiter)
   useEffect(() => {
-    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem && !uploadOpen && !deleteTarget) return
+    if (!ctx && !createAt && esId === null && epId === null && !npOpen && !shareItem && !uploadOpen && !deleteTarget && !aiOpen) return
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       setCtx(null)
@@ -136,10 +138,11 @@ export default function Studio({ showToast }) {
       setShareItem(null)
       setUploadOpen(false)
       setDeleteTarget(null)
+      setAiOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen, deleteTarget])
+  }, [ctx, createAt, esId, epId, npOpen, shareItem, uploadOpen, deleteTarget, aiOpen])
 
   // Short-Upload abschließen → oben in die Liste (echt vom Server)
   const finishUpload = (short) => {
@@ -653,6 +656,9 @@ export default function Studio({ showToast }) {
             <button type="button" onClick={() => { setCreateAt(null); setUploadOpen(true) }}>
               <i className="fa-solid fa-clapperboard ic-yellow" /> Short hochladen
             </button>
+            <button type="button" onClick={() => { setCreateAt(null); setAiOpen(true) }}>
+              <i className="fa-solid fa-wand-magic-sparkles ic-violet" /> AI Video
+            </button>
             <button type="button" onClick={() => { setCreateAt(null); setNpOpen(true) }}>
               <i className="fa-solid fa-pen-to-square ic-teal" /> Post erstellen
             </button>
@@ -812,6 +818,25 @@ export default function Studio({ showToast }) {
               key="upload"
               onDone={finishUpload}
               onCancel={() => setUploadOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* AI Video (TontooVideo-CLI, Wartebild, Auto-Upload) */}
+      {aiOpen && (
+        <div className="sheet-backdrop" onClick={() => setAiOpen(false)}>
+          <div className="sheet sheet-wide" role="dialog" aria-modal="true" aria-label="AI Video erstellen" onClick={(e) => e.stopPropagation()}>
+            <AiVideoModal
+              key="ai"
+              notify={notify}
+              onClose={() => setAiOpen(false)}
+              onDone={() => {
+                setAiOpen(false)
+                setTab('shorts')
+                loadShorts()
+                notify('KI-Video ist als Short online.')
+              }}
             />
           </div>
         </div>
