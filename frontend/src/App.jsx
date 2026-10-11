@@ -50,12 +50,8 @@ export default function App() {
 
   return (
     <div className="page">
-      {/* Hintergrund: 3 einfarbige, langsam treibende Orbs (kein Gradient) */}
-      <div className="orbs" aria-hidden="true">
-        <span className="orb o1" />
-        <span className="orb o2" />
-        <span className="orb o3" />
-      </div>
+      {/* Hintergrund: Glow wie vor dem Redesign */}
+      <div className="bg-glow" aria-hidden="true" />
 
       <header className="nav">
         <div className="nav-inner">
