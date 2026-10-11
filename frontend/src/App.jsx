@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import SearchBar from './components/SearchBar.jsx'
+import { apiMe, getToken, setToken } from './lib/api.js'
 import AppLayout from './components/AppLayout.jsx'
 import Start from './pages/app/Start.jsx'
 import Shorts from './pages/app/Shorts.jsx'
@@ -23,11 +23,12 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [spinning, setSpinning] = useState(false)
+  // Echter eingeloggter User (null = ausgeloggt / noch lädt: undefined)
+  const [user, setUser] = useState(undefined)
   const toastTimer = useRef(null)
   const eggClicks = useRef([])
   const location = useLocation()
   const isApp = isAppRoute(location.pathname)
-  const isLanding = location.pathname === '/'
 
   const showToast = (msg) => {
     setToast(msg)
@@ -51,6 +52,18 @@ export default function App() {
     els.forEach((el) => io.observe(el))
     return () => io.disconnect()
   }, [location.pathname])
+
+  // Session beim Start wiederherstellen (echtes Backend)
+  useEffect(() => {
+    if (!getToken()) {
+      setUser(null)
+      return
+    }
+    apiMe().then(setUser).catch(() => {
+      setToken(null)
+      setUser(null)
+    })
+  }, [])
 
   // Mobile-Menü beim Routenwechsel schließen
   useEffect(() => {
@@ -93,14 +106,7 @@ export default function App() {
               <span className="brand-badge">beta</span>
             </a>
 
-            {/* Suche oben in der Mitte (Demo) – nicht auf der Landingpage (/) */}
-            {!isLanding && (
-              <div className="nav-search">
-                <SearchBar onSearch={handleSearch} placeholder="Suchen …" />
-              </div>
-            )}
-
-            {/* Login / Registrieren direkt auf dem Navbar-Hintergrund */}
+            {/* Login / Registrieren direkt auf dem Navbar-Hintergrund (keine Suche auf /, /login, /register) */}
             <div className="nav-actions">
               <Link to="/login" className="btn btn-ghost">
                 <i className="fa-solid fa-right-to-bracket" /> Login
@@ -123,9 +129,6 @@ export default function App() {
 
           {mobileOpen && (
             <nav className="mobilepanel">
-              {!isLanding && (
-                <SearchBar onSearch={(q) => { setMobileOpen(false); handleSearch(q) }} placeholder="Suchen …" />
-              )}
               <div className="mobilerow">
                 <Link to="/login" className="btn btn-ghost">
                   <i className="fa-solid fa-right-to-bracket" /> Login
@@ -142,8 +145,8 @@ export default function App() {
       <main className={isApp ? 'app-wrap' : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login onAuth={setUser} />} />
+          <Route path="/register" element={<Register onAuth={setUser} />} />
           {/* Flache App-Routen, alle mit derselben Sidebar */}
           <Route element={<AppLayout showToast={showToast} onSearch={handleSearch} />}>
             <Route path="/app" element={<Start />} />
@@ -151,7 +154,7 @@ export default function App() {
             <Route path="/shorts/:id" element={<Shorts showToast={showToast} />} />
             <Route path="/followed" element={<Followed showToast={showToast} />} />
             <Route path="/studio" element={<Studio showToast={showToast} />} />
-            <Route path="/einstellungen" element={<Einstellungen showToast={showToast} />} />
+            <Route path="/einstellungen" element={<Einstellungen showToast={showToast} user={user} onUser={setUser} />} />
             <Route path="/t/:name" element={<Community />} />
             <Route path="/t/:name/post/:postId" element={<Post />} />
             <Route path="/u/:user" element={<User showToast={showToast} />} />
