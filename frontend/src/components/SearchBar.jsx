@@ -18,11 +18,17 @@ export default function SearchBar({ onSearch, placeholder = 'Suchen …' }) {
         placeholder={placeholder}
         aria-label="Suchen"
       />
-      {q && (
-        <button type="button" className="sb-x" aria-label="Suche löschen" onClick={() => setQ('')}>
-          <i className="fa-solid fa-xmark" />
-        </button>
-      )}
+      <button
+        type="button"
+        className={`sb-x${q ? '' : ' is-hidden'}`}
+        aria-label="Suche löschen"
+        aria-hidden={!q}
+        tabIndex={q ? 0 : -1}
+        disabled={!q}
+        onClick={() => setQ('')}
+      >
+        <i className="fa-solid fa-xmark" />
+      </button>
     </form>
   )
 }
