@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS post_comment_likes (
 );
 CREATE INDEX IF NOT EXISTS idx_pcomments_post ON post_comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_pcomment_likes ON post_comment_likes(comment_id);
+CREATE TABLE IF NOT EXISTS post_likes (
+    post_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (post_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_follows_followed ON follows(followed_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug);
@@ -518,6 +525,51 @@ class Storage:
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
+    def list_start_shorts(self, viewer_id: Optional[int]) -> list:
+        """Start-Shelf: 1 Beliebtester der Woche, 2 Beliebteste der 3 Tage, 2 Neueste.
+
+        Beliebtheit = Aufrufe + Likes*10. Ohne Doppelte, Reihenfolge fix.
+        """
+        conn = self._require()
+        vid = viewer_id or -1
+        cur = conn.execute(
+            "SELECT s.id, s.user_id, s.title, s.tags, s.visibility, s.comments_off,"
+            " s.filename, s.thumb, s.duration, s.width, s.height, s.views, s.created_at,"
+            " u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " (SELECT COUNT(*) FROM short_likes l WHERE l.short_id = s.id) AS likes,"
+            " (SELECT COUNT(*) FROM short_comments c WHERE c.short_id = s.id) AS comments_n,"
+            " EXISTS(SELECT 1 FROM short_likes l2 WHERE l2.short_id = s.id AND l2.user_id = ?) AS liked,"
+            " EXISTS(SELECT 1 FROM follows f WHERE f.followed_id = s.user_id AND f.follower_id = ?) AS following"
+            " FROM shorts s JOIN users u ON u.id = s.user_id"
+            " WHERE s.visibility = 'Öffentlich'"
+            " ORDER BY s.id DESC LIMIT 60",
+            (vid, vid),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        now = int(time.time())
+        scored = sorted(
+            (r for r in rows if (r.get("created_at") or 0) >= now - 7 * 86400),
+            key=lambda r: ((r.get("views") or 0) + (r.get("likes") or 0) * 10, r["id"]),
+            reverse=True,
+        )
+        shelf = []
+        used = set()
+        for r in scored[:1]:
+            shelf.append(r)
+            used.add(r["id"])
+        three = [r for r in scored if (r.get("created_at") or 0) >= now - 3 * 86400 and r["id"] not in used]
+        for r in three[:2]:
+            shelf.append(r)
+            used.add(r["id"])
+        for r in rows:
+            if len(shelf) >= 5:
+                break
+            if r["id"] not in used:
+                shelf.append(r)
+                used.add(r["id"])
+        return shelf
+
     def list_user_shorts(
         self, user_id: int, viewer_id: Optional[int], include_private: bool = False
     ) -> list:
@@ -697,6 +749,7 @@ class Storage:
         conn.execute("DELETE FROM community_visits WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM post_comment_likes WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM post_comments WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM post_likes WHERE user_id = ?", (user_id,))
         conn.commit()
 
     # ---------- Communities ----------
@@ -899,10 +952,13 @@ class Storage:
         cur = conn.execute(
             "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
             " (SELECT c.creator_id FROM communities c WHERE c.id = p.community_id) AS creator_id,"
-            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n,"
+            " (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_n,"
+            " EXISTS(SELECT 1 FROM post_likes pl2"
+            "  WHERE pl2.post_id = p.id AND pl2.user_id = ?) AS liked"
             " FROM posts p JOIN users u ON u.id = p.user_id"
             " WHERE p.community_id = ? ORDER BY p.id DESC",
-            (community_id,),
+            (viewer_id if viewer_id is not None else -1, community_id),
         )
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -924,7 +980,7 @@ class Storage:
         return row
 
     def delete_post_extras(self, post_id: int) -> None:
-        """Löscht Kommentare (+ deren Likes) zu einem Post."""
+        """Löscht Kommentare (+ deren Likes) und Likes zu einem Post."""
         conn = self._require()
         conn.execute(
             "DELETE FROM post_comment_likes WHERE comment_id IN"
@@ -932,6 +988,7 @@ class Storage:
             (post_id,),
         )
         conn.execute("DELETE FROM post_comments WHERE post_id = ?", (post_id,))
+        conn.execute("DELETE FROM post_likes WHERE post_id = ?", (post_id,))
         conn.commit()
 
     def delete_community(self, community_id: int) -> dict:
@@ -967,6 +1024,11 @@ class Storage:
             " (SELECT id FROM posts WHERE community_id = ?)",
             (community_id,),
         )
+        conn.execute(
+            "DELETE FROM post_likes WHERE post_id IN"
+            " (SELECT id FROM posts WHERE community_id = ?)",
+            (community_id,),
+        )
         conn.execute("DELETE FROM posts WHERE community_id = ?", (community_id,))
         conn.execute(
             "DELETE FROM community_follows WHERE community_id = ?", (community_id,)
@@ -978,17 +1040,21 @@ class Storage:
         conn.commit()
         return {"image": comm.get("image"), "post_images": post_images}
 
-    def list_user_posts(self, user_id: int) -> list:
+    def list_user_posts(self, user_id: int, viewer_id: Optional[int] = None) -> list:
         """Eigene Posts (neueste zuerst) mit Community + Autor (fürs Studio)."""
         conn = self._require()
+        vid = viewer_id if viewer_id is not None else user_id
         cur = conn.execute(
             "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
             " c.slug AS community_slug, c.name AS community_name,"
-            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n,"
+            " (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_n,"
+            " EXISTS(SELECT 1 FROM post_likes pl2"
+            "  WHERE pl2.post_id = p.id AND pl2.user_id = ?) AS liked"
             " FROM posts p JOIN users u ON u.id = p.user_id"
             " JOIN communities c ON c.id = p.community_id"
             " WHERE p.user_id = ? ORDER BY p.id DESC",
-            (user_id,),
+            (vid, user_id,),
         )
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -1084,6 +1150,83 @@ class Storage:
             (comment_id,),
         ).fetchone()
         return row[0] if row else 0
+
+    def toggle_post_like(self, post_id: int, user_id: int) -> bool:
+        """Post-Like umschalten. Gibt True zurück, wenn jetzt gelikt ist."""
+        conn = self._require()
+        row = conn.execute(
+            "SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?",
+            (post_id, user_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "DELETE FROM post_likes WHERE post_id = ? AND user_id = ?",
+                (post_id, user_id),
+            )
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, user_id, int(time.time())),
+        )
+        conn.commit()
+        return True
+
+    def post_like_count(self, post_id: int) -> int:
+        conn = self._require()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM post_likes WHERE post_id = ?", (post_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+    def list_feed_posts(
+        self, sort: str, viewer_id: Optional[int] = None, limit: int = 7
+    ) -> list:
+        """Start-Feed: 7 Posts aller Communities.
+
+        neu: neueste zuerst; top: Kommentare+Likes; diskutiert: Kommentare.
+        """
+        conn = self._require()
+        vid = viewer_id or -1
+        order = "p.id DESC"
+        if sort == "top":
+            order = "((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) + (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id)) DESC, p.id DESC"
+        elif sort == "diskutiert":
+            order = "(SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) DESC, p.id DESC"
+        cur = conn.execute(
+            "SELECT p.*, u.username, u.name AS author_name, u.avatar AS author_avatar,"
+            " c.slug AS community_slug, c.name AS community_name,"
+            " (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_n,"
+            " (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_n,"
+            " EXISTS(SELECT 1 FROM post_likes pl2"
+            "  WHERE pl2.post_id = p.id AND pl2.user_id = ?) AS liked"
+            " FROM posts p JOIN users u ON u.id = p.user_id"
+            " JOIN communities c ON c.id = p.community_id"
+            f" ORDER BY {order} LIMIT ?",
+            (vid, limit),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        for r in rows:
+            r["can_delete"] = False
+            r["top_comment"] = self.top_post_comment(r["id"])
+        return rows
+
+    def top_post_comment(self, post_id: int) -> Optional[dict]:
+        """Bester Top-Level-Kommentar (meiste Likes, dann ältester) als Vorschau."""
+        conn = self._require()
+        cur = conn.execute(
+            "SELECT pc.text, u.username,"
+            " (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = pc.id) AS likes"
+            " FROM post_comments pc JOIN users u ON u.id = pc.user_id"
+            " WHERE pc.post_id = ? AND pc.parent_id IS NULL"
+            " ORDER BY likes DESC, pc.id ASC LIMIT 1",
+            (post_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {"username": row[1], "text": row[0], "likes": row[2]}
 
 
 if __name__ == "__main__":

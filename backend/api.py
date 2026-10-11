@@ -18,6 +18,9 @@ Endpunkte (alle unter /api/...):
   DELETE /api/shorts/<id>   -> {ok: true}
   GET    /api/studio/overview (Bearer) -> Kennzahlen
    GET    /api/feed/shorts   -> {shorts: [...]} (öffentlich, neueste zuerst)
+   GET    /api/feed/start    -> {shorts: [...]} (Start-Shelf: Woche/3 Tage/Neu)
+   GET    /api/feed/posts?sort=neu|top|diskutiert -> {posts: [...]} (7 Stück, mit Top-Kommentar)
+   POST   /api/posts/<id>/like (Bearer) -> {liked, likes} (Toggle)
    GET    /api/users/<name>  -> {user, followers, followed, posts[], shorts[]} (404 wenn unbekannt)
    POST   /api/users/<name>/follow (Bearer) -> {followed, followers} (Toggle)
   POST   /api/shorts/<id>/like (Bearer) -> {liked, likes}
@@ -74,6 +77,7 @@ try:
         delete_post,
         post_post_comment,
         toggle_post_comment_like,
+        toggle_post_like,
         update_post,
     )
     from .functions.shorts import (
@@ -112,6 +116,7 @@ except ImportError:  # direkter Start via `python backend/api.py`
         delete_post,
         post_post_comment,
         toggle_post_comment_like,
+        toggle_post_like,
         update_post,
     )
     from functions.shorts import (
@@ -290,6 +295,9 @@ def public_post(row: dict) -> dict:
         "date": date_label(row.get("created_at") or 0),
         "canDelete": bool(row.get("can_delete")),
         "comments": row.get("comments_n") or 0,
+        "likes": row.get("likes_n") or 0,
+        "liked": bool(row.get("liked")),
+        "topComment": row.get("top_comment"),
         "community": {
             "slug": row.get("community_slug") or "",
             "name": row.get("community_name") or "",
@@ -488,6 +496,23 @@ class _Handler(BaseHTTPRequestHandler):
             with DB_LOCK:
                 rows = _storage.list_feed_shorts(viewer_id)
             return self._ok({"shorts": [public_feed_short(r) for r in rows]})
+        if self.path == "/api/feed/start":
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
+            with DB_LOCK:
+                rows = _storage.list_start_shorts(viewer_id)
+            return self._ok({"shorts": [public_feed_short(r) for r in rows]})
+        if self.path == "/api/feed/posts" or self.path.startswith("/api/feed/posts?"):
+            _, viewer_id = self._auth_user()  # optional: ohne Token einfach kein liked
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            sort = "neu"
+            for part in qs.split("&"):
+                if part.startswith("sort="):
+                    sort = part.split("=", 1)[1]
+            if sort not in ("neu", "top", "diskutiert"):
+                return self._fail(400, "Unbekannte Sortierung.")
+            with DB_LOCK:
+                rows = _storage.list_feed_posts(sort, viewer_id)
+            return self._ok({"posts": [public_post(r) for r in rows]})
         if self.path == "/api/followed":
             _, user_id = self._auth_user()
             if user_id is None:
@@ -798,6 +823,17 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 with DB_LOCK:
                     result = toggle_like(_storage, user_id, int(m.group(1)))
+            except ValueError as e:
+                return self._fail(404, str(e))
+            return self._ok(result)
+        m = re.fullmatch(r"/api/posts/(\d+)/like", self.path)
+        if m:
+            _, user_id = self._auth_user()
+            if user_id is None:
+                return self._fail(401, "Nicht eingeloggt.")
+            try:
+                with DB_LOCK:
+                    result = toggle_post_like(_storage, user_id, int(m.group(1)))
             except ValueError as e:
                 return self._fail(404, str(e))
             return self._ok(result)

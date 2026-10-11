@@ -145,6 +145,19 @@ export const apiLikeShortComment = (commentId) =>
 export const apiViewShort = (id) =>
   request(`/api/shorts/${id}/view`, { method: 'POST' }).catch(() => null)
 
+// ---- Startseite (echt) ----
+
+export const apiStartShorts = () =>
+  request('/api/feed/start', { auth: true }).then((d) => d.shorts || [])
+
+export const apiFeedPosts = (sort = 'neu') =>
+  request(`/api/feed/posts?sort=${encodeURIComponent(sort)}`, { auth: true }).then(
+    (d) => d.posts || []
+  )
+
+export const apiLikePost = (id) =>
+  request(`/api/posts/${id}/like`, { method: 'POST', auth: true })
+
 // ---- Öffentliches Profil /u/:user (404 wenn unbekannt) ----
 
 export const apiGetUser = (username) =>

@@ -223,6 +223,15 @@ def toggle_post_comment_like(storage: Storage, user_id: int, comment_id: int) ->
     return {"liked": liked, "likes": storage.post_comment_like_count(comment_id)}
 
 
+def toggle_post_like(storage: Storage, user_id: int, post_id: int) -> dict:
+    """Post-Like umschalten. Gibt {liked, likes} zurück."""
+    row = storage.get_post(post_id)
+    if row is None:
+        raise ValueError("Post nicht gefunden.")
+    liked = storage.toggle_post_like(post_id, user_id)
+    return {"liked": liked, "likes": storage.post_like_count(post_id)}
+
+
 def delete_community(storage: Storage, user_id: int, slug: str) -> None:
     """Löscht die Community samt Posts/Bildern/Follows (nur Admin)."""
     comm = _admin_community(storage, user_id, slug)

@@ -368,6 +368,18 @@ main.app-wrap { max-width: none; padding: 0; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* "+x mehr"-Button unter dem ersten Post-Bild */
 .more-imgs { margin-top: 8px; }
+/* 1-Kommentar-Vorschau pro Zeile im Start-Feed */
+.top-comment {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 10px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); text-decoration: none;
+  transition: border-color 0.15s;
+}
+.top-comment:hover { border-color: var(--brand); }
+.top-comment > i:first-child { color: var(--text-3rd); }
+.top-comment-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 13px; }
+.top-comment-main span { color: var(--text-sec); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Danger Zone im Admin-Modal */
 .danger-zone {
   margin-top: 18px; padding: 14px; border: 1px solid rgba(224, 93, 93, 0.55);
