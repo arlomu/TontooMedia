@@ -22,10 +22,6 @@ export default function Community() {
   const [liked, setLiked] = useState({})
   const [copied, setCopied] = useState(null)
   const [sharePost, setSharePost] = useState(null)
-  const [expanded, setExpanded] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newText, setNewText] = useState('')
-  const [myPosts, setMyPosts] = useState([])
   const copyTimer = useRef(null)
 
   useEffect(() => () => clearTimeout(copyTimer.current), [])
@@ -50,41 +46,11 @@ export default function Community() {
   }
 
   const base = DEMO_POSTS.filter((p) => commIdOf(p) === comm.id)
-  const sortedBase = (base.length ? base : DEMO_POSTS.slice(0, 2)).sort((a, b) => {
+  const posts = (base.length ? base : DEMO_POSTS.slice(0, 2)).sort((a, b) => {
     if (sort === 'top') return b.likes - a.likes
     if (sort === 'diskutiert') return b.comments - a.comments
     return a.id - b.id
   })
-  // Eigene Posts stehen immer oben
-  const mine = [...myPosts].reverse()
-
-  const collapseComposer = () => {
-    setExpanded(false)
-    setNewTitle('')
-    setNewText('')
-  }
-
-  const submitPost = () => {
-    const title = newTitle.trim()
-    if (!title) return
-    setMyPosts((list) => [
-      ...list,
-      {
-        id: `m-${Date.now()}`,
-        author: 'du',
-        community: comm.name,
-        commId: comm.id,
-        title,
-        text: newText.trim(),
-        time: 'jetzt',
-        likes: 0,
-        comments: 0,
-        icon: 'fa-circle-user',
-        color: 'ic-yellow',
-      },
-    ])
-    collapseComposer()
-  }
 
   const copyLink = async (p) => {
     const url = postUrlOf(p)
@@ -121,7 +87,11 @@ export default function Community() {
 
       <div className="start-layout">
         <div className="feed-col">
-          <div className="feed-bar">
+          <div className="feed-bar split">
+            {/* Demo-Button ohne Funktion */}
+            <button type="button" className="btn btn-brand">
+              <i className="fa-solid fa-plus" /> Posten
+            </button>
             <div className="toolbar" role="tablist" aria-label="Beiträge sortieren">
               {SORTS.map((s) => (
                 <button
@@ -138,53 +108,8 @@ export default function Community() {
             </div>
           </div>
 
-          {/* Direkt posten – kein Dialog, Feld klappt auf */}
-          <div className="post composer-card">
-            {!expanded ? (
-              <button type="button" className="composer-fake" onClick={() => setExpanded(true)}>
-                <span className="avatar sm" aria-hidden="true">
-                  <i className="fa-solid fa-circle-user ic-yellow" />
-                </span>
-                <span className="composer-hint">In t/{comm.name} posten …</span>
-                <i className="fa-solid fa-plus composer-plus" aria-hidden="true" />
-              </button>
-            ) : (
-              <div className="post-form">
-                <input
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Titel"
-                  aria-label="Titel"
-                  maxLength={120}
-                  autoFocus
-                />
-                <textarea
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  placeholder="Text (optional)"
-                  aria-label="Text"
-                  rows={3}
-                  maxLength={1000}
-                />
-                <div className="composer-actions">
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={collapseComposer}>
-                    Abbrechen
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-brand btn-sm"
-                    disabled={!newTitle.trim()}
-                    onClick={submitPost}
-                  >
-                    <i className="fa-solid fa-paper-plane" /> Posten
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="app-feed">
-            {[...mine, ...sortedBase].map((p, i) => {
+            {posts.map((p, i) => {
               const cid = commIdOf(p)
               const isLiked = !!liked[p.id]
               return (

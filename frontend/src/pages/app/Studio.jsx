@@ -563,10 +563,11 @@ export default function Studio({ showToast }) {
         <div className="ctx-backdrop" onClick={() => setCreateAt(null)} onContextMenu={(e) => { e.preventDefault(); setCreateAt(null) }}>
           <div className="ctx-menu" role="menu" aria-label="Erstellen" style={{ top: createAt.y, left: createAt.x }} onClick={(e) => e.stopPropagation()}>
             <div className="ctx-title">Erstellen</div>
-            <button type="button" onClick={() => { setCreateAt(null); fileRef.current?.click() }}>
+            {/* Demo-Einträge ohne Funktion */}
+            <button type="button" onClick={() => setCreateAt(null)}>
               <i className="fa-solid fa-clapperboard ic-yellow" /> Short hochladen
             </button>
-            <button type="button" onClick={() => { setCreateAt(null); setNpOpen(true) }}>
+            <button type="button" onClick={() => setCreateAt(null)}>
               <i className="fa-solid fa-pen-to-square ic-teal" /> Post erstellen
             </button>
           </div>
