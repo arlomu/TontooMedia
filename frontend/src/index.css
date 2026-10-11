@@ -323,6 +323,8 @@ main.app-wrap { max-width: none; padding: 0; }
 .app-search { flex: 1; max-width: 480px; margin: 0 auto; }
 .app-content { min-width: 0; max-width: 960px; }
 .app-content:has(.shorts-page) { max-width: none; }
+/* Shorts: Seiten-Scroll locken – nur der Short-Wechsel scrollt, kein Scrollbalken */
+.app-main:has(.shorts-page) { height: 100vh; height: 100dvh; overflow: hidden; padding-bottom: 0; }
 .side-overlay { display: none; }
 
 /* ---------- /app: Content-Pages (alle nur Beispiel) ---------- */
