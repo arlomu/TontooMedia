@@ -573,6 +573,12 @@ main.app-wrap { max-width: none; padding: 0; }
 }
 .set-desc { margin: 0 0 16px; font-size: 13px; color: var(--text-3rd); }
 .set-section .field input, .set-section .field textarea { background: var(--surface2); }
+/* Username ist eine Zeile: @-Prefix + transparentes Feld (keine Doppel-Box) */
+.set-section .handle-wrap input { background: transparent; }
+.sheet .field input { background: var(--surface2); }
+.sheet-narrow { width: min(420px, 100%); }
+.konto-stack { display: flex; flex-direction: column; gap: 10px; }
+.formerror.nomargin { margin: 0; }
 .profile-hero {
   display: flex; align-items: center; gap: 14px;
   background: var(--surface2); border: 1px solid var(--border);
@@ -581,7 +587,7 @@ main.app-wrap { max-width: none; padding: 0; }
 .avatar-xl {
   width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
   display: grid; place-items: center;
-  background: var(--bg); border: 1px solid var(--border);
+  background: var(--bg); border: 2px solid var(--brand);
   color: var(--brand); font-size: 30px;
 }
 .profile-prev { display: flex; flex-direction: column; min-width: 0; }

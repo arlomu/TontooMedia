@@ -33,6 +33,22 @@ export default function Einstellungen({ showToast }) {
   const [pwNew, setPwNew] = useState('')
   const [pwAgain, setPwAgain] = useState('')
   const [pwError, setPwError] = useState(null)
+  const [pwOpen, setPwOpen] = useState(false)
+
+  const closePw = () => {
+    setPwOpen(false)
+    setPwError(null)
+    setPwNow('')
+    setPwNew('')
+    setPwAgain('')
+  }
+
+  useEffect(() => {
+    if (!pwOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') closePw() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pwOpen])
 
   const changePassword = (e) => {
     e.preventDefault()
@@ -40,10 +56,7 @@ export default function Einstellungen({ showToast }) {
     if (pwNew.length < 4) return setPwError('Das neue Passwort muss mindestens 4 Zeichen haben.')
     if (pwNew !== pwAgain) return setPwError('Die neuen Passwörter stimmen nicht überein.')
     if (pwNew === pwNow) return setPwError('Das neue Passwort unterscheidet sich nicht vom alten.')
-    setPwError(null)
-    setPwNow('')
-    setPwNew('')
-    setPwAgain('')
+    closePw()
     toast('Passwort geändert (Beispiel).')
   }
 
@@ -133,63 +146,19 @@ export default function Einstellungen({ showToast }) {
         )}
       </section>
 
-      {/* Sicherheit */}
-      <section className="set-section">
-        <h3 className="set-h3"><i className="fa-solid fa-shield-halved ic-teal" /> Sicherheit</h3>
-        <p className="set-desc">Ändere dein Passwort – gilt sofort.</p>
-
-        <form onSubmit={changePassword} noValidate>
-          <label className="field">
-            <span>Aktuelles Passwort</span>
-            <input
-              type="password"
-              placeholder="Aktuelles Passwort"
-              value={pwNow}
-              autoComplete="current-password"
-              onChange={(e) => setPwNow(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Neues Passwort</span>
-            <input
-              type="password"
-              placeholder="Mindestens 4 Zeichen"
-              value={pwNew}
-              autoComplete="new-password"
-              onChange={(e) => setPwNew(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Neues Passwort wiederholen</span>
-            <input
-              type="password"
-              placeholder="Nochmal eingeben"
-              value={pwAgain}
-              autoComplete="new-password"
-              onChange={(e) => setPwAgain(e.target.value)}
-            />
-          </label>
-
-          {pwError && (
-            <p className="formerror" role="alert">
-              <i className="fa-solid fa-circle-exclamation" /> {pwError}
-            </p>
-          )}
-
-          <button type="submit" className="btn btn-brand btn-block">
-            <i className="fa-solid fa-key" /> Passwort ändern
-          </button>
-        </form>
-      </section>
-
       {/* Konto */}
       <section className="set-section">
         <h3 className="set-h3"><i className="fa-solid fa-right-from-bracket ic-teal" /> Konto</h3>
-        <p className="set-desc">Abmelden oder dein Konto verlassen.</p>
+        <p className="set-desc">Passwort, Abmeldung und Löschung an einem Ort.</p>
 
-        <button type="button" className="btn btn-ghost btn-block" onClick={logout}>
-          <i className="fa-solid fa-right-from-bracket" /> Abmelden
-        </button>
+        <div className="konto-stack">
+          <button type="button" className="btn btn-ghost btn-block" onClick={() => setPwOpen(true)}>
+            <i className="fa-solid fa-key" /> Passwort ändern
+          </button>
+          <button type="button" className="btn btn-ghost btn-block" onClick={logout}>
+            <i className="fa-solid fa-right-from-bracket" /> Abmelden
+          </button>
+        </div>
 
         <div className="danger-box">
           <strong className="danger-title"><i className="fa-solid fa-triangle-exclamation" /> Konto löschen</strong>
@@ -222,6 +191,60 @@ export default function Einstellungen({ showToast }) {
           )}
         </div>
       </section>
+
+      {/* Passwort-Modal */}
+      {pwOpen && (
+        <div className="sheet-backdrop" onClick={closePw}>
+          <div className="sheet sheet-narrow" role="dialog" aria-modal="true" aria-label="Passwort ändern" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={changePassword} noValidate>
+              <div className="sheet-head">
+                <strong className="sheet-title">Passwort ändern</strong>
+              </div>
+              <div className="sheet-body">
+                <label className="field nomargin">
+                  <span>Aktuelles Passwort</span>
+                  <input
+                    type="password"
+                    placeholder="Aktuelles Passwort"
+                    value={pwNow}
+                    autoComplete="current-password"
+                    onChange={(e) => setPwNow(e.target.value)}
+                  />
+                </label>
+                <label className="field nomargin">
+                  <span>Neues Passwort</span>
+                  <input
+                    type="password"
+                    placeholder="Mindestens 4 Zeichen"
+                    value={pwNew}
+                    autoComplete="new-password"
+                    onChange={(e) => setPwNew(e.target.value)}
+                  />
+                </label>
+                <label className="field nomargin">
+                  <span>Neues Passwort wiederholen</span>
+                  <input
+                    type="password"
+                    placeholder="Nochmal eingeben"
+                    value={pwAgain}
+                    autoComplete="new-password"
+                    onChange={(e) => setPwAgain(e.target.value)}
+                  />
+                </label>
+                {pwError && (
+                  <p className="formerror nomargin" role="alert">
+                    <i className="fa-solid fa-circle-exclamation" /> {pwError}
+                  </p>
+                )}
+              </div>
+              <div className="sheet-foot">
+                <button type="button" className="btn btn-ghost" onClick={closePw}>Abbrechen</button>
+                <button type="submit" className="btn btn-brand"><i className="fa-solid fa-key" /> Ändern</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
