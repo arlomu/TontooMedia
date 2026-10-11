@@ -14,6 +14,11 @@ import {
   mediaSrc,
 } from '../../lib/api.js'
 
+const COMMENT_SORTS = [
+  { id: 'beste', label: 'Beste', icon: 'fa-ranking-star' },
+  { id: 'neu', label: 'Neu', icon: 'fa-clock' },
+]
+
 // Einzelner Post im Reddit-Stil: /t/:name/post/:postId
 // Zurück-Pfeil, Titel, Body, Aktionen (Teilen + Löschen als Admin),
 // echte Kommentare mit Replies + Likes, Composer unten, Community-Box rechts.
