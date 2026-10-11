@@ -16,12 +16,42 @@ export const DEMO_POSTS = [
 ]
 
 export const DEMO_SHORTS = [
-  { id: 1, title: 'POV: Golden Hour', views: '18 Tsd.', dur: '0:32', icon: 'fa-camera', color: 'ic-teal' },
-  { id: 2, title: 'Clutch in 15s', views: '92 Tsd.', dur: '0:15', icon: 'fa-gamepad', color: 'ic-violet' },
-  { id: 3, title: 'Beat aus dem Schlafzimmer', views: '7 Tsd.', dur: '0:44', icon: 'fa-music', color: 'ic-yellow' },
-  { id: 4, title: 'Pasta in 15 Min', views: '31 Tsd.', dur: '0:58', icon: 'fa-utensils', color: 'ic-teal' },
-  { id: 5, title: 'Setup-Tour 2026', views: '54 Tsd.', dur: '1:02', icon: 'fa-microchip', color: 'ic-violet' },
-  { id: 6, title: 'Straßenfotos Berlin', views: '11 Tsd.', dur: '0:27', icon: 'fa-camera', color: 'ic-yellow' },
+  {
+    id: 1,
+    author: 'pixel.tom',
+    title: 'Clutch in 15 Sekunden',
+    sound: 'Originalton – pixel.tom',
+    likes: '958.222',
+    comments: '20.994',
+    remixes: '508',
+    icon: 'fa-gamepad',
+    color: 'ic-violet',
+    dur: '0:15',
+  },
+  {
+    id: 2,
+    author: 'mia.postet',
+    title: 'POV: Golden Hour in der Stadt',
+    sound: 'golden hour – beat.lena',
+    likes: '312.480',
+    comments: '8.131',
+    remixes: '196',
+    icon: 'fa-camera',
+    color: 'ic-teal',
+    dur: '0:32',
+  },
+  {
+    id: 3,
+    author: 'beat.lena',
+    title: 'Beat aus dem Schlafzimmer',
+    sound: 'Originalton – beat.lena',
+    likes: '87.905',
+    comments: '2.340',
+    remixes: '74',
+    icon: 'fa-music',
+    color: 'ic-yellow',
+    dur: '0:44',
+  },
 ]
 
 export const DEMO_UPLOADS = [

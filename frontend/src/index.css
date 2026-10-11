@@ -352,24 +352,84 @@ main.app-wrap { max-width: none; padding: 0; }
 .postmeta { display: flex; gap: 18px; font-size: 13px; color: var(--text-3rd); }
 .postmeta span { display: inline-flex; align-items: center; gap: 6px; }
 
-/* Shorts */
-.shorts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
-.short-card { transition: transform 0.15s; }
-.short-card:hover { transform: translateY(-3px); }
-.short-thumb {
-  position: relative; aspect-ratio: 9 / 14;
-  display: grid; place-items: center;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--radius); font-size: 34px;
+/* Shorts-Viewer (YouTube-Stil, alles Beispiel) */
+.shorts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.shorts-stage { display: flex; gap: 14px; align-items: center; justify-content: center; }
+.short-player {
+  position: relative; width: min(400px, 100%); aspect-ratio: 9 / 16; max-height: 76vh;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; flex-shrink: 0;
 }
-.short-dur {
-  position: absolute; right: 8px; bottom: 8px;
-  background: var(--bg); border: 1px solid var(--border);
-  font-size: 11px; font-weight: 600; color: var(--text-sec);
-  border-radius: 6px; padding: 2px 7px;
+.short-player:fullscreen { border-radius: 0; max-height: none; width: 100%; }
+.short-screen {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  background: var(--surface2); font-size: 72px;
 }
-.short-title { font-size: 14px; font-weight: 600; margin-top: 8px; }
-.short-views { font-size: 12px; color: var(--text-3rd); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+.short-screen small { font-size: 13px; color: var(--text-3rd); font-family: var(--font-body); padding: 0 24px; text-align: center; }
+.short-bigplay {
+  position: absolute; inset: 0; margin: auto; width: 76px; height: 76px;
+  border-radius: 50%; border: 1px solid var(--border); cursor: pointer;
+  background: color-mix(in srgb, var(--surface2) 85%, transparent);
+  color: var(--text); font-size: 26px; padding-left: 5px;
+  transition: transform 0.12s, border-color 0.15s;
+}
+.short-bigplay:hover { transform: scale(1.06); border-color: var(--brand); }
+.short-progress { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 4px; padding: 8px 10px 0; }
+.short-progress span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); }
+.short-progress span.done { background: var(--text-sec); }
+.short-progress span.now { background: var(--brand); }
+.short-top {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 12px 0;
+}
+.short-topgroup { display: flex; gap: 8px; }
+.pillbtn {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid transparent; cursor: pointer;
+  background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 15px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.1s, border-color 0.15s, background 0.15s;
+}
+.pillbtn:hover { transform: translateY(-1px); border-color: var(--border); }
+.pillbtn.on { color: var(--brand); border-color: var(--brand); }
+.short-rail {
+  position: absolute; right: 10px; bottom: 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.rail-btn {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid transparent; cursor: pointer;
+  background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 19px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.1s, border-color 0.15s;
+}
+.rail-btn:hover { transform: translateY(-1px); border-color: var(--border); }
+.rail-btn .liked { color: var(--brand); }
+.rail-count { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.rail-thumb { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); margin-top: 4px; }
+.short-info { position: absolute; left: 12px; right: 76px; bottom: 14px; }
+.short-userrow { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.short-avatar { color: #fff; font-size: 30px; line-height: 1; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.short-author { color: #fff; font-weight: 700; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.follow-btn { padding: 7px 14px; font-size: 13px; }
+.short-title { color: #fff; font-weight: 600; font-size: 15px; margin-bottom: 8px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.sound-pill {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  background: rgba(0, 0, 0, 0.45); border: 1px solid transparent; border-radius: 999px;
+  padding: 6px 13px; color: #fff; font-size: 12.5px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.sound-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.short-nav { display: flex; flex-direction: column; gap: 10px; }
+.short-nav .iconbtn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+@media (max-width: 560px) {
+  .shorts-stage { gap: 8px; }
+  .short-player { max-height: 70vh; }
+  .short-info { right: 66px; }
+}
 
 /* Studio */
 .dropzone {
