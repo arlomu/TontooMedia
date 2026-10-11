@@ -99,8 +99,10 @@ export default function User() {
   const u = profile.user
   const shorts = profile.shorts
 
-  // Sortierung: Neustes (neueste zuerst), Ältestes, Beliebteste (Likes + Aufrufe)
-  const score = (s) => Number(s.likes || 0) + Number(s.views || 0)
+  // Sortierung: Neustes (neueste zuerst), Ältestes,
+  // Beliebteste (1 Like = 3 Views, 2 Kommentare = 1 View)
+  const score = (s) =>
+    (Number(s.views) || 0) + (Number(s.likes) || 0) * 3 + (Number(s.comments) || 0) * 0.5
   const sortedShorts = [...shorts].sort((a, b) =>
     sort === 'old' ? a.id - b.id : sort === 'top' ? score(b) - score(a) : b.id - a.id
   )
