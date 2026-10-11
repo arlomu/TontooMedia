@@ -115,8 +115,11 @@ export default function Shorts({ showToast }) {
     }
     v.muted = muted
     const p = v.play()
-    if (p && typeof p.catch === 'function') {
-      p.catch(() => {
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        // Ton läuft -> Hinweis weg (auch wenn ein früherer Short blockt war)
+        if (!v.muted) setSndBlocked(false)
+      }).catch(() => {
         if (!v.muted) {
           v.muted = true
           setSndBlocked(true)

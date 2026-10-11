@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   COMMUNITIES,
   DEMO_STUDIO_POSTS,
@@ -430,16 +431,16 @@ export default function Studio({ showToast }) {
                     <tr key={s.id} onContextMenu={(e) => openCtx(e, 'short', s.id)}>
                       <td>
                         <span className="cell-main">
-                          <span className="thumb-mini" aria-hidden="true">
+                          <Link to={`/shorts/${s.id}`} className="thumb-mini cell-link" aria-label={`Short ${s.title} ansehen`}>
                             {s.thumb ? (
                               <img className="thumb-img" src={s.thumb} alt="" />
                             ) : (
                               <i className={`fa-solid ${s.icon} ${s.color}`} />
                             )}
                             <span className="thumb-dur">{s.dur}</span>
-                          </span>
+                          </Link>
                           <span className="cell-text">
-                            <strong className="cell-title">{s.title}</strong>
+                            <Link to={`/shorts/${s.id}`} className="cell-title cell-link">{s.title}</Link>
                             {!!s.tags?.length && (
                               <small className="cell-sub">{s.tags.map((t) => `#${t}`).join(' ')}</small>
                             )}
